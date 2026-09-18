@@ -1,0 +1,22 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import '@ahmartecnologias/ahmardesign/ahmardesign.css';
+	import 'highlight.js/styles/github.css';
+	import Navbar from '$lib/components/Navbar.svelte';
+	import { iniciarTema } from '$lib/theme.svelte';
+
+	let { children, data } = $props();
+
+	onMount(async () => {
+		// Helper JS da ahmardesign SÓ no cliente (acessa document.body/localStorage).
+		await import('@ahmartecnologias/ahmardesign/ahmardesign.js');
+		window.AHMAR?.init();
+		iniciarTema();
+	});
+</script>
+
+<Navbar user={data.user} />
+
+<main>
+	{@render children()}
+</main>
