@@ -39,3 +39,4 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 
 - Better Auth no SvelteKit precisa `basePath: '/api/auth'` na inicialização do `auth.ts`
 - Mermaid roda em SSR? Não — renderizar no cliente (blocos mermaid são típicos candidatos a componente `{#if}`/lazy no SvelteKit)
+- adapter-node: dependência em `dependencies` fica **externa** no build (resolvida de `node_modules` em runtime); em `devDependencies` é **bundlada**. `better-sqlite3` (addon nativo) DEVE ficar em `dependencies` — se for bundlado, `require.main` explode em runtime ESM ("require is not defined"). `ssr.external`/`rollupOptions.external` no vite não funcionam nesse caso (rolldown ignora); a regra é o package.json
