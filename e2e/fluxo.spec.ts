@@ -2,8 +2,14 @@ import { test, expect } from '@playwright/test';
 
 const SENHA = process.env.APP_MASTER_PASSWORD ?? 'mestradee2e';
 
-test('bloqueia sem login e pede a senha mestra', async ({ page }) => {
-	await page.goto('/apostilas');
+test('index é público e mostra as apostilas', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
+	await expect(page.getByRole('main').getByRole('link', { name: 'Nova apostila' })).toHaveCount(0);
+});
+
+test('rota protegida redireciona para o login', async ({ page }) => {
+	await page.goto('/apostilas/nova');
 	await expect(page).toHaveURL(/\/login/);
 });
 
@@ -11,7 +17,6 @@ test('faz login com a senha mestra', async ({ page }) => {
 	await page.goto('/login');
 	await page.getByLabel('Senha mestra').fill(SENHA);
 	await page.getByRole('button', { name: 'Entrar' }).click();
-	await expect(page).toHaveURL(/\/apostilas/);
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 	await expect(page.getByRole('main').getByRole('link', { name: 'Nova apostila' })).toBeVisible();
 });
@@ -27,7 +32,7 @@ test('fluxo completo: cria apostila e aula', async ({ page }) => {
 	await page.goto('/login');
 	await page.getByLabel('Senha mestra').fill(SENHA);
 	await page.getByRole('button', { name: 'Entrar' }).click();
-	await expect(page).toHaveURL(/\/apostilas/);
+	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
 	const titulo = `Apostila E2E ${Date.now()}`;
 	await page.goto('/apostilas/nova');

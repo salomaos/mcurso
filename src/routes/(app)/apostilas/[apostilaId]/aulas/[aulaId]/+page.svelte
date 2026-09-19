@@ -13,10 +13,19 @@
 	<div class="flex items-center justify-between gap-2 no-print">
 		<a href={`/apostilas/${data.apostila.id}`} class="btn btn-ghost btn-sm">← {data.apostila.titulo}</a>
 		<div class="flex gap-1">
-			<a href={`/apostilas/${data.apostila.id}/aulas/${data.aula.id}/editar`} class="btn btn-outline btn-sm">
-				Editar
-			</a>
-			<a href={`/apostilas/${data.apostila.id}/aulas/${data.aula.id}/imprimir`} class="btn btn-ghost btn-sm" target="_blank">
+			{#if data.user}
+				<a
+					href={`/apostilas/${data.apostila.id}/aulas/${data.aula.id}/editar`}
+					class="btn btn-outline btn-sm"
+				>
+					Editar
+				</a>
+			{/if}
+			<a
+				href={`/apostilas/${data.apostila.id}/aulas/${data.aula.id}/imprimir`}
+				class="btn btn-ghost btn-sm"
+				target="_blank"
+			>
 				Imprimir/PDF
 			</a>
 		</div>
@@ -33,7 +42,20 @@
 	</header>
 
 	{#if data.aula.blocos.length === 0}
-		<div class="alert alert-info">Aula sem blocos ainda. <a href={`/apostilas/${data.apostila.id}/aulas/${data.aula.id}/editar`} class="link">Editar conteúdo</a>.</div>
+		<div class="alert alert-info">
+			{#if data.user}
+				Aula sem blocos ainda.
+				<a
+					href={`/apostilas/${data.apostila.id}/aulas/${data.aula.id}/editar`}
+					class="link"
+				>
+					Editar conteúdo
+				</a>
+				.
+			{:else}
+				Aula sem conteúdo publicado ainda.
+			{/if}
+		</div>
 	{/if}
 
 	<div class="space-y-3">

@@ -1,11 +1,7 @@
-import { desc } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { apostilas } from '$lib/server/db/schema';
-import { requerSessao } from '$lib/server/guard';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async (event) => {
-	requerSessao(event);
-	const lista = await db.select().from(apostilas).orderBy(desc(apostilas.updatedAt));
-	return { apostilas: lista };
+// A lista pública de apostilas é o index (/); /apostilas fica como atalho.
+export const load: PageServerLoad = () => {
+	throw redirect(308, '/');
 };

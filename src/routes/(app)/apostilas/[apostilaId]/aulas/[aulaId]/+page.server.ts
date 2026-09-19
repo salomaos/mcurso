@@ -4,11 +4,9 @@ import type { Blocos } from '$lib/blocks';
 import { normalizarBlocos } from '$lib/blocks';
 import { db } from '$lib/server/db';
 import { apostilas, aulas } from '$lib/server/db/schema';
-import { requerSessao } from '$lib/server/guard';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
-	requerSessao(event);
 	const apostilaId = Number(event.params.apostilaId);
 	const aulaId = Number(event.params.aulaId);
 

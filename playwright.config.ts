@@ -18,7 +18,7 @@ export default defineConfig({
 		...devices['Desktop Chrome']
 	},
 	webServer: {
-		command: `pnpm exec drizzle-kit migrate && node build`,
+		command: `pnpm build && pnpm exec drizzle-kit migrate && node build`,
 		url: baseURL,
 		reuseExistingServer: !process.env.CI,
 		stdout: 'pipe',

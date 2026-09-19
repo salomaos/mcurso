@@ -6,7 +6,7 @@ import { auth, MASTER_EMAIL, MASTER_PASSWORD } from '$lib/server/auth';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
-	if (event.locals.session) throw redirect(303, '/apostilas');
+	if (event.locals.session) throw redirect(303, '/');
 	return {};
 };
 
@@ -32,6 +32,6 @@ export const actions: Actions = {
 		}
 
 		await auth.api.signInEmail({ body: { email: MASTER_EMAIL, password: senha } });
-		throw redirect(303, '/apostilas');
+		throw redirect(303, '/');
 	}
 };

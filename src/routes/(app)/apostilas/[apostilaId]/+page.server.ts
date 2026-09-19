@@ -6,7 +6,6 @@ import { requerSessao } from '$lib/server/guard';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
-	requerSessao(event);
 	const id = Number(event.params.apostilaId);
 
 	const [apostila] = await db

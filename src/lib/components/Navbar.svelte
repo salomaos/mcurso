@@ -7,20 +7,22 @@
 
 	async function sair() {
 		await authClient.signOut();
-		goto('/login');
+		goto('/');
 	}
 </script>
 
 <header class="navbar bg-base-200 border-b-2 border-base-300">
 	<div class="flex-1 flex items-center gap-4">
-		<a href="/apostilas" class="btn btn-ghost text-xl px-2">
+		<a href="/" class="btn btn-ghost text-xl px-2">
 			<span class="font-bold">mcurso</span>
 		</a>
 
-		<nav class="flex items-center gap-1">
-			<a href="/apostilas" class="btn btn-ghost btn-sm">Apostilas</a>
-			<a href="/apostilas/nova" class="btn btn-ghost btn-sm">Nova apostila</a>
-		</nav>
+		{#if user}
+			<nav class="flex items-center gap-1">
+				<a href="/" class="btn btn-ghost btn-sm">Apostilas</a>
+				<a href="/apostilas/nova" class="btn btn-ghost btn-sm">Nova apostila</a>
+			</nav>
+		{/if}
 	</div>
 
 	<div class="flex items-center gap-2">
