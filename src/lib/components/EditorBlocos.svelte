@@ -41,12 +41,63 @@
 		atualizar(copia);
 	}
 
-	function atualizarCampo(idx: number, campo: string, valor: string | number) {
+	function atualizarCampo(idx: number, campo: string, valor: string | number | boolean) {
 		const copia = blocos.map((b, i) => {
 			if (i !== idx) return b;
 			return { ...b, [campo]: valor } as Bloco;
 		});
 		atualizar(copia);
+	}
+
+	function atualizarTabela(
+		idx: number,
+		sub: 'cellCabecalho' | 'cellLinha' | 'addLinha' | 'rmLinha' | 'addCol' | 'rmCol',
+		l: number,
+		c: number,
+		valor?: string
+	) {
+		const atual = blocos[idx];
+		if (atual?.tipo !== 'tabela') return;
+		const copiar = structuredClone(atual);
+		if (sub === 'cellCabecalho') {
+			copiar.cabecalho[c] = valor ?? '';
+		} else if (sub === 'cellLinha') {
+			copiar.linhas[l][c] = valor ?? '';
+		} else if (sub === 'addLinha') {
+			copiar.linhas.push(Array(copiar.cabecalho.length).fill(''));
+		} else if (sub === 'rmLinha') {
+			copiar.linhas.splice(l, 1);
+		} else if (sub === 'addCol') {
+			copiar.cabecalho.push('');
+			for (const linha of copiar.linhas) linha.push('');
+		} else if (sub === 'rmCol') {
+			copiar.cabecalho.splice(c, 1);
+			for (const linha of copiar.linhas) linha.splice(c, 1);
+		}
+		atualizar(blocos.map((b, i) => (i === idx ? copiar : b)));
+	}
+
+	function atualizarExercicio(
+		idx: number,
+		sub: 'alternativa' | 'addAlt' | 'rmAlt' | 'correta',
+		altIdx: number,
+		valor?: string | number
+	) {
+		const atual = blocos[idx];
+		if (atual?.tipo !== 'exercicio') return;
+		const copiar = structuredClone(atual);
+		if (sub === 'alternativa') {
+			copiar.alternativas[altIdx] = String(valor ?? '');
+		} else if (sub === 'addAlt') {
+			copiar.alternativas.push('');
+			copiar.correta = 0;
+		} else if (sub === 'rmAlt') {
+			copiar.alternativas.splice(altIdx, 1);
+			if (copiar.correta >= copiar.alternativas.length) copiar.correta = copiar.alternativas.length - 1;
+		} else if (sub === 'correta') {
+			copiar.correta = Number(valor);
+		}
+		atualizar(blocos.map((b, i) => (i === idx ? copiar : b)));
 	}
 </script>
 
@@ -206,6 +257,151 @@
 						placeholder="https://..."
 					/>
 				{/if}
+			{:else if bloco.tipo === 'tabela'}
+				<div class="space-y-2">
+					<div class="flex items-center justify-between">
+						<span class="text-xs uppercase font-semibold opacity-60">Tabela</span>
+						<div class="flex gap-1">
+							<button
+								class="btn btn-xs btn-ghost"
+								type="button"
+								onclick={() => atualizarTabela(idx, 'addCol', 0, 0)}
+							>+ Coluna</button>
+							<button
+								class="btn btn-xs btn-ghost"
+								type="button"
+								onclick={() => atualizarTabela(idx, 'addLinha', 0, 0)}
+							>+ Linha</button>
+						</div>
+					</div>
+					<div class="overflow-x-auto">
+						<table class="table table-bordered table-sm">
+							<thead>
+								<tr>
+									{#each bloco.cabecalho as celula, c}
+										<th class="relative">
+											<input
+												class="input input-xs input-bordered w-full"
+												type="text"
+												value={celula}
+												oninput={(e) =>
+													atualizarTabela(idx, 'cellCabecalho', 0, c, e.currentTarget.value)}
+												placeholder="Coluna"
+											/>
+											<button
+												class="btn btn-ghost btn-xs absolute -top-1 -right-1"
+												type="button"
+												title="Remover coluna"
+												onclick={() => atualizarTabela(idx, 'rmCol', 0, c)}
+											>×</button>
+										</th>
+									{/each}
+								</tr>
+							</thead>
+							<tbody>
+								{#each bloco.linhas as linha, l}
+									<tr>
+										{#each linha as celula, c}
+											<td>
+												<input
+													class="input input-xs input-bordered w-full"
+													type="text"
+													value={celula}
+													oninput={(e) =>
+														atualizarTabela(idx, 'cellLinha', l, c, e.currentTarget.value)}
+												/>
+											</td>
+										{/each}
+										<td>
+											<button
+												class="btn btn-ghost btn-xs"
+												type="button"
+												title="Remover linha"
+												onclick={() => atualizarTabela(idx, 'rmLinha', l, 0)}
+											>×</button>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			{:else if bloco.tipo === 'formula'}
+				<div class="space-y-2">
+					<textarea
+						class="textarea textarea-bordered w-full font-mono min-h-16"
+						value={bloco.latex}
+						oninput={(e) => atualizarCampo(idx, 'latex', e.currentTarget.value)}
+						placeholder="LaTeX: E = mc^2"
+					></textarea>
+					<label class="flex items-center gap-2 text-sm">
+						<input
+							type="checkbox"
+							class="toggle toggle-sm"
+							checked={bloco.destaque}
+							onchange={(e) =>
+								atualizarCampo(idx, 'destaque', e.currentTarget.checked)}
+						/>
+						Fórmula em destaque (linha própria)
+					</label>
+				</div>
+			{:else if bloco.tipo === 'exercicio'}
+				<div class="space-y-2">
+					<textarea
+						class="textarea textarea-bordered w-full min-h-16"
+						value={bloco.pergunta}
+						oninput={(e) => atualizarCampo(idx, 'pergunta', e.currentTarget.value)}
+						placeholder="Enunciado do exercício"
+					></textarea>
+					<div class="flex items-center justify-between">
+						<span class="text-xs uppercase font-semibold opacity-60">Alternativas</span>
+						<button
+							class="btn btn-xs btn-ghost"
+							type="button"
+							onclick={() => atualizarExercicio(idx, 'addAlt', 0)}
+						>+ Alternativa</button>
+					</div>
+					{#each bloco.alternativas as alternativa, altIdx}
+						<div class="flex items-center gap-2">
+							<span class="text-xs font-bold opacity-60">{String.fromCharCode(65 + altIdx)})</span>
+							<input
+								class="input input-sm input-bordered flex-1"
+								type="text"
+								value={alternativa}
+								oninput={(e) =>
+									atualizarExercicio(idx, 'alternativa', altIdx, e.currentTarget.value)}
+								placeholder={`Alternativa ${String.fromCharCode(65 + altIdx)}`}
+							/>
+							<input
+								type="radio"
+								class="radio radio-sm"
+								name={`correta-${bloco.id}`}
+								checked={bloco.correta === altIdx}
+								onchange={() => atualizarExercicio(idx, 'correta', altIdx)}
+								title="Marcar como correta"
+							/>
+							<button
+								class="btn btn-ghost btn-xs"
+								type="button"
+								title="Remover alternativa"
+								disabled={bloco.alternativas.length <= 1}
+								onclick={() => atualizarExercicio(idx, 'rmAlt', altIdx)}
+							>×</button>
+						</div>
+					{/each}
+					<textarea
+						class="textarea textarea-bordered w-full min-h-16"
+						value={bloco.explicacao ?? ''}
+						oninput={(e) => {
+							const copia = blocos.map((b, i) => {
+								if (i !== idx || b.tipo !== 'exercicio') return b;
+								return { ...b, explicacao: e.currentTarget.value || undefined };
+							});
+							atualizar(copia);
+						}}
+						placeholder="Explicação (opcional, exibida após responder)"
+					></textarea>
+				</div>
 			{/if}
 		</div>
 	{/each}

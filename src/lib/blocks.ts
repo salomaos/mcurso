@@ -14,8 +14,27 @@ export type BlocoLink = {
 	url?: string;
 	aulaId?: number;
 };
+export type BlocoTabela = { id: string; tipo: 'tabela'; cabecalho: string[]; linhas: string[][] };
+export type BlocoFormula = { id: string; tipo: 'formula'; latex: string; destaque: boolean };
+export type BlocoExercicio = {
+	id: string;
+	tipo: 'exercicio';
+	pergunta: string;
+	alternativas: string[];
+	correta: number;
+	explicacao?: string;
+};
 
-export type Bloco = BlocoTexto | BlocoTitulo | BlocoCodigo | BlocoMermaid | BlocoImagem | BlocoLink;
+export type Bloco =
+	| BlocoTexto
+	| BlocoTitulo
+	| BlocoCodigo
+	| BlocoMermaid
+	| BlocoImagem
+	| BlocoLink
+	| BlocoTabela
+	| BlocoFormula
+	| BlocoExercicio;
 export type Blocos = Bloco[];
 
 export function novoId(): string {
@@ -37,6 +56,12 @@ export function criarBloco(tipo: Bloco['tipo']): Bloco {
 			return { id, tipo, src: '' };
 		case 'link':
 			return { id, tipo, rotulo: '', tipoLink: 'externo' };
+		case 'tabela':
+			return { id, tipo, cabecalho: ['Coluna 1'], linhas: [['']] };
+		case 'formula':
+			return { id, tipo, latex: 'E = mc^2', destaque: true };
+		case 'exercicio':
+			return { id, tipo, pergunta: '', alternativas: ['', ''], correta: 0 };
 	}
 }
 
@@ -46,7 +71,10 @@ export const TIPOS_BLOCO = [
 	{ id: 'codigo', rotulo: 'Código' },
 	{ id: 'mermaid', rotulo: 'Diagrama' },
 	{ id: 'imagem', rotulo: 'Imagem' },
-	{ id: 'link', rotulo: 'Link' }
+	{ id: 'link', rotulo: 'Link' },
+	{ id: 'tabela', rotulo: 'Tabela' },
+	{ id: 'formula', rotulo: 'Fórmula' },
+	{ id: 'exercicio', rotulo: 'Exercício' }
 ] as const;
 
 // Formato de aula usado nas páginas (id + campos de exibição), independente do row do drizzle.
@@ -73,15 +101,86 @@ export function agruparPorSecao<T extends AulaUi>(aulas: T[]): { secao: string |
 	return grupos;
 }
 
-const TIPOS_VALIDOS = new Set<Bloco['tipo']>(['titulo', 'texto', 'codigo', 'mermaid', 'imagem', 'link']);
+const TIPOS_VALIDOS = new Set<Bloco['tipo']>([
+	'titulo',
+	'texto',
+	'codigo',
+	'mermaid',
+	'imagem',
+	'link',
+	'tabela',
+	'formula',
+	'exercicio'
+]);
 
 export function ehBloco(valor: unknown): valor is Bloco {
 	if (!valor || typeof valor !== 'object') return false;
 	const b = valor as Record<string, unknown>;
-	return typeof b.id === 'string' && TIPOS_VALIDOS.has(b.tipo as Bloco['tipo']);
+	if (typeof b.id !== 'string' || !TIPOS_VALIDOS.has(b.tipo as Bloco['tipo'])) return false;
+	switch (b.tipo) {
+		case 'titulo':
+			return typeof b.texto === 'string' && [1, 2, 3].includes(Number(b.nivel));
+		case 'texto':
+		case 'mermaid':
+			return typeof b.conteudo === 'string' || typeof b.diagrama === 'string';
+		case 'codigo':
+			return typeof b.codigo === 'string';
+		case 'imagem':
+			return typeof b.src === 'string';
+		case 'link':
+			return typeof b.rotulo === 'string' && Boolean(b.url || typeof b.aulaId === 'number');
+		case 'tabela':
+			return (
+				Array.isArray(b.cabecalho) &&
+				b.cabecalho.every((c) => typeof c === 'string') &&
+				Array.isArray(b.linhas) &&
+				b.linhas.every((l) => Array.isArray(l) && l.every((c) => typeof c === 'string'))
+			);
+		case 'formula':
+			return typeof b.latex === 'string';
+		case 'exercicio':
+			return (
+				typeof b.pergunta === 'string' &&
+				Array.isArray(b.alternativas) &&
+				b.alternativas.length >= 2 &&
+				b.alternativas.every((a) => typeof a === 'string') &&
+				typeof b.correta === 'number' &&
+				b.correta >= 0 &&
+				b.correta < b.alternativas.length &&
+				Number.isInteger(b.correta)
+			);
+	}
+	return false;
 }
 
 // Sanitiza blocos vindos de um POST (nunca confie no JSON bruto do cliente).
 export function normalizarBlocos(valor: unknown): Blocos {
-	return Array.isArray(valor) ? valor.filter(ehBloco) : [];
+	if (!Array.isArray(valor)) return [];
+	return valor.filter(ehBloco).map(normalizarCamposBloco);
+}
+
+// Garante campos opcionais com valores seguros por tipo.
+function normalizarCamposBloco(bloco: Bloco): Bloco {
+	switch (bloco.tipo) {
+		case 'tabela':
+			return {
+				id: bloco.id,
+				tipo: 'tabela',
+				cabecalho: bloco.cabecalho.map((c) => String(c)),
+				linhas: bloco.linhas.map((l) => l.map((c) => String(c)))
+			};
+		case 'formula':
+			return { id: bloco.id, tipo: 'formula', latex: bloco.latex, destaque: bloco.destaque !== false };
+		case 'exercicio':
+			return {
+				id: bloco.id,
+				tipo: 'exercicio',
+				pergunta: bloco.pergunta,
+				alternativas: bloco.alternativas.map((a) => String(a)),
+				correta: Number(bloco.correta) || 0,
+				explicacao: typeof bloco.explicacao === 'string' ? bloco.explicacao : undefined
+			};
+		default:
+			return bloco;
+	}
 }

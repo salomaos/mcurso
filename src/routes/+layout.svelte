@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import '@ahmartecnologias/ahmardesign/ahmardesign.css';
 	import 'highlight.js/styles/github.css';
+	import 'katex/dist/katex.min.css';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import { iniciarTema } from '$lib/theme.svelte';
 

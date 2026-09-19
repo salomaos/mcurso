@@ -58,4 +58,34 @@ describe('normalizarBlocos / ehBloco', () => {
 		expect(normalizarBlocos('não é array')).toEqual([]);
 		expect(normalizarBlocos(null)).toEqual([]);
 	});
+
+	it('aceita os novos tipos (tabela, formula, exercicio)', () => {
+		const blocos = [criarBloco('tabela'), criarBloco('formula'), criarBloco('exercicio')];
+		const limpos = normalizarBlocos(blocos);
+		expect(limpos).toHaveLength(3);
+		expect(limpos.every((b) => ehBloco(b))).toBe(true);
+	});
+
+	it('reforça campos opcionais dos novos tipos', () => {
+		const limpos = normalizarBlocos([
+			{ id: 't', tipo: 'tabela', cabecalho: ['a'], linhas: [['1']] },
+			{ id: 'f', tipo: 'formula', latex: 'x^2', destaque: false },
+			{ id: 'e', tipo: 'exercicio', pergunta: 'q', alternativas: ['a', 'b'], correta: 1, explicacao: null }
+		]);
+		expect(limpos[0]).toEqual({ id: 't', tipo: 'tabela', cabecalho: ['a'], linhas: [['1']] });
+		expect(limpos[1]).toMatchObject({ tipo: 'formula', latex: 'x^2', destaque: false });
+		expect(limpos[2]).toMatchObject({ tipo: 'exercicio', correta: 1 });
+		expect((limpos[2] as { explicacao?: string }).explicacao).toBeUndefined();
+	});
+
+	it('descarta tabela com linhas não-array', () => {
+		const sujo = [{ id: 't', tipo: 'tabela', cabecalho: ['a'], linhas: [['1'], 'não-linha'] }];
+		expect(normalizarBlocos(sujo)).toEqual([]);
+	});
+
+	it('rejeita exercicio sem alternativas ou correta inválida', () => {
+		expect(ehBloco({ id: 'e', tipo: 'exercicio', pergunta: 'q', alternativas: [], correta: 0 })).toBe(false);
+		expect(ehBloco({ id: 'e', tipo: 'exercicio', pergunta: 'q', alternativas: ['a', 'b'], correta: 5 })).toBe(false);
+		expect(ehBloco({ id: 'f', tipo: 'formula', latex: '' })).toBe(true);
+	});
 });

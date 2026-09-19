@@ -2,6 +2,8 @@
 	import type { Bloco } from '$lib/blocks';
 	import Codigo from './Codigo.svelte';
 	import Mermaid from './Mermaid.svelte';
+	import Formula from './Formula.svelte';
+	import Exercicio from './Exercicio.svelte';
 
 	let { bloco, apostilaId, baseHref = '/apostilas' } = $props();
 
@@ -47,4 +49,31 @@
 			<span class="text-[10px] opacity-60">↗</span>
 		{/if}
 	</a>
+{:else if bloco.tipo === 'tabela'}
+	<div class="overflow-x-auto my-3">
+		<table class="table table-bordered table-sm">
+			{#if bloco.cabecalho.length > 0}
+				<thead>
+					<tr>
+						{#each bloco.cabecalho as celula}
+							<th>{celula || ''}</th>
+						{/each}
+					</tr>
+				</thead>
+			{/if}
+			<tbody>
+				{#each bloco.linhas as linha}
+					<tr>
+						{#each linha as celula}
+							<td>{celula || ''}</td>
+						{/each}
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+{:else if bloco.tipo === 'formula'}
+	<Formula latex={bloco.latex} destaque={bloco.destaque} />
+{:else if bloco.tipo === 'exercicio'}
+	<Exercicio bloco={bloco} />
 {/if}
