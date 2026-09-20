@@ -28,6 +28,13 @@
 			>
 				Imprimir/PDF
 			</a>
+			<a
+				href={`/apostilas/${data.apostila.id}/aulas/${data.aula.id}/apresentar`}
+				class="btn btn-sm"
+				title="Modo apresentação (slides)"
+			>
+				Apresentar
+			</a>
 		</div>
 	</div>
 
