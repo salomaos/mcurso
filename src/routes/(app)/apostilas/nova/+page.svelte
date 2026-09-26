@@ -27,7 +27,7 @@
 
 		<div class="form-control">
 			<label for="descricao" class="label"><span class="label-text">Descrição (opcional)</span></label>
-			<textarea id="descricao" name="descricao" class="textarea textarea-bordered"></textarea>
+			<textarea id="descricao" name="descricao" class="textarea textarea-bordered max-w-full"></textarea>
 		</div>
 
 		<div class="flex gap-2">

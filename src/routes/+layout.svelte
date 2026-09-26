@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import '../app.css';
 	import '@ahmartecnologias/ahmardesign/ahmardesign.css';
 	import 'highlight.js/styles/github.css';
 	import 'katex/dist/katex.min.css';

@@ -5,7 +5,15 @@
 	import Formula from './Formula.svelte';
 	import Exercicio from './Exercicio.svelte';
 
-	let { bloco, apostilaId, baseHref = '/apostilas' } = $props();
+	type Modo = 'editar' | 'visualizar';
+	type Props = {
+		bloco: Bloco;
+		apostilaId: number;
+		baseHref?: string;
+		modo?: Modo;
+	};
+
+	let { bloco, apostilaId, baseHref = '/apostilas', modo = 'visualizar' }: Props = $props();
 
 	function hrefAula(aulaId: number) {
 		return `${baseHref}/${apostilaId}/aulas/${aulaId}`;
@@ -29,24 +37,28 @@
 		<Mermaid diagrama={bloco.diagrama} id={bloco.id} />
 	</div>
 {:else if bloco.tipo === 'imagem'}
-	<figure class="my-3">
+	<figure class="my-3 flex flex-col items-center">
 		<img src={bloco.src} alt={bloco.legenda ?? ''} class="rounded-box max-w-full" />
 		{#if bloco.legenda}
-			<figcaption class="text-sm opacity-80 mt-1 text-center">{bloco.legenda}</figcaption>
+			<figcaption class="text-sm opacity-80 mt-1 text-left w-fit self-start">{bloco.legenda}</figcaption>
 		{/if}
 	</figure>
 {:else if bloco.tipo === 'link'}
-	{@const ext = bloco.tipoLink === 'externo'}
+	{@const interno = bloco.tipoLink === 'aula'}
+	{@const externo = bloco.tipoLink === 'externo'}
 	<a
-		href={ext ? bloco.url : hrefAula(bloco.aulaId)}
-		target={ext ? '_blank' : undefined}
-		rel={ext ? 'noopener noreferrer' : undefined}
+		href={interno ? hrefAula(bloco.aulaId ?? 0) : bloco.url}
+		target={externo ? '_blank' : undefined}
+		rel={externo ? 'noopener noreferrer' : undefined}
 		class="badge badge-outline gap-1 py-3 px-2"
+		onclick={(event) => {
+			if (modo === 'editar') event.preventDefault();
+		}}
 	>
 		<span class="text-xs uppercase font-semibold">{bloco.tipoLink}</span>
 		<span>{bloco.rotulo}</span>
-		{#if ext}
-			<span class="text-[10px] opacity-60">↗</span>
+		{#if externo}
+			<span class="text-xs opacity-60">↗</span>
 		{/if}
 	</a>
 {:else if bloco.tipo === 'tabela'}
@@ -75,5 +87,5 @@
 {:else if bloco.tipo === 'formula'}
 	<Formula latex={bloco.latex} destaque={bloco.destaque} />
 {:else if bloco.tipo === 'exercicio'}
-	<Exercicio bloco={bloco} />
+	<Exercicio bloco={bloco} {modo} />
 {/if}

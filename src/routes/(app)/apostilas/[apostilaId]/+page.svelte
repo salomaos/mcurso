@@ -49,7 +49,7 @@
 				</div>
 				<div class="form-control">
 					<label for="descricao" class="label"><span class="label-text">Descrição</span></label>
-					<textarea id="descricao" name="descricao" class="textarea textarea-bordered"
+					<textarea id="descricao" name="descricao" class="textarea textarea-bordered max-w-full"
 						>{data.apostila.descricao ?? ''}</textarea
 					>
 				</div>

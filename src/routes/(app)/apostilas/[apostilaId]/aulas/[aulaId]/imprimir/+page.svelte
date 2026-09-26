@@ -7,20 +7,6 @@
 
 <svelte:head>
 	<title>Imprimir — {data.aula.titulo}</title>
-	<style>
-		@media print {
-			.no-print {
-				display: none !important;
-			}
-			body {
-				-webkit-print-color-adjust: exact;
-				print-color-adjust: exact;
-			}
-		}
-		@page {
-			margin: 1.8cm;
-		}
-	</style>
 </svelte:head>
 
 <div class="container max-w-3xl px-4 py-6 space-y-5 pt-8">

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Preview e drawer — protótipo</title>
+		<link rel="stylesheet" href="./styles.css" />
+		<script src="./demo.js" defer></script>
+	</head>
+	<body>
+		<header class="prototype-topbar">
+			<div class="topbar-left">
+				<a class="back-link" href="./index.html">← Todos os exemplos</a>
+				<div class="topbar-brand"><span>mcurso</span><span>preview + drawer</span></div>
+			</div>
+			<div class="topbar-right">
+				<span class="status-pill" data-status>Rascunho salvo</span>
+				<button class="btn btn-primary" type="button" data-save>Salvar aula</button>
+			</div>
+		</header>
+
+		<main class="demo-shell" data-page="drawer">
+			<section class="demo-intro">
+				<div>
+					<p class="demo-mode">Exemplo 03</p>
+					<h1>Prévia com painel lateral</h1>
+				</div>
+				<p>
+					A aula permanece sempre visível. Clique em um bloco para abrir o editor em um painel lateral,
+					feche com Esc ou clique fora do painel.
+				</p>
+			</section>
+
+			<div class="drawer-layout">
+				<div class="drawer-page-wrap">
+					<div class="preview-toolbar">
+						<div>
+							<span class="preview-label">Aula em primeiro plano</span>
+						</div>
+						<button class="btn" type="button" data-save>Salvar alterações</button>
+					</div>
+
+					<article class="drawer-page" data-drawer-page>
+						<p class="preview-type">Arquitetura de aplicações web</p>
+						<h1>Decisões que ficam fáceis de explicar</h1>
+						<p class="preview-meta">Encontro 01 · 45 minutos</p>
+
+						<p class="drawer-hint">Clique em qualquer bloco para experimentar o painel de edição.</p>
+
+						<article class="drawer-card is-active" data-drawer-card data-title="O problema antes da solução" data-text="Antes de escolher qualquer tecnologia, escreva qual problema está sendo resolvido. O contexto é mais importante do que a ferramenta em si.">
+							<span class="preview-type">Texto</span>
+							<h2 data-drawer-title>O problema antes da solução</h2>
+							<p data-drawer-text>Antes de escolher qualquer tecnologia, escreva qual problema está sendo resolvido. O contexto é mais importante do que a ferramenta em si.</p>
+						</article>
+
+						<article class="drawer-card" data-drawer-card data-title="Uma arquitetura simples" data-text="Uma interface comunica com a aplicação, e a aplicação decide como obter e proteger os dados.">
+							<span class="preview-type">Diagrama</span>
+							<h2 data-drawer-title>Uma arquitetura simples</h2>
+							<div class="flow-canvas" role="img" aria-label="Diagrama de três blocos">
+								<div class="flow-line">
+									<div class="flow-node">Interface</div>
+									<div class="flow-node is-accent">Aplicação</div>
+									<div class="flow-node">Dados</div>
+								</div>
+							</div>
+							<p data-drawer-text>Uma interface comunica com a aplicação, e a aplicação decide como obter e proteger os dados.</p>
+						</article>
+
+						<article class="drawer-card" data-drawer-card data-title="Pratique: escolha a camada certa" data-text="Qual parte do sistema deve decidir quais dados podem ser exibidos?">
+							<span class="preview-type">Exercício</span>
+							<h2 data-drawer-title>Pratique: escolha a camada certa</h2>
+							<div class="exercise-card">
+								<strong data-drawer-text>Qual parte do sistema deve decidir quais dados podem ser exibidos?</strong>
+								<button class="exercise-option" type="button" data-answer="a">A. A interface</button>
+								<button class="exercise-option" type="button" data-answer="b">B. A aplicação</button>
+							</div>
+						</article>
+					</article>
+				</div>
+
+				<div class="drawer-overlay" data-drawer-overlay></div>
+				<aside class="edit-drawer" data-drawer aria-hidden="true">
+					<div class="drawer-header">
+						<h2>Editar bloco</h2>
+						<button class="btn btn-quiet" type="button" data-drawer-close aria-label="Fechar painel">Fechar</button>
+					</div>
+					<form class="drawer-body" data-drawer-form>
+						<div class="form-field">
+							<label for="drawer-type">Tipo</label>
+							<select id="drawer-type" data-drawer-type>
+								<option value="Texto">Texto</option>
+								<option value="Diagrama">Diagrama</option>
+								<option value="Exercício">Exercício</option>
+							</select>
+						</div>
+						<div class="form-field">
+							<label for="drawer-title-field">Título</label>
+							<input id="drawer-title-field" type="text" data-drawer-title-field />
+						</div>
+						<div class="form-field">
+							<label for="drawer-text-field">Conteúdo</label>
+							<textarea id="drawer-text-field" data-drawer-text-field></textarea>
+						</div>
+					</form>
+					<div class="drawer-footer">
+						<button class="btn" type="button" data-drawer-close>Cancelar</button>
+						<button class="btn btn-primary" type="button" data-drawer-save>Aplicar alterações</button>
+					</div>
+				</aside>
+			</div>
+		</main>
+	</body>
+</html>

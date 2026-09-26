@@ -8,7 +8,7 @@
 	<title>Entrar — mcurso</title>
 </svelte:head>
 
-<div class="min-h-[60vh] flex items-center justify-center px-4">
+<div class="min-h-screen flex items-center justify-center px-4">
 	<div class="card card-bordered p-6 w-full max-w-sm space-y-4">
 		<div>
 			<h1 class="text-2xl font-bold">mcurso</h1>

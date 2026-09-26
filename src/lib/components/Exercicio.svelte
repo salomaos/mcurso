@@ -1,10 +1,17 @@
 <script lang="ts">
 	import type { BlocoExercicio } from '$lib/blocks';
 
-	let { bloco } = $props<{ bloco: BlocoExercicio }>();
+	type Modo = 'editar' | 'visualizar';
+	let { bloco, modo = 'visualizar' }: { bloco: BlocoExercicio; modo?: Modo } = $props();
 
 	let resposta = $state<number | null>(null);
 	let mostrado = $state(false);
+
+	$effect(() => {
+		JSON.stringify([bloco.id, bloco.pergunta, bloco.alternativas, bloco.correta, bloco.explicacao]);
+		resposta = null;
+		mostrado = false;
+	});
 </script>
 
 <fieldset class="card card-bordered p-4 space-y-3">
@@ -19,8 +26,9 @@
 				class="btn btn-sm btn-block justify-start whitespace-normal h-auto min-h-10"
 				class:btn-primary={mostrado && idx === bloco.correta}
 				class:btn-ghost={resposta === null || (mostrado && idx !== bloco.correta)}
-				disabled={mostrado}
+				disabled={modo === 'editar' || mostrado}
 				onclick={() => {
+					if (modo === 'editar') return;
 					resposta = idx;
 					mostrado = true;
 				}}
@@ -40,7 +48,14 @@
 		{#if bloco.explicacao}
 			<div class="text-sm opacity-80 whitespace-pre-wrap">{bloco.explicacao}</div>
 		{/if}
-		<button type="button" class="btn btn-ghost btn-xs" onclick={() => (mostrado = false)}>
+		<button
+			type="button"
+			class="btn btn-ghost btn-xs"
+			onclick={() => {
+				resposta = null;
+				mostrado = false;
+			}}
+		>
 			Tentar novamente
 		</button>
 	{/if}

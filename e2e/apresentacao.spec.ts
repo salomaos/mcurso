@@ -22,12 +22,16 @@ test('apresenta blocos como slides e navega por teclado', async ({ page }) => {
 	await page.getByRole('button', { name: 'Criar e editar' }).click();
 	await expect(page).toHaveURL(/\/editar/);
 
-	// ---- editor: doise blocos de texto (sem acentos no texto para o teste) ----
 	await page.getByLabel('Título').fill('Encontro apresentável');
 	await page.getByRole('button', { name: 'Adicionar bloco' }).click();
-	await page.getByPlaceholder('Texto da seção...').nth(0).fill('Slide 1: o ponto inicial');
+	await page.getByRole('textbox', { name: 'Texto do bloco' }).nth(0).fill('Slide 1: o ponto inicial');
 	await page.getByRole('button', { name: 'Adicionar bloco' }).click();
-	await page.getByPlaceholder('Texto da seção...').nth(1).fill('Slide 2: a conclusão');
+	await page.getByRole('textbox', { name: 'Texto do bloco' }).nth(1).fill('Slide 2: a conclusão');
+	await page.getByRole('button', { name: 'Visualizar' }).click();
+	await expect(page.getByRole('button', { name: 'Salvar aula' })).toHaveCount(0);
+	await expect(page.getByText('Slide 1: o ponto inicial')).toBeVisible();
+	await page.getByRole('button', { name: 'Editar', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Salvar aula' })).toBeVisible();
 	await page.getByRole('button', { name: 'Salvar aula' }).click();
 	await expect(page).toHaveURL(/\/aulas\/\d+$/);
 
@@ -38,6 +42,11 @@ test('apresenta blocos como slides e navega por teclado', async ({ page }) => {
 	// primeiro slide
 	await expect(page.getByText('1 / 2')).toBeVisible();
 	await expect(page.getByText('Slide 1: o ponto inicial')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Próximo →' }).click();
+	await expect(page.getByText('2 / 2')).toBeVisible();
+	await page.keyboard.press('ArrowLeft');
+	await expect(page.getByText('1 / 2')).toBeVisible();
 
 	// navega com tecla
 	await page.keyboard.press('ArrowRight');

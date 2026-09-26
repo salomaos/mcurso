@@ -54,6 +54,22 @@ describe('normalizarBlocos / ehBloco', () => {
 		expect(ehBloco(criarBloco('imagem'))).toBe(true);
 	});
 
+	it('exige os campos do tipo declarado', () => {
+		expect(ehBloco({ id: 't', tipo: 'texto', diagrama: 'A --> B' })).toBe(false);
+		expect(ehBloco({ id: 'm', tipo: 'mermaid', conteudo: 'A --> B' })).toBe(false);
+		expect(ehBloco({ id: 'c', tipo: 'codigo', codigo: 'const x = 1' })).toBe(false);
+		expect(ehBloco({ id: 't', tipo: 'titulo', texto: 'Título', nivel: '2' })).toBe(false);
+	});
+
+	it('rejeita URLs de link inseguras', () => {
+		expect(
+			ehBloco({ id: 'l', tipo: 'link', rotulo: 'Abrir', tipoLink: 'externo', url: 'javascript:alert(1)' })
+		).toBe(false);
+		expect(
+			ehBloco({ id: 'l', tipo: 'link', rotulo: 'Anexo', tipoLink: 'anexo', url: '/uploads/aula.pdf' })
+		).toBe(true);
+	});
+
 	it('normaliza JSON não-array para lista vazia', () => {
 		expect(normalizarBlocos('não é array')).toEqual([]);
 		expect(normalizarBlocos(null)).toEqual([]);

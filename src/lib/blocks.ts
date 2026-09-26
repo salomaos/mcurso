@@ -113,22 +113,44 @@ const TIPOS_VALIDOS = new Set<Bloco['tipo']>([
 	'exercicio'
 ]);
 
+const TIPOS_LINK = new Set<BlocoLink['tipoLink']>(['exercicio', 'anexo', 'aula', 'externo']);
+
+function ehUrlSegura(valor: unknown): valor is string {
+	if (typeof valor !== 'string' || valor.trim() === '' || valor.startsWith('//')) return false;
+	try {
+		return ['http:', 'https:'].includes(new URL(valor, 'https://mcurso.local').protocol);
+	} catch {
+		return false;
+	}
+}
+
 export function ehBloco(valor: unknown): valor is Bloco {
 	if (!valor || typeof valor !== 'object') return false;
 	const b = valor as Record<string, unknown>;
-	if (typeof b.id !== 'string' || !TIPOS_VALIDOS.has(b.tipo as Bloco['tipo'])) return false;
+	if (typeof b.id !== 'string' || b.id === '' || !TIPOS_VALIDOS.has(b.tipo as Bloco['tipo'])) return false;
 	switch (b.tipo) {
 		case 'titulo':
-			return typeof b.texto === 'string' && [1, 2, 3].includes(Number(b.nivel));
+			return (
+				typeof b.texto === 'string' &&
+				typeof b.nivel === 'number' &&
+				Number.isInteger(b.nivel) &&
+				[1, 2, 3].includes(b.nivel)
+			);
 		case 'texto':
-		case 'mermaid':
-			return typeof b.conteudo === 'string' || typeof b.diagrama === 'string';
+			return typeof b.conteudo === 'string';
 		case 'codigo':
-			return typeof b.codigo === 'string';
+			return typeof b.codigo === 'string' && typeof b.linguagem === 'string';
+		case 'mermaid':
+			return typeof b.diagrama === 'string';
 		case 'imagem':
-			return typeof b.src === 'string';
+			return typeof b.src === 'string' && (b.legenda === undefined || typeof b.legenda === 'string');
 		case 'link':
-			return typeof b.rotulo === 'string' && Boolean(b.url || typeof b.aulaId === 'number');
+			if (typeof b.rotulo !== 'string' || !TIPOS_LINK.has(b.tipoLink as BlocoLink['tipoLink'])) {
+				return false;
+			}
+			return b.tipoLink === 'aula'
+				? typeof b.aulaId === 'number' && Number.isInteger(b.aulaId) && b.aulaId > 0
+				: ehUrlSegura(b.url);
 		case 'tabela':
 			return (
 				Array.isArray(b.cabecalho) &&
@@ -137,7 +159,7 @@ export function ehBloco(valor: unknown): valor is Bloco {
 				b.linhas.every((l) => Array.isArray(l) && l.every((c) => typeof c === 'string'))
 			);
 		case 'formula':
-			return typeof b.latex === 'string';
+			return typeof b.latex === 'string' && (b.destaque === undefined || typeof b.destaque === 'boolean');
 		case 'exercicio':
 			return (
 				typeof b.pergunta === 'string' &&
@@ -145,9 +167,10 @@ export function ehBloco(valor: unknown): valor is Bloco {
 				b.alternativas.length >= 2 &&
 				b.alternativas.every((a) => typeof a === 'string') &&
 				typeof b.correta === 'number' &&
+				Number.isInteger(b.correta) &&
 				b.correta >= 0 &&
 				b.correta < b.alternativas.length &&
-				Number.isInteger(b.correta)
+				(b.explicacao === undefined || b.explicacao === null || typeof b.explicacao === 'string')
 			);
 	}
 	return false;

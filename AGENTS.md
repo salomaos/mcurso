@@ -29,6 +29,10 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 
 ## ahmardesign — regras (da doc da lib, não óbvias)
 
+- **A lib é a fonte da verdade da UI**: construir com as classes do `ahmardesign` (`btn`, `card`, `select`, `alert`, `tabs`, utilitários de flex/gap/spacing/radius…). Antes de escrever qualquer estilo, verificar se a lib já não resolve — não recriar componentes nem aparência da lib no app
+- **CSS local (`<style>` no Svelte) precisa ser justificado**: só quando a lib não tem o que precisa, e no mínimo possível. Nunca estilizar por convenience/ajuste fino o que a lib já cobre
+- **Nunca hardcodar o que o tema muda** (raio, cor, espaçamento): usar os tokens/classes do tema, senão o layout quebra em temas quadrados como `brutalist` (`--rounded-box: 0px`). Ex.: raio → classes `.rounded-box`/`.rounded-btn`/`.rounded-badge` ou `var(--rounded-box)`/`.rounded-btn`; no CSS local, preferir a classe da lib
+- **Dev aponta para o repo local** via `link:../ahmardesign` no package.json (symlink/junction → mudanças na lib valem sem publicar). Para produção, trocar de volta para `^x.y.z` (ou usar `workspace:` se virar workspace)
 - CSS importa no servidor normalmente: `@ahmartecnologias/ahmardesign/ahmardesign.css` via subcaminho do package `exports`
 - **O helper JS (`.../ahmardesign.js`) SÓ no cliente** — executa `AHMAR.init()` na carga e acessa `document.body`/`localStorage`: usar import dinâmico em `onMount`, nunca no SSR
 - Tema via `data-theme` no `<body>`; `AHMAR.setTheme()`; evento `ahmar-theme-change` no `window` para sincronizar store Svelte

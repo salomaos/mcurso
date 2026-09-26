@@ -35,6 +35,10 @@
 
 	onMount(() => {
 		function aoTeclar(e: KeyboardEvent) {
+			const alvo = e.target as HTMLElement | null;
+			const editavel = alvo?.isContentEditable || ['input', 'textarea', 'select'].includes(alvo?.tagName.toLowerCase() ?? '');
+			if (editavel) return;
+			if ((e.key === ' ' || e.key === 'Enter') && alvo?.closest('button, a, [role="application"]')) return;
 			if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown' || e.key === 'Enter') {
 				e.preventDefault();
 				ir(1);
