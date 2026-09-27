@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+	import { arrastar, moverItem } from '$lib/arrastar';
 	import { agruparPorSecao, type AulaUi, type SecaoUi } from '$lib/blocks';
 	import TextoEditavel from '$lib/components/TextoEditavel.svelte';
 	import type { PageData } from './$types';
@@ -56,6 +58,54 @@
 		editandoSecao = null;
 		nomeSecao = '';
 	}
+
+	let erroOrdem = $state('');
+
+	async function salvarOrdem(acao: string, dados: unknown) {
+		const resposta = await fetch(acao, {
+			method: 'POST',
+			headers: { 'content-type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({ dados: JSON.stringify(dados) })
+		});
+
+		if (!resposta.ok) {
+			const retorno = (await resposta.json().catch(() => null)) as {
+				data?: { erro?: string };
+			} | null;
+			erroOrdem = retorno?.data?.erro ?? 'Não foi possível salvar a nova ordem.';
+		} else {
+			erroOrdem = '';
+		}
+
+		await invalidateAll();
+	}
+
+	function moverSecao(origemId: string, destino: { indice: number }) {
+		const atual = secoes.map((secao) => secao.id);
+		const proxima = moverItem(atual, atual.indexOf(Number(origemId)), destino.indice);
+		if (proxima.every((id, i) => id === atual[i])) return;
+		void salvarOrdem('?/reordenarSecoes', { ids: proxima });
+	}
+
+	function moverAula(origemId: string, destino: { lista: string; indice: number }) {
+		const secaoId = destino.lista === '' ? null : Number(destino.lista);
+		const atual = grupos.flatMap((grupo) => grupo.aulas);
+		const de = atual.findIndex((aula) => String(aula.id) === origemId);
+		if (de === -1) return;
+
+		const resto = atual.filter((_, i) => i !== de);
+		resto.splice(destino.indice, 0, { ...atual[de], secaoId });
+		if (resto.every((aula, i) => aula.id === atual[i].id && aula.secaoId === atual[i].secaoId)) return;
+
+		void salvarOrdem('?/reordenarAulas', {
+			ordens: resto.map((aula) => ({ id: aula.id, secaoId: aula.secaoId }))
+		});
+	}
+
+	const opcoesSecoes = { grupo: 'secoes', aoMover: moverSecao };
+	const opcoesAulas = { grupo: 'aulas', aoMover: moverAula };
+	const anexarSecoes = arrastar(opcoesSecoes);
+	const anexarAulas = arrastar(opcoesAulas);
 </script>
 
 <svelte:head>
@@ -75,9 +125,13 @@
 		{/if}
 	</div>
 
-		{#if form?.erro && form?.alvo !== 'secao'}
-			<div class="alert alert-error">{form.erro}</div>
-		{/if}
+	{#if form?.erro && form?.alvo !== 'secao'}
+		<div class="alert alert-error">{form.erro}</div>
+	{/if}
+
+	{#if erroOrdem}
+		<div class="alert alert-error">{erroOrdem}</div>
+	{/if}
 
 
 	{#if data.user}
@@ -140,9 +194,13 @@
 				</div>
 			{/if}
 
-			<ul class="space-y-2">
-				{#each aulasPorSecao as { secao, total }, indice (secao.id)}
-					<li class="flex flex-wrap items-center gap-2" data-secao={secao.id}>
+			<ul class="space-y-2" data-arrasto-lista="secoes" {@attach anexarSecoes}>
+				{#each aulasPorSecao as { secao, total } (secao.id)}
+					<li
+						class="flex flex-wrap items-center gap-2"
+						data-secao={secao.id}
+						data-arrasto-item={secao.id}
+					>
 						{#if editandoSecao === secao.id}
 							<form
 								method="POST"
@@ -173,33 +231,20 @@
 								</button>
 							</form>
 						{:else}
+							<button
+								class="btn btn-ghost btn-xs"
+								type="button"
+								data-arrasto-alca
+								title="Arrastar para reordenar (ou use as setas do teclado)"
+								aria-label={`Mover a seção ${secao.nome}`}
+							>
+								⠿
+							</button>
 							<span class="flex-1 font-medium">{secao.nome}</span>
 							<span class="badge badge-ghost">
 								{total === 1 ? '1 aula' : `${total} aulas`}
 							</span>
 
-							<form method="POST" action="?/moverSecao" class="flex">
-								<input type="hidden" name="secaoId" value={secao.id} />
-								<input type="hidden" name="direcao" value="cima" />
-								<button
-									class="btn btn-ghost btn-xs"
-									type="submit"
-									disabled={indice === 0}
-									title="Mover para cima"
-									aria-label={`Mover a seção ${secao.nome} para cima`}
-								>↑</button>
-							</form>
-							<form method="POST" action="?/moverSecao" class="flex">
-								<input type="hidden" name="secaoId" value={secao.id} />
-								<input type="hidden" name="direcao" value="baixo" />
-								<button
-									class="btn btn-ghost btn-xs"
-									type="submit"
-									disabled={indice === aulasPorSecao.length - 1}
-									title="Mover para baixo"
-									aria-label={`Mover a seção ${secao.nome} para baixo`}
-								>↓</button>
-							</form>
 							<button
 								class="btn btn-ghost btn-xs"
 								type="button"
@@ -245,7 +290,11 @@
 
 	<div class="space-y-6">
 		{#each grupos as grupo, gi (grupo.secao?.id ?? `#${gi}`)}
-			<section class="space-y-2">
+			<section
+				class="space-y-2"
+				data-arrasto-lista={grupo.secao ? String(grupo.secao.id) : ''}
+				{@attach anexarAulas}
+			>
 				{#if grupo.secao}
 					<h2 class="text-xl font-bold border-b-2 border-base-300 pb-1">{grupo.secao.nome}</h2>
 				{:else if data.user}
@@ -255,7 +304,21 @@
 				{/if}
 
 				{#each grupo.aulas as aula (aula.id)}
-					<div class="card card-bordered p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+					<div
+						class="card card-bordered p-3 flex flex-col gap-2 sm:flex-row sm:items-center"
+						data-arrasto-item={aula.id}
+					>
+						{#if data.user}
+							<button
+								class="btn btn-ghost btn-xs self-start sm:self-auto"
+								type="button"
+								data-arrasto-alca
+								title="Arrastar para reordenar (ou use as setas do teclado)"
+								aria-label={`Mover a aula ${aula.titulo}`}
+							>
+								⠿
+							</button>
+						{/if}
 						<div class="flex-1">
 							<div class="font-semibold">{aula.titulo}</div>
 							{#if aula.descricao}
@@ -285,17 +348,6 @@
 								>
 									Editar
 								</a>
-
-								<form method="POST" action="?/moverAula" class="flex">
-									<input type="hidden" name="aulaId" value={aula.id} />
-									<input type="hidden" name="direcao" value="cima" />
-									<button class="btn btn-ghost btn-xs" title="Mover para cima">↑</button>
-								</form>
-								<form method="POST" action="?/moverAula" class="flex">
-									<input type="hidden" name="aulaId" value={aula.id} />
-									<input type="hidden" name="direcao" value="baixo" />
-									<button class="btn btn-ghost btn-xs" title="Mover para baixo">↓</button>
-								</form>
 
 								<form
 									method="POST"

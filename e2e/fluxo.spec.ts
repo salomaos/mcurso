@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-const SENHA = process.env.APP_MASTER_PASSWORD ?? 'mestradee2e';
+import { SENHA_E2E } from './ambiente';
 
 test('index é público e mostra as apostilas', async ({ page }) => {
 	await page.goto('/');
@@ -15,7 +14,7 @@ test('rota protegida redireciona para o login', async ({ page }) => {
 
 test('faz login com a senha mestra', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 	await expect(page.getByRole('main').getByRole('link', { name: 'Nova apostila' })).toBeVisible();
@@ -30,7 +29,7 @@ test('senha errada mostra erro', async ({ page }) => {
 
 test('fluxo completo: cria apostila e aula', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
@@ -66,7 +65,7 @@ test('fluxo completo: cria apostila e aula', async ({ page }) => {
 
 test('edita título e descrição da apostila direto no conteúdo', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
@@ -101,7 +100,7 @@ test('edita título e descrição da apostila direto no conteúdo', async ({ pag
 
 test('canvas edita tabela e exercício e mantém os dados', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
@@ -186,7 +185,7 @@ test('canvas edita tabela e exercício e mantém os dados', async ({ page }) => 
 
 test('diagrama mermaid atualiza ao vivo sem fechar o editor', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
@@ -234,7 +233,7 @@ test('diagrama mermaid atualiza ao vivo sem fechar o editor', async ({ page }) =
 
 test('painel de seções: cria, valida, renomeia, reordena e exclui', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
@@ -272,7 +271,7 @@ test('painel de seções: cria, valida, renomeia, reordena e exclui', async ({ p
 		.click();
 	await expect(painel.nth(1)).toContainText('Bloco 2 — revisado');
 
-	await page.getByRole('button', { name: 'Mover a seção Bloco 2 — revisado para cima' }).click();
+	await page.getByRole('button', { name: 'Mover a seção Bloco 2 — revisado' }).press('ArrowUp');
 	await expect(painel.nth(0)).toContainText('Bloco 2 — revisado');
 	await expect(painel.nth(1)).toContainText('Bloco 1');
 
@@ -284,7 +283,7 @@ test('painel de seções: cria, valida, renomeia, reordena e exclui', async ({ p
 
 test('select de seção agrupa a aula e a seção criada no editor é salva', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 
 	await page.goto('/apostilas/nova');
@@ -313,7 +312,7 @@ test('select de seção agrupa a aula e a seção criada no editor é salva', as
 
 test('trocar tipo de bloco com conteúdo pede confirmação', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 
 	await page.goto('/apostilas/nova');

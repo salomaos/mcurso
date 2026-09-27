@@ -4,6 +4,7 @@
 	import Exercicio from './Exercicio.svelte';
 	import TextoEditavel from './TextoEditavel.svelte';
 	import { criarBloco, TIPOS_BLOCO, type Bloco, type Blocos } from '$lib/blocks';
+	import { arrastar, moverItem } from '$lib/arrastar';
 
 	type Modo = 'editar' | 'visualizar';
 	type AtualizacaoBloco = Bloco | ((atual: Bloco) => Bloco);
@@ -118,14 +119,18 @@
 		selecionadoId = copia.id;
 	}
 
-	function mover(id: string, delta: -1 | 1) {
-		const indice = blocos.findIndex((bloco) => bloco.id === id);
-		const destino = indice + delta;
-		if (indice < 0 || destino < 0 || destino >= blocos.length) return;
-		const copia = [...blocos];
-		[copia[indice], copia[destino]] = [copia[destino], copia[indice]];
+	function moverParaIndice(id: string, indice: number) {
+		const de = blocos.findIndex((bloco) => bloco.id === id);
+		const copia = moverItem(blocos, de, indice);
+		if (copia.every((bloco, i) => bloco.id === blocos[i].id)) return;
 		atualizar(copia);
 	}
+
+	const opcoesArrasto = {
+		grupo: 'blocos',
+		aoMover: (id: string, destino: { indice: number }) => moverParaIndice(id, destino.indice)
+	};
+	const anexarBlocos = arrastar(opcoesArrasto);
 
 	function trocarTipo(id: string, novoTipo: Bloco['tipo']): boolean {
 		const indice = blocos.findIndex((bloco) => bloco.id === id);
@@ -179,7 +184,12 @@
 	}
 </script>
 
-<div class:modo-visualizacao={modo === 'visualizar'} class="editor-canvas space-y-3">
+<div
+	class:modo-visualizacao={modo === 'visualizar'}
+	class="editor-canvas space-y-3"
+	data-arrasto-lista="blocos"
+	{@attach anexarBlocos}
+>
 	{#if blocos.length === 0}
 		<div class="alert alert-info">
 			{modo === 'editar' ? 'Esta aula ainda não tem blocos.' : 'Esta aula ainda não tem conteúdo.'}
@@ -191,6 +201,7 @@
 			class:canvas-bloco-selecionado={modo === 'editar' && selecionadoId === bloco.id}
 			class="canvas-bloco rounded-box"
 			data-canvas-block={bloco.id}
+			data-arrasto-item={bloco.id}
 			onfocusin={() => modo === 'editar' && selecionar(bloco.id)}
 		>
 			{#if modo === 'editar' && (bloco.tipo === 'titulo' || bloco.tipo === 'texto')}
@@ -252,6 +263,15 @@
 			{#if modo === 'editar'}
 				<div class="canvas-acciones">
 					<div class="flex items-center gap-1">
+						<button
+							class="btn btn-xs btn-ghost"
+							type="button"
+							data-arrasto-alca
+							title="Arrastar para reordenar (ou use as setas do teclado)"
+							aria-label={`Mover bloco ${indice + 1}: ${rotuloTipo(bloco.tipo)}`}
+						>
+							⠿
+						</button>
 						{#if bloco.tipo !== 'titulo' && bloco.tipo !== 'texto' && bloco.tipo !== 'exercicio'}
 							<button
 								class="btn btn-xs btn-outline"
@@ -261,26 +281,6 @@
 								{selecionadoId === bloco.id ? 'Editando' : 'Editar'}
 							</button>
 						{/if}
-						<button
-							class="btn btn-xs btn-ghost"
-							type="button"
-							disabled={indice === 0}
-							title="Mover para cima"
-							onclick={(event) => {
-								event.stopPropagation();
-								mover(bloco.id, -1);
-							}}
-						>↑</button>
-						<button
-							class="btn btn-xs btn-ghost"
-							type="button"
-							disabled={indice === blocos.length - 1}
-							title="Mover para baixo"
-							onclick={(event) => {
-								event.stopPropagation();
-								mover(bloco.id, 1);
-							}}
-						>↓</button>
 						<select
 							class="select select-xs select-ghost"
 							aria-label="Tipo do bloco"

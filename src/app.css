@@ -1,3 +1,41 @@
+[data-arrasto-alca] {
+	cursor: grab;
+	touch-action: none;
+}
+
+.arrastando {
+	opacity: 0.5;
+	position: relative;
+	z-index: 1;
+}
+
+.arrastando [data-arrasto-alca] {
+	cursor: grabbing;
+}
+
+.arrasto-alvo,
+.arrasto-alvo-fim {
+	position: relative;
+}
+
+.arrasto-alvo::before,
+.arrasto-alvo-fim::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background-color: hsl(var(--p));
+}
+
+.arrasto-alvo::before {
+	top: -0.4rem;
+}
+
+.arrasto-alvo-fim::after {
+	bottom: -0.4rem;
+}
+
 @media print {
 	.no-print {
 		display: none !important;

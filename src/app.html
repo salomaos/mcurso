@@ -10,6 +10,17 @@
 		%sveltekit.head%
 	</head>
 	<body data-theme="brutalist" data-sveltekit-preload-data="hover">
+		<script>
+			// Aplica o tema salvo antes da primeira pintura: sem JS do app não há flash.
+			try {
+				const permitidos =
+					'light dark cupcake retro cyberpunk synthwave aqua valentine brutalist brutalist-dark'.split(
+						' '
+					);
+				const salvo = localStorage.getItem('ahmar-theme');
+				if (salvo && permitidos.includes(salvo)) document.body.setAttribute('data-theme', salvo);
+			} catch {}
+		</script>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

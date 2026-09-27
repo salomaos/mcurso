@@ -12,8 +12,10 @@
 	onMount(async () => {
 		// Helper JS da ahmardesign SÓ no cliente (acessa document.body/localStorage).
 		await import('@ahmartecnologias/ahmardesign/ahmardesign.js');
-		window.AHMAR?.init();
+		// Antes do init: o initTheme() da lib cairia no 'light' e trocaria o tema
+		// padrão do SSR depois da primeira pintura.
 		iniciarTema();
+		window.AHMAR?.init();
 	});
 </script>
 

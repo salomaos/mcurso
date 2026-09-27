@@ -1,10 +1,12 @@
 import 'dotenv/config';
 import { defineConfig, devices } from '@playwright/test';
+import { DB_E2E, EMAIL_E2E, SEGREDO_E2E, SENHA_E2E, UPLOADS_E2E } from './e2e/ambiente';
 
 const PORT = Number(process.env.E2E_PORT ?? 5179);
 const baseURL = `http://localhost:${PORT}`;
 
-// DB isolado para os testes E2E (migrado dentro do webServer).
+// DB isolado para os testes E2E (recriado e migrado dentro do webServer). As variáveis
+// abaixo sobrescrevem o `.env` de propósito: nada do ambiente de dev entra nos testes.
 export default defineConfig({
 	testDir: 'e2e',
 	fullyParallel: false,
@@ -18,7 +20,7 @@ export default defineConfig({
 		...devices['Desktop Chrome']
 	},
 	webServer: {
-		command: `pnpm build && pnpm exec drizzle-kit migrate && node build`,
+		command: `pnpm build && node scripts/e2e-reset.mjs && pnpm exec drizzle-kit migrate && node build`,
 		url: baseURL,
 		reuseExistingServer: !process.env.CI,
 		stdout: 'pipe',
@@ -28,11 +30,11 @@ export default defineConfig({
 			HOST: '127.0.0.1',
 			ORIGIN: baseURL,
 			BETTER_AUTH_URL: baseURL,
-			BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? 'e2e-secret',
-			APP_MASTER_PASSWORD: process.env.APP_MASTER_PASSWORD ?? 'mestradee2e',
-			APP_MASTER_EMAIL: process.env.APP_MASTER_EMAIL ?? 'e2e@mcurso.local',
-			DB_PATH: process.env.DB_PATH ?? 'data/e2e.db',
-			UPLOADS_DIR: process.env.UPLOADS_DIR ?? 'data/e2e-uploads'
+			BETTER_AUTH_SECRET: SEGREDO_E2E,
+			APP_MASTER_PASSWORD: SENHA_E2E,
+			APP_MASTER_EMAIL: EMAIL_E2E,
+			DB_PATH: DB_E2E,
+			UPLOADS_DIR: UPLOADS_E2E
 		}
 	}
 });

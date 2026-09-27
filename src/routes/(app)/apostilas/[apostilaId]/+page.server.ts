@@ -48,6 +48,41 @@ async function nomeEmUso(apostilaId: number, nome: string, ignorarId?: number) {
 	return lista.some((secao) => secao.id !== ignorarId && mesmoNomeSecao(secao.nome, nome));
 }
 
+function lerIds(dados: FormData): number[] | null {
+	try {
+		const bruto = JSON.parse(String(dados.get('dados') ?? 'null')) as { ids?: unknown };
+		if (!Array.isArray(bruto?.ids)) return null;
+		const ids = bruto.ids.map((valor) => Number(valor));
+		const validos = ids.every((id) => Number.isInteger(id) && id > 0);
+		return validos && new Set(ids).size === ids.length ? ids : null;
+	} catch {
+		return null;
+	}
+}
+
+function lerOrdens(dados: FormData): { id: number; secaoId: number | null }[] | null {
+	try {
+		const bruto = JSON.parse(String(dados.get('dados') ?? 'null')) as { ordens?: unknown };
+		if (!Array.isArray(bruto?.ordens)) return null;
+		const ordens = bruto.ordens.map((valor) => {
+			const item = (valor ?? {}) as { id?: unknown; secaoId?: unknown };
+			const id = Number(item.id);
+			const secaoId =
+				item.secaoId === null || item.secaoId === '' ? null : Number(item.secaoId);
+			return { id, secaoId };
+		});
+		const validos = ordens.every(
+			(ordem) =>
+				Number.isInteger(ordem.id) &&
+				ordem.id > 0 &&
+				(ordem.secaoId === null || (Number.isInteger(ordem.secaoId) && ordem.secaoId > 0))
+		);
+		return validos ? ordens : null;
+	} catch {
+		return null;
+	}
+}
+
 export const actions: Actions = {
 	renomear: async (event) => {
 		requerSessao(event);
@@ -115,35 +150,58 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 
-	moverSecao: async (event) => {
+	reordenarSecoes: async (event) => {
 		requerSessao(event);
 		const apostilaId = Number(event.params.apostilaId);
-		const dados = await event.request.formData();
-		const secaoId = Number(dados.get('secaoId') ?? '');
-		const direcao = dados.get('direcao') === 'cima' ? -1 : 1;
-		if (!await secaoDaApostila(apostilaId, secaoId)) return { erro: 'Seção não encontrada' };
+		const ids = lerIds(await event.request.formData());
+		if (!ids) return fail(400, { erro: 'Ordem inválida.' });
 
-		const lista = await db
-			.select({ id: secoes.id, ordem: secoes.ordem })
+		const existentes = await db
+			.select({ id: secoes.id })
 			.from(secoes)
-			.where(eq(secoes.apostilaId, apostilaId))
-			.orderBy(asc(secoes.ordem), asc(secoes.id));
+			.where(eq(secoes.apostilaId, apostilaId));
+		const validas = new Set(existentes.map((secao) => secao.id));
+		if (ids.length !== existentes.length || ids.some((id) => !validas.has(id)))
+			return fail(400, { erro: 'Ordem inválida.' });
 
-		const idx = lista.findIndex((secao) => secao.id === secaoId);
-		const vizinho = idx + direcao;
-		if (idx === -1 || vizinho < 0 || vizinho >= lista.length) return { erro: 'Movimento inválido' };
+		db.transaction((tx) => {
+			ids.forEach((id, indice) => {
+				tx.update(secoes).set({ ordem: indice }).where(eq(secoes.id, id)).run();
+			});
+		});
 
-		await db.transaction((tx) => {
-			tx
-				.update(secoes)
-				.set({ ordem: lista[vizinho].ordem })
-				.where(eq(secoes.id, lista[idx].id))
-				.run();
-			tx
-				.update(secoes)
-				.set({ ordem: lista[idx].ordem })
-				.where(eq(secoes.id, lista[vizinho].id))
-				.run();
+		return { ok: true };
+	},
+
+	reordenarAulas: async (event) => {
+		requerSessao(event);
+		const apostilaId = Number(event.params.apostilaId);
+		const ordens = lerOrdens(await event.request.formData());
+		if (!ordens) return fail(400, { erro: 'Ordem inválida.' });
+
+		const [existentes, listaSecoes] = await Promise.all([
+			db.select({ id: aulas.id }).from(aulas).where(eq(aulas.apostilaId, apostilaId)),
+			db.select({ id: secoes.id }).from(secoes).where(eq(secoes.apostilaId, apostilaId))
+		]);
+		const validas = new Set(existentes.map((aula) => aula.id));
+		const secoesValidas = new Set(listaSecoes.map((secao) => secao.id));
+		if (
+			ordens.length !== existentes.length ||
+			new Set(ordens.map((ordem) => ordem.id)).size !== ordens.length ||
+			ordens.some(
+				(ordem) =>
+					!validas.has(ordem.id) || (ordem.secaoId !== null && !secoesValidas.has(ordem.secaoId))
+			)
+		)
+			return fail(400, { erro: 'Ordem inválida.' });
+
+		db.transaction((tx) => {
+			ordens.forEach((ordem, indice) => {
+				tx.update(aulas)
+					.set({ ordem: indice, secaoId: ordem.secaoId })
+					.where(eq(aulas.id, ordem.id))
+					.run();
+			});
 		});
 
 		return { ok: true };
@@ -164,40 +222,6 @@ export const actions: Actions = {
 			.returning();
 
 		throw redirect(303, `/apostilas/${apostilaId}/aulas/${nova.id}/editar?novo=1`);
-	},
-
-	moverAula: async (event) => {
-		requerSessao(event);
-		const apostilaId = Number(event.params.apostilaId);
-		const dados = await event.request.formData();
-		const aulaId = Number(dados.get('aulaId') ?? '');
-		const direcao = dados.get('direcao') === 'cima' ? -1 : 1;
-
-		const lista = await db
-			.select({ id: aulas.id, ordem: aulas.ordem })
-			.from(aulas)
-			.where(eq(aulas.apostilaId, apostilaId))
-			.orderBy(asc(aulas.ordem), asc(aulas.id));
-
-		const idx = lista.findIndex((a) => a.id === aulaId);
-		const vizinho = idx + direcao;
-		if (idx === -1 || vizinho < 0 || vizinho >= lista.length) return { erro: 'Movimento inválido' };
-
-		await db
-			.transaction((tx) => {
-				tx
-					.update(aulas)
-					.set({ ordem: lista[vizinho].ordem })
-					.where(eq(aulas.id, lista[idx].id))
-					.run();
-				tx
-					.update(aulas)
-					.set({ ordem: lista[idx].ordem })
-					.where(eq(aulas.id, lista[vizinho].id))
-					.run();
-			});
-
-		return { ok: true };
 	},
 
 	excluirAula: async (event) => {

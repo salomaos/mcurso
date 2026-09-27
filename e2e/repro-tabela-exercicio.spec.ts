@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test";
-
-const SENHA = process.env.APP_MASTER_PASSWORD ?? "mestradee2e";
+import { SENHA_E2E } from './ambiente';
 
 test("repro: cliques +Linha/+Coluna/+Alternativa e digitar celula/alternativa mantem?", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Senha mestra").fill(SENHA);
+  await page.getByLabel("Senha mestra").fill(SENHA_E2E);
+
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page.getByRole("heading", { name: "Apostilas", level: 1 })).toBeVisible();
 

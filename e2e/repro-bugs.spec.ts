@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-const SENHA = process.env.APP_MASTER_PASSWORD ?? 'mestradee2e';
+import { SENHA_E2E } from './ambiente';
 
 test('index é público e mostra as apostilas', async ({ page }) => {
 	await page.goto('/');
@@ -15,7 +14,7 @@ test('rota protegida redireciona para o login', async ({ page }) => {
 
 test('faz login com a senha mestra', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 	await expect(page.getByRole('main').getByRole('link', { name: 'Nova apostila' })).toBeVisible();
@@ -30,7 +29,7 @@ test('senha errada mostra erro', async ({ page }) => {
 
 test('fluxo completo: cria apostila e aula', async ({ page }) => {
 	await page.goto('/login');
-	await page.getByLabel('Senha mestra').fill(SENHA);
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
