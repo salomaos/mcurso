@@ -15,14 +15,17 @@ test('apresenta blocos como slides e navega por teclado', async ({ page }) => {
 	await page.getByLabel('Título').fill(titulo);
 	await page.getByRole('button', { name: 'Criar' }).click();
 	await expect(page).toHaveURL(/\/apostilas\/\d+/);
-	await expect(page.getByLabel('Título')).toHaveValue(titulo);
+	await expect(page.getByLabel('Título da apostila')).toHaveText(titulo);
 
 	// ---- cria a aula ----
-	await page.getByPlaceholder('Título da aula').fill('Encontro apresentável');
-	await page.getByRole('button', { name: 'Criar e editar' }).click();
+	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
 	await expect(page).toHaveURL(/\/editar/);
 
-	await page.getByLabel('Título').fill('Encontro apresentável');
+	await page.getByLabel('Título da aula').click();
+	await page.keyboard.press('Control+a');
+	await page.keyboard.type('Encontro apresentável');
+	await expect(page.getByLabel('Título da aula')).toHaveText('Encontro apresentável');
+
 	await page.getByRole('button', { name: 'Adicionar bloco' }).click();
 	await page.getByRole('textbox', { name: 'Texto do bloco' }).nth(0).fill('Slide 1: o ponto inicial');
 	await page.getByRole('button', { name: 'Adicionar bloco' }).click();

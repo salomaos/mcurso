@@ -83,22 +83,46 @@ export type AulaUi = {
 	apostilaId: number;
 	titulo: string;
 	descricao: string | null;
-	secao: string | null;
+	secaoId: number | null;
 	ordem: number;
 };
 
-// Agrupa aulas em seções preservando a ordem; aulas sem seção ficam no grupo "sem seção".
-export function agruparPorSecao<T extends AulaUi>(aulas: T[]): { secao: string | null; aulas: T[] }[] {
-	const grupos: { secao: string | null; aulas: T[] }[] = [];
-	for (const aula of aulas) {
-		const ultimo = grupos[grupos.length - 1];
-		if (ultimo && ultimo.secao === aula.secao) {
-			ultimo.aulas.push(aula);
-		} else {
-			grupos.push({ secao: aula.secao, aulas: [aula] });
-		}
+export type SecaoUi = {
+	id: number;
+	apostilaId: number;
+	nome: string;
+	ordem: number;
+};
+
+export type GrupoAulas<T> = { secao: SecaoUi | null; aulas: T[] };
+
+export function agruparPorSecao<T extends AulaUi>(secoes: SecaoUi[], aulas: T[]): GrupoAulas<T>[] {
+	const porId = new Map<number, GrupoAulas<T>>();
+	for (const secao of [...secoes].sort((a, b) => a.ordem - b.ordem || a.id - b.id)) {
+		porId.set(secao.id, { secao, aulas: [] });
 	}
-	return grupos;
+	const semSecao: GrupoAulas<T> = { secao: null, aulas: [] };
+
+	for (const aula of aulas) {
+		const grupo = (aula.secaoId !== null ? porId.get(aula.secaoId) : null) ?? semSecao;
+		grupo.aulas.push(aula);
+	}
+
+	const grupos = [...porId.values()].filter((grupo) => grupo.aulas.length > 0);
+	return semSecao.aulas.length > 0 ? [...grupos, semSecao] : grupos;
+}
+
+export const LIMITE_NOME_SECAO = 60;
+
+export function normalizarNomeSecao(valor: unknown): string {
+	return String(valor ?? '')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, LIMITE_NOME_SECAO);
+}
+
+export function mesmoNomeSecao(a: string, b: string): boolean {
+	return a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }) === 0;
 }
 
 const TIPOS_VALIDOS = new Set<Bloco['tipo']>([

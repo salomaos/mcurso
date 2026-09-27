@@ -13,11 +13,13 @@
 	const PASSO_ZOOM = 1.25;
 	const MARGEM = 24;
 	const ESPACO_INTERNO = 32;
+	const ATRASO_ATUALIZACAO = 350;
 
 	let viewport = $state<HTMLDivElement>();
 	let stage = $state<HTMLDivElement>();
 	let container = $state<HTMLDivElement>();
 	let carregando = $state(true);
+	let atualizando = $state(false);
 	let erro = $state<string | null>(null);
 	let arrastando = $state(false);
 	let larguraDiagrama = $state(0);
@@ -25,6 +27,11 @@
 	let zoom = $state(1);
 	let deslocamentoX = $state(0);
 	let deslocamentoY = $state(0);
+	let ajusteAutomatico = $state(true);
+
+	let sequencia = 0;
+	let temporizador: ReturnType<typeof setTimeout> | undefined;
+	let primeiraRenderizacao = true;
 
 	const ponteiros = new Map<number, { x: number; y: number }>();
 	let ponteiroAtivo: number | null = null;
@@ -51,7 +58,8 @@
 		deslocamentoY = limitar(deslocamentoY, minimoY, maximoY);
 	}
 
-	function ajustarParaTela() {
+	function ajustarParaTela(marcarAutomatico = true) {
+		if (marcarAutomatico) ajusteAutomatico = true;
 		if (!viewport || larguraDiagrama <= 0 || alturaDiagrama <= 0) return;
 
 		const larguraUtil = Math.max(1, viewport.clientWidth - ESPACO_INTERNO);
@@ -63,6 +71,10 @@
 		deslocamentoX = (viewport.clientWidth - larguraDiagrama * novoZoom) / 2;
 		deslocamentoY = (viewport.clientHeight - alturaDiagrama * novoZoom) / 2;
 		limitarDeslocamento();
+	}
+
+	function aoAjustarParaTela() {
+		ajustarParaTela();
 	}
 
 	function aplicarZoom(
@@ -80,6 +92,7 @@
 		deslocamentoX = centroX - (centroX - deslocamentoX) * proporcao;
 		deslocamentoY = centroY - (centroY - deslocamentoY) * proporcao;
 		zoom = novoZoom;
+		ajusteAutomatico = false;
 		limitarDeslocamento();
 	}
 
@@ -93,6 +106,7 @@
 
 	function aoGirar(event: WheelEvent) {
 		if (!viewport || larguraDiagrama <= 0) return;
+		if (!event.ctrlKey) return;
 
 		event.preventDefault();
 		const rect = viewport.getBoundingClientRect();
@@ -174,6 +188,7 @@
 			deslocamentoY += event.clientY - ultimoY;
 			ultimoX = event.clientX;
 			ultimoY = event.clientY;
+			ajusteAutomatico = false;
 			limitarDeslocamento();
 		}
 
@@ -235,47 +250,71 @@
 		return true;
 	}
 
+	async function renderizar(definicao: string, cancelado: () => boolean) {
+		if (!container) return;
+
+		const atual = ++sequencia;
+		const inicial = larguraDiagrama === 0;
+		if (inicial) {
+			carregando = true;
+			atualizando = false;
+		} else {
+			atualizando = true;
+		}
+		erro = null;
+
+		try {
+			const mermaid = (await import('mermaid')).default;
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: 'neutral'
+			});
+			const resultado = await mermaid.render(`mermaid-${id}-${atual}`, definicao);
+			if (cancelado() || atual !== sequencia || !container) return;
+
+			const anterior = container.innerHTML;
+			container.innerHTML = resultado.svg;
+			const svg = container.querySelector<SVGSVGElement>('svg');
+
+			if (!svg || !medirSvg(svg)) {
+				container.innerHTML = anterior;
+				throw new Error('O Mermaid não retornou um SVG válido.');
+			}
+
+			resultado.bindFunctions?.(container);
+
+			await tick();
+			if (cancelado() || atual !== sequencia) return;
+			if (ajusteAutomatico) ajustarParaTela(false);
+		} catch (e) {
+			if (cancelado() || atual !== sequencia) return;
+			erro = `Erro ao renderizar diagrama: ${String(e)}`;
+		} finally {
+			if (!cancelado() && atual === sequencia) {
+				carregando = false;
+				atualizando = false;
+			}
+		}
+	}
+
+	function agendarAtualizacao(definicao: string, cancelado: () => boolean) {
+		atualizando = true;
+		if (temporizador) clearTimeout(temporizador);
+		temporizador = setTimeout(() => {
+			temporizador = undefined;
+			void renderizar(definicao, cancelado);
+		}, ATRASO_ATUALIZACAO);
+	}
+
 	onMount(() => {
 		let cancelado = false;
 		let observador: ResizeObserver | undefined;
+		const canceladoAtivo = () => cancelado;
 
-		async function renderizar() {
-			if (!container) return;
-
-			carregando = true;
-			erro = null;
-			larguraDiagrama = 0;
-			alturaDiagrama = 0;
-
-			try {
-				const mermaid = (await import('mermaid')).default;
-				mermaid.initialize({
-					startOnLoad: false,
-					theme: 'neutral'
-				});
-				const resultado = await mermaid.render(`mermaid-${id}`, diagrama);
-				if (cancelado || !container) return;
-
-				container.innerHTML = resultado.svg;
-				resultado.bindFunctions?.(container);
-				const svg = container.querySelector<SVGSVGElement>('svg');
-				if (!svg || !medirSvg(svg)) throw new Error('O Mermaid não retornou um SVG válido.');
-
-				await tick();
-				if (!cancelado) ajustarParaTela();
-			} catch (e) {
-				if (cancelado) return;
-				if (container) container.innerHTML = '';
-				erro = `Erro ao renderizar diagrama: ${String(e)}`;
-			} finally {
-				if (!cancelado) carregando = false;
-			}
-		}
-
-		void renderizar();
+		void renderizar(diagrama, canceladoAtivo);
 
 		if (viewport) {
-			viewport.addEventListener('dblclick', ajustarParaTela);
+			viewport.addEventListener('dblclick', aoAjustarParaTela);
 			viewport.addEventListener('wheel', aoGirar);
 			viewport.addEventListener('pointerdown', aoPressionar);
 			viewport.addEventListener('pointermove', aoMover);
@@ -286,15 +325,17 @@
 
 		if (viewport && typeof ResizeObserver !== 'undefined') {
 			observador = new ResizeObserver(() => {
-				if (!carregando && !erro) ajustarParaTela();
+				if (!carregando && !erro) ajustarParaTela(false);
 			});
 			observador.observe(viewport);
 		}
 
 		return () => {
 			cancelado = true;
+			if (temporizador) clearTimeout(temporizador);
+			sequencia++;
 			observador?.disconnect();
-			viewport?.removeEventListener('dblclick', ajustarParaTela);
+			viewport?.removeEventListener('dblclick', aoAjustarParaTela);
 			viewport?.removeEventListener('wheel', aoGirar);
 			viewport?.removeEventListener('pointerdown', aoPressionar);
 			viewport?.removeEventListener('pointermove', aoMover);
@@ -305,11 +346,20 @@
 			arrastando = false;
 		};
 	});
+
+	$effect(() => {
+		const definicao = diagrama;
+		if (primeiraRenderizacao) {
+			primeiraRenderizacao = false;
+			return;
+		}
+		agendarAtualizacao(definicao, () => false);
+	});
 </script>
 
 <div class="w-full">
 	<div class="flex flex-wrap items-center justify-between gap-2 mb-2 no-print">
-		<span class="text-xs opacity-60">Arraste para mover · use a roda do mouse para zoom</span>
+		<span class="text-xs opacity-60">Arraste para mover · Ctrl + roda para zoom</span>
 		<div class="flex items-center gap-1" aria-label="Controles do diagrama">
 			<button
 				class="btn btn-xs btn-ghost"
@@ -321,9 +371,13 @@
 			>
 				−
 			</button>
-			<span class="text-xs tabular-nums min-w-12 text-center" aria-live="polite">
-				{Math.round(zoom * 100)}%
-			</span>
+		<span
+			class="text-xs tabular-nums min-w-12 text-center"
+			aria-label="Zoom atual"
+			aria-live="polite"
+		>
+			{Math.round(zoom * 100)}%
+		</span>
 			<button
 				class="btn btn-xs btn-ghost"
 				type="button"
@@ -337,7 +391,7 @@
 			<button
 				class="btn btn-xs btn-outline"
 				type="button"
-				onclick={ajustarParaTela}
+				onclick={aoAjustarParaTela}
 				disabled={carregando || erro !== null}
 				aria-label="Ajustar diagrama à tela"
 				title="Ajustar à tela"
@@ -353,7 +407,7 @@
 		class:mermaid-arrastando={arrastando}
 		role="region"
 		aria-label="Diagrama Mermaid interativo"
-		aria-busy={carregando}
+		aria-busy={carregando || atualizando}
 	>
 		<div
 			bind:this={stage}
@@ -369,6 +423,15 @@
 			</div>
 		{:else if erro}
 			<div class="alert alert-error absolute inset-4 overflow-auto text-sm">{erro}</div>
+		{/if}
+
+		{#if atualizando}
+			<div
+				class="absolute bottom-2 right-2 badge badge-sm badge-outline no-print"
+				aria-live="polite"
+			>
+				Atualizando…
+			</div>
 		{/if}
 	</div>
 </div>

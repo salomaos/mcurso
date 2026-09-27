@@ -1,0 +1,1 @@
+ALTER TABLE `aulas` DROP COLUMN `secao`;

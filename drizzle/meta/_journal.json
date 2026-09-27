@@ -8,6 +8,20 @@
       "when": 1789739073025,
       "tag": "0000_marvelous_johnny_blaze",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790443593077,
+      "tag": "0001_living_phantom_reporter",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790443622267,
+      "tag": "0002_sudden_sauron",
+      "breakpoints": true
     }
   ]
 }

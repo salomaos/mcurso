@@ -1,8 +1,13 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
-import { normalizarBlocos, type Blocos } from '$lib/blocks';
+import { and, asc, eq, max } from 'drizzle-orm';
+import {
+	mesmoNomeSecao,
+	normalizarBlocos,
+	normalizarNomeSecao,
+	type Blocos
+} from '$lib/blocks';
 import { db } from '$lib/server/db';
-import { apostilas, aulas } from '$lib/server/db/schema';
+import { apostilas, aulas, secoes } from '$lib/server/db/schema';
 import { requerSessao } from '$lib/server/guard';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -20,9 +25,17 @@ export const load: PageServerLoad = async (event) => {
 		.where(eq(apostilas.id, apostilaId))
 		.limit(1);
 
+	const listaSecoes = await db
+		.select()
+		.from(secoes)
+		.where(eq(secoes.apostilaId, apostilaId))
+		.orderBy(asc(secoes.ordem), asc(secoes.id));
+
 	return {
 		apostila,
-		aula: { ...aula, blocos: normalizarBlocos(aula.blocos as Blocos) }
+		secoes: listaSecoes,
+		aula: { ...aula, blocos: normalizarBlocos(aula.blocos as Blocos) },
+		novo: event.url.searchParams.get('novo') === '1'
 	};
 };
 
@@ -43,11 +56,44 @@ export const actions: Actions = {
 			return fail(400, { erro: 'Os blocos enviados são inválidos.' });
 		}
 
+		const nomeSecao = normalizarNomeSecao(dados.get('secaoNome'));
+		const secaoIdBruto = String(dados.get('secaoId') ?? '').trim();
+		let secaoId: number | null = null;
+
+		if (nomeSecao) {
+			const existentes = await db
+				.select()
+				.from(secoes)
+				.where(eq(secoes.apostilaId, apostilaId));
+			const jaExistente = existentes.find((secao) => mesmoNomeSecao(secao.nome, nomeSecao));
+			if (jaExistente) {
+				secaoId = jaExistente.id;
+			} else {
+				const [linha] = await db
+					.select({ max: max(secoes.ordem) })
+					.from(secoes)
+					.where(eq(secoes.apostilaId, apostilaId));
+				const [criada] = await db
+					.insert(secoes)
+					.values({ apostilaId, nome: nomeSecao, ordem: (linha?.max ?? -1) + 1 })
+					.returning();
+				secaoId = criada.id;
+			}
+		} else if (secaoIdBruto) {
+			const [valida] = await db
+				.select({ id: secoes.id })
+				.from(secoes)
+				.where(and(eq(secoes.id, Number(secaoIdBruto)), eq(secoes.apostilaId, apostilaId)))
+				.limit(1);
+			if (!valida) return fail(400, { erro: 'Seção inválida.' });
+			secaoId = valida.id;
+		}
+
 		await db
 			.update(aulas)
 			.set({
 				titulo,
-				secao: String(dados.get('secao') ?? '').trim() || null,
+				secaoId,
 				descricao: String(dados.get('descricao') ?? '').trim(),
 				blocos,
 				updatedAt: new Date()

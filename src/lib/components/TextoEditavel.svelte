@@ -1,8 +1,13 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	type Props = {
 		texto: string;
 		tipo: 'titulo' | 'texto';
 		nivel?: 1 | 2 | 3;
+		rotulo?: string;
+		marcador?: string;
+		focarAoMontar?: boolean;
 		aoDigitar: (valor: string) => void;
 		aoFocar?: () => void;
 		aoSair?: () => void;
@@ -12,17 +17,40 @@
 		texto,
 		tipo,
 		nivel = 2,
+		rotulo = 'Texto do bloco',
+		marcador = '',
+		focarAoMontar = false,
 		aoDigitar,
 		aoFocar = () => {},
 		aoSair = () => {}
 	}: Props = $props();
 
 	let editando = $state(false);
-	let rascunho = $state('');
 	let elemento = $state<HTMLElement>();
+	let montou = $state(false);
+
+	const inicial = untrack(() => texto);
 
 	$effect(() => {
-		if (!editando) rascunho = texto;
+		const alvo = texto;
+		if (editando) return;
+		if (elemento && elemento.innerText !== alvo) elemento.innerText = alvo;
+	});
+
+	$effect(() => {
+		if (montou) return;
+		montou = true;
+		if (!focarAoMontar) return;
+
+		elemento?.focus();
+		const selecao = window.getSelection();
+		if (!selecao || !elemento) return;
+		const intervalo = document.createRange();
+		intervalo.selectNodeContents(elemento);
+		selecao.removeAllRanges();
+		selecao.addRange(intervalo);
+		editando = true;
+		aoFocar();
 	});
 
 	function valorAtual() {
@@ -62,47 +90,51 @@
 	<h1
 		class="canvas-titulo canvas-titulo-1"
 		contenteditable="plaintext-only"
+		data-marcador={marcador}
+		aria-label={rotulo}
 		bind:this={elemento}
-		bind:innerText={rascunho}
 		onfocus={focar}
 		oninput={digitar}
 		onblur={sair}
 		onkeydown={pressionar}
 		onpaste={colar}
 		spellcheck="true"
-	>{rascunho || texto}</h1>
+	>{inicial}</h1>
 {:else if tipo === 'titulo' && nivel === 3}
 	<h3
 		class="canvas-titulo canvas-titulo-3"
 		contenteditable="plaintext-only"
+		data-marcador={marcador}
+		aria-label={rotulo}
 		bind:this={elemento}
-		bind:innerText={rascunho}
 		onfocus={focar}
 		oninput={digitar}
 		onblur={sair}
 		onkeydown={pressionar}
 		onpaste={colar}
 		spellcheck="true"
-	>{rascunho || texto}</h3>
+	>{inicial}</h3>
 {:else if tipo === 'titulo'}
 	<h2
 		class="canvas-titulo canvas-titulo-2"
 		contenteditable="plaintext-only"
+		data-marcador={marcador}
+		aria-label={rotulo}
 		bind:this={elemento}
-		bind:innerText={rascunho}
 		onfocus={focar}
 		oninput={digitar}
 		onblur={sair}
 		onkeydown={pressionar}
 		onpaste={colar}
 		spellcheck="true"
-	>{rascunho || texto}</h2>
+	>{inicial}</h2>
 {:else}
 	<div
 		class="canvas-texto"
 		contenteditable="plaintext-only"
+		data-marcador={marcador}
+		aria-label={rotulo}
 		bind:this={elemento}
-		bind:innerText={rascunho}
 		role="textbox"
 		aria-multiline="true"
 		tabindex="0"
@@ -112,8 +144,7 @@
 		onkeydown={pressionar}
 		onpaste={colar}
 		spellcheck="true"
-		aria-label="Texto do bloco"
-	>{rascunho || texto}</div>
+	>{inicial}</div>
 {/if}
 
 <style>
@@ -134,6 +165,12 @@
 	.canvas-texto:focus {
 		background: color-mix(in srgb, currentColor 8%, transparent);
 		box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 35%, transparent);
+	}
+
+	.canvas-titulo:empty::before,
+	.canvas-texto:empty::before {
+		content: attr(data-marcador);
+		opacity: 0.5;
 	}
 
 	.canvas-titulo-1 {

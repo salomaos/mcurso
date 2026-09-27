@@ -46,30 +46,6 @@
 		});
 	}
 
-	function atualizarExercicio(
-		sub: 'alternativa' | 'addAlt' | 'rmAlt' | 'correta',
-		indice: number,
-		valor?: string
-	) {
-		atualizar((atual) => {
-			if (atual.tipo !== 'exercicio') return atual;
-			const copia = { ...atual, alternativas: [...atual.alternativas] };
-			if (sub === 'alternativa') {
-				copia.alternativas[indice] = valor ?? '';
-			} else if (sub === 'addAlt') {
-				copia.alternativas.push('');
-			} else if (sub === 'rmAlt' && copia.alternativas.length > 2) {
-				const correta = copia.correta;
-				copia.alternativas.splice(indice, 1);
-				if (correta === indice) copia.correta = Math.min(indice, copia.alternativas.length - 1);
-				else if (correta > indice) copia.correta = correta - 1;
-			} else if (sub === 'correta') {
-				copia.correta = indice;
-			}
-			return copia;
-		});
-	}
-
 	async function enviarImagem(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
 		const arquivo = input.files?.[0];
@@ -315,65 +291,5 @@
 			/>
 			Fórmula em destaque
 		</label>
-	{:else if bloco.tipo === 'exercicio'}
-		<div class="form-control">
-			<label class="label" for={`pergunta-${bloco.id}`}>
-				<span class="label-text">Enunciado</span>
-			</label>
-			<textarea
-				id={`pergunta-${bloco.id}`}
-				class="textarea textarea-bordered w-full max-w-full min-h-20"
-				value={bloco.pergunta}
-				oninput={(event) => alterar('pergunta', event.currentTarget.value)}
-				placeholder="Enunciado do exercício"
-			></textarea>
-		</div>
-		<div class="flex items-center justify-between gap-2">
-			<span class="text-xs font-semibold uppercase tracking-wide opacity-60">Alternativas</span>
-			<button class="btn btn-xs btn-ghost" type="button" onclick={() => atualizarExercicio('addAlt', 0)}>
-				+ Alternativa
-			</button>
-		</div>
-		<div class="space-y-2">
-			{#each bloco.alternativas as alternativa, indice}
-				<div class="flex items-center gap-2">
-					<span class="text-xs font-bold opacity-60">{String.fromCharCode(65 + indice)})</span>
-					<input
-						class="input input-sm input-bordered flex-1"
-						type="text"
-						value={alternativa}
-						oninput={(event) => atualizarExercicio('alternativa', indice, event.currentTarget.value)}
-						placeholder={`Alternativa ${String.fromCharCode(65 + indice)}`}
-					/>
-					<input
-						class="radio radio-sm"
-						type="radio"
-						name={`correta-${bloco.id}`}
-						checked={bloco.correta === indice}
-						onchange={() => atualizarExercicio('correta', indice)}
-						title="Marcar como correta"
-					/>
-					<button
-						class="btn btn-ghost btn-xs"
-						type="button"
-						disabled={bloco.alternativas.length <= 2}
-						title="Remover alternativa"
-						onclick={() => atualizarExercicio('rmAlt', indice)}
-					>×</button>
-				</div>
-			{/each}
-		</div>
-		<div class="form-control">
-			<label class="label" for={`explicacao-${bloco.id}`}>
-				<span class="label-text">Explicação</span>
-			</label>
-			<textarea
-				id={`explicacao-${bloco.id}`}
-				class="textarea textarea-bordered w-full max-w-full min-h-20"
-				value={bloco.explicacao ?? ''}
-				oninput={(event) => alterar('explicacao', event.currentTarget.value || undefined)}
-				placeholder="Explicação exibida após responder"
-			></textarea>
-		</div>
 	{/if}
 </div>

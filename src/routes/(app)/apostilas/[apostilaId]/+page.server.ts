@@ -1,7 +1,8 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { asc, eq, max } from 'drizzle-orm';
+import { and, asc, eq, max } from 'drizzle-orm';
+import { mesmoNomeSecao, normalizarNomeSecao } from '$lib/blocks';
 import { db } from '$lib/server/db';
-import { apostilas, aulas } from '$lib/server/db/schema';
+import { apostilas, aulas, secoes } from '$lib/server/db/schema';
 import { requerSessao } from '$lib/server/guard';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -21,8 +22,31 @@ export const load: PageServerLoad = async (event) => {
 		.where(eq(aulas.apostilaId, id))
 		.orderBy(asc(aulas.ordem), asc(aulas.id));
 
-	return { apostila, aulas: listaAulas };
+	const listaSecoes = await db
+		.select()
+		.from(secoes)
+		.where(eq(secoes.apostilaId, id))
+		.orderBy(asc(secoes.ordem), asc(secoes.id));
+
+	return { apostila, aulas: listaAulas, secoes: listaSecoes };
 };
+
+async function secaoDaApostila(apostilaId: number, secaoId: number) {
+	const [secao] = await db
+		.select()
+		.from(secoes)
+		.where(eq(secoes.id, secaoId))
+		.limit(1);
+	return secao?.apostilaId === apostilaId ? secao : null;
+}
+
+async function nomeEmUso(apostilaId: number, nome: string, ignorarId?: number) {
+	const lista = await db
+		.select()
+		.from(secoes)
+		.where(eq(secoes.apostilaId, apostilaId));
+	return lista.some((secao) => secao.id !== ignorarId && mesmoNomeSecao(secao.nome, nome));
+}
 
 export const actions: Actions = {
 	renomear: async (event) => {
@@ -42,14 +66,92 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 
-	criarAula: async (event) => {
+	criarSecao: async (event) => {
 		requerSessao(event);
 		const apostilaId = Number(event.params.apostilaId);
 		const dados = await event.request.formData();
-		const titulo = String(dados.get('titulo') ?? '').trim();
-		const secao = String(dados.get('secao') ?? '').trim() || null;
+		const nome = normalizarNomeSecao(dados.get('nome'));
+		if (!nome) return fail(400, { erro: 'Informe o nome da seção.', alvo: 'secao' });
+		if (await nomeEmUso(apostilaId, nome))
+			return fail(409, { erro: `Já existe uma seção chamada "${nome}".`, alvo: 'secao' });
 
-		if (!titulo) return fail(400, { erroAula: 'Informe o título da aula.' });
+		const [linha] = await db
+			.select({ max: max(secoes.ordem) })
+			.from(secoes)
+			.where(eq(secoes.apostilaId, apostilaId));
+
+		await db.insert(secoes).values({ apostilaId, nome, ordem: (linha?.max ?? -1) + 1 });
+		return { ok: true };
+	},
+
+	renomearSecao: async (event) => {
+		requerSessao(event);
+		const apostilaId = Number(event.params.apostilaId);
+		const dados = await event.request.formData();
+		const secaoId = Number(dados.get('secaoId') ?? '');
+		const nome = normalizarNomeSecao(dados.get('nome'));
+		if (!await secaoDaApostila(apostilaId, secaoId))
+			return fail(404, { erro: 'Seção não encontrada.', alvo: 'secao' });
+		if (!nome) return fail(400, { erro: 'Informe o nome da seção.', alvo: 'secao' });
+		if (await nomeEmUso(apostilaId, nome, secaoId))
+			return fail(409, { erro: `Já existe uma seção chamada "${nome}".`, alvo: 'secao' });
+
+		await db.update(secoes).set({ nome }).where(eq(secoes.id, secaoId));
+		return { ok: true };
+	},
+
+	excluirSecao: async (event) => {
+		requerSessao(event);
+		const apostilaId = Number(event.params.apostilaId);
+		const dados = await event.request.formData();
+		const secaoId = Number(dados.get('secaoId') ?? '');
+		if (!await secaoDaApostila(apostilaId, secaoId))
+			return fail(404, { erro: 'Seção não encontrada.', alvo: 'secao' });
+
+		await db.transaction((tx) => {
+			tx.update(aulas).set({ secaoId: null }).where(eq(aulas.secaoId, secaoId)).run();
+			tx.delete(secoes).where(eq(secoes.id, secaoId)).run();
+		});
+		return { ok: true };
+	},
+
+	moverSecao: async (event) => {
+		requerSessao(event);
+		const apostilaId = Number(event.params.apostilaId);
+		const dados = await event.request.formData();
+		const secaoId = Number(dados.get('secaoId') ?? '');
+		const direcao = dados.get('direcao') === 'cima' ? -1 : 1;
+		if (!await secaoDaApostila(apostilaId, secaoId)) return { erro: 'Seção não encontrada' };
+
+		const lista = await db
+			.select({ id: secoes.id, ordem: secoes.ordem })
+			.from(secoes)
+			.where(eq(secoes.apostilaId, apostilaId))
+			.orderBy(asc(secoes.ordem), asc(secoes.id));
+
+		const idx = lista.findIndex((secao) => secao.id === secaoId);
+		const vizinho = idx + direcao;
+		if (idx === -1 || vizinho < 0 || vizinho >= lista.length) return { erro: 'Movimento inválido' };
+
+		await db.transaction((tx) => {
+			tx
+				.update(secoes)
+				.set({ ordem: lista[vizinho].ordem })
+				.where(eq(secoes.id, lista[idx].id))
+				.run();
+			tx
+				.update(secoes)
+				.set({ ordem: lista[idx].ordem })
+				.where(eq(secoes.id, lista[vizinho].id))
+				.run();
+		});
+
+		return { ok: true };
+	},
+
+	criarAula: async (event) => {
+		requerSessao(event);
+		const apostilaId = Number(event.params.apostilaId);
 
 		const [linha] = await db
 			.select({ max: max(aulas.ordem) })
@@ -58,10 +160,10 @@ export const actions: Actions = {
 
 		const [nova] = await db
 			.insert(aulas)
-			.values({ apostilaId, titulo, secao, ordem: (linha?.max ?? 0) + 1 })
+			.values({ apostilaId, titulo: 'Nova aula', ordem: (linha?.max ?? 0) + 1 })
 			.returning();
 
-		throw redirect(303, `/apostilas/${apostilaId}/aulas/${nova.id}/editar`);
+		throw redirect(303, `/apostilas/${apostilaId}/aulas/${nova.id}/editar?novo=1`);
 	},
 
 	moverAula: async (event) => {
@@ -82,15 +184,17 @@ export const actions: Actions = {
 		if (idx === -1 || vizinho < 0 || vizinho >= lista.length) return { erro: 'Movimento inválido' };
 
 		await db
-			.transaction(async (tx) => {
-				await tx
+			.transaction((tx) => {
+				tx
 					.update(aulas)
 					.set({ ordem: lista[vizinho].ordem })
-					.where(eq(aulas.id, lista[idx].id));
-				await tx
+					.where(eq(aulas.id, lista[idx].id))
+					.run();
+				tx
 					.update(aulas)
 					.set({ ordem: lista[idx].ordem })
-					.where(eq(aulas.id, lista[vizinho].id));
+					.where(eq(aulas.id, lista[vizinho].id))
+					.run();
 			});
 
 		return { ok: true };
@@ -101,6 +205,12 @@ export const actions: Actions = {
 		const apostilaId = Number(event.params.apostilaId);
 		const dados = await event.request.formData();
 		const aulaId = Number(dados.get('aulaId') ?? '');
+		const [alvo] = await db
+			.select({ apostilaId: aulas.apostilaId })
+			.from(aulas)
+			.where(and(eq(aulas.id, aulaId), eq(aulas.apostilaId, apostilaId)))
+			.limit(1);
+		if (!alvo) return fail(404, { erro: 'Aula não encontrada.' });
 		await db.delete(aulas).where(eq(aulas.id, aulaId));
 		return { ok: true };
 	},
@@ -108,7 +218,11 @@ export const actions: Actions = {
 	excluir: async (event) => {
 		requerSessao(event);
 		const id = Number(event.params.apostilaId);
-		await db.delete(apostilas).where(eq(apostilas.id, id));
+		await db.transaction((tx) => {
+			tx.delete(aulas).where(eq(aulas.apostilaId, id)).run();
+			tx.delete(secoes).where(eq(secoes.apostilaId, id)).run();
+			tx.delete(apostilas).where(eq(apostilas.id, id)).run();
+		});
 		throw redirect(303, '/apostilas');
 	}
 };

@@ -20,7 +20,9 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 
 ## Modelo de dados
 
-- Apostilas **soltas** (sem hierarquia de curso) organizadas por **aulas/encontros**; aulas agrupáveis em **seções/blocos** opcionais
+- Apostilas **soltas** (sem hierarquia de curso) organizadas por **aulas/encontros**
+- **Seções** são catálogo normalizado: tabela `secoes` (`id`, `apostilaId`, `nome`, `ordem`) e `aulas.secaoId` nullable; CRUD no painel da apostila, select no editor, agrupamento na listagem. Nome único por apostila (comparação sem acento/caixa, máx. 60) e ordenado por `ordem`, com grupo "sem seção" no fim
+- SQLite não liga `PRAGMA foreign_keys`: ações que apagam seção/apostila/nullam `aulas.secaoId` por conta própria
 - Links em aula: exercícios, anexos, e referência a outras aulas
 - Blocos de conteúdo (JSON em coluna, não tabela filha): texto/cabeçalhos, código, mermaid, imagem, tabela, fórmulas, exercícios/quiz — todos disponíveis como opção, adicionando conforme necessidade
 - **Sem draft/publicado e sem histórico**: edição direta, versão única
@@ -44,3 +46,4 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 - Better Auth no SvelteKit precisa `basePath: '/api/auth'` na inicialização do `auth.ts`
 - Mermaid roda em SSR? Não — renderizar no cliente (blocos mermaid são típicos candidatos a componente `{#if}`/lazy no SvelteKit)
 - adapter-node: dependência em `dependencies` fica **externa** no build (resolvida de `node_modules` em runtime); em `devDependencies` é **bundlada**. `better-sqlite3` (addon nativo) DEVE ficar em `dependencies` — se for bundlado, `require.main` explode em runtime ESM ("require is not defined"). `ssr.external`/`rollupOptions.external` no vite não funcionam nesse caso (rolldown ignora); a regra é o package.json
+- drizzle + better-sqlite3 é **síncrono**: callback de `db.transaction` não pode ser `async` ("Transaction function cannot return a promise") e builders só executam no `.run()`/`.execute()`/await — dentro da transação use `.run()` sem `await`

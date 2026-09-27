@@ -12,6 +12,19 @@ export const apostilas = sqliteTable('apostilas', {
 		.$defaultFn(() => new Date())
 });
 
+export const secoes = sqliteTable(
+	'secoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		apostilaId: integer('apostila_id')
+			.notNull()
+			.references(() => apostilas.id, { onDelete: 'cascade' }),
+		nome: text('nome').notNull(),
+		ordem: integer('ordem').notNull().default(0)
+	},
+	(t) => [index('idx_secoes_apostila').on(t.apostilaId)]
+);
+
 export const aulas = sqliteTable(
 	'aulas',
 	{
@@ -19,9 +32,9 @@ export const aulas = sqliteTable(
 		apostilaId: integer('apostila_id')
 			.notNull()
 			.references(() => apostilas.id, { onDelete: 'cascade' }),
+		secaoId: integer('secao_id').references(() => secoes.id, { onDelete: 'set null' }),
 		titulo: text('titulo').notNull(),
 		descricao: text('descricao'),
-		secao: text('secao'),
 		ordem: integer('ordem').notNull().default(0),
 		blocos: text('blocos', { mode: 'json' })
 			.notNull()
@@ -33,5 +46,5 @@ export const aulas = sqliteTable(
 			.notNull()
 			.$defaultFn(() => new Date())
 	},
-	(t) => [index('idx_aulas_apostila').on(t.apostilaId)]
+	(t) => [index('idx_aulas_apostila').on(t.apostilaId), index('idx_aulas_secao').on(t.secaoId)]
 );

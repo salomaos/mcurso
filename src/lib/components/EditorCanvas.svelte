@@ -1,6 +1,7 @@
 <script lang="ts">
 	import BlocoRender from './BlocoRender.svelte';
 	import EditorBlocoCamada from './EditorBlocoCamada.svelte';
+	import Exercicio from './Exercicio.svelte';
 	import TextoEditavel from './TextoEditavel.svelte';
 	import { criarBloco, TIPOS_BLOCO, type Bloco, type Blocos } from '$lib/blocks';
 
@@ -16,6 +17,73 @@
 	let { blocos, atualizar, apostilaId, modo }: Props = $props();
 	let novoTipo = $state<Bloco['tipo']>('texto');
 	let selecionadoId = $state<string | null>(null);
+
+	const CAMPOS_COMPARTILHADOS = [
+		'texto',
+		'nivel',
+		'conteudo',
+		'codigo',
+		'linguagem',
+		'diagrama',
+		'src',
+		'legenda',
+		'rotulo',
+		'tipoLink',
+		'url',
+		'aulaId',
+		'latex',
+		'destaque'
+	] as const;
+
+	function valorVazio(valor: unknown): boolean {
+		if (valor === undefined || valor === null) return true;
+		if (typeof valor === 'string') return valor.trim() === '';
+		if (typeof valor === 'number') return valor === 0;
+		if (typeof valor === 'boolean') return !valor;
+		if (Array.isArray(valor)) return valor.every((item) => valorVazio(item));
+		return false;
+	}
+
+	function rotuloTipo(tipo: Bloco['tipo']): string {
+		return TIPOS_BLOCO.find((item) => item.id === tipo)?.rotulo ?? tipo;
+	}
+
+	const CAMPOS_CONTEUDO = [
+		'texto',
+		'conteudo',
+		'codigo',
+		'diagrama',
+		'src',
+		'legenda',
+		'rotulo',
+		'url',
+		'aulaId',
+		'latex',
+		'pergunta',
+		'alternativas',
+		'explicacao',
+		'cabecalho',
+		'linhas'
+	] as const;
+
+	function temConteudo(bloco: Bloco): boolean {
+		const padrao = criarBloco(bloco.tipo) as unknown as Record<string, unknown>;
+		const atual = bloco as unknown as Record<string, unknown>;
+		return CAMPOS_CONTEUDO.some((campo) => {
+			if (!(campo in atual)) return false;
+			const valor = atual[campo];
+			if (valorVazio(valor)) return false;
+			return JSON.stringify(valor) !== JSON.stringify(padrao[campo] ?? null);
+		});
+	}
+
+	function preservaDado(atual: Bloco, novo: Bloco): boolean {
+		const origem = atual as unknown as Record<string, unknown>;
+		const destino = novo as unknown as Record<string, unknown>;
+		return CAMPOS_COMPARTILHADOS.some(
+			(campo) => campo in origem && campo in destino && !valorVazio(origem[campo])
+		);
+	}
 
 	function atualizarBloco(id: string, novo: AtualizacaoBloco) {
 		atualizar(
@@ -59,43 +127,35 @@
 		atualizar(copia);
 	}
 
-	function trocarTipo(id: string, novoTipo: Bloco['tipo']) {
+	function trocarTipo(id: string, novoTipo: Bloco['tipo']): boolean {
 		const indice = blocos.findIndex((bloco) => bloco.id === id);
 		const atual = blocos[indice];
-		if (!atual || atual.tipo === novoTipo) return;
+		if (!atual || atual.tipo === novoTipo) return true;
 		const novo = criarBloco(novoTipo);
-		const campos = [
-			'texto',
-			'nivel',
-			'conteudo',
-			'codigo',
-			'linguagem',
-			'diagrama',
-			'src',
-			'legenda',
-			'rotulo',
-			'tipoLink',
-			'url',
-			'aulaId',
-			'latex',
-			'destaque'
-		] as const;
+		if (
+			temConteudo(atual) &&
+			!preservaDado(atual, novo) &&
+			!confirm(
+				`Trocar o bloco de "${rotuloTipo(atual.tipo)}" para "${rotuloTipo(novoTipo)}"? O conteúdo atual será perdido.`
+			)
+		)
+			return false;
 		const origem = atual as unknown as Record<string, unknown>;
 		const destino = novo as unknown as Record<string, unknown>;
-		for (const campo of campos) {
-			if (campo in origem && campo in destino && origem[campo] !== undefined) destino[campo] = origem[campo];
+		for (const campo of CAMPOS_COMPARTILHADOS) {
+			if (campo in origem && campo in destino && origem[campo] !== undefined)
+				destino[campo] = origem[campo];
 		}
 		novo.id = atual.id;
 		atualizarBloco(id, novo);
 		selecionadoId = id;
+		return true;
 	}
 
 	function chaveVisual(bloco: Bloco) {
 		switch (bloco.tipo) {
 			case 'codigo':
 				return `${bloco.linguagem}:${bloco.codigo}`;
-			case 'mermaid':
-				return bloco.diagrama;
 			case 'formula':
 				return `${bloco.latex}:${bloco.destaque}`;
 			default:
@@ -106,14 +166,6 @@
 	function selecionar(id: string) {
 		if (modo !== 'editar') return;
 		selecionadoId = id;
-	}
-
-	function sairDoBloco(event: FocusEvent, id: string) {
-		const alvo = event.relatedTarget;
-		if (alvo instanceof Node && event.currentTarget instanceof HTMLElement && event.currentTarget.contains(alvo)) {
-			return;
-		}
-		if (selecionadoId === id) selecionadoId = null;
 	}
 
 	function atualizarTexto(id: string, valor: string) {
@@ -140,7 +192,6 @@
 			class="canvas-bloco rounded-box"
 			data-canvas-block={bloco.id}
 			onfocusin={() => modo === 'editar' && selecionar(bloco.id)}
-			onfocusout={(event) => sairDoBloco(event, bloco.id)}
 		>
 			{#if modo === 'editar' && (bloco.tipo === 'titulo' || bloco.tipo === 'texto')}
 				<div class="canvas-conteudo">
@@ -150,6 +201,14 @@
 						nivel={bloco.tipo === 'titulo' ? bloco.nivel : undefined}
 						aoDigitar={(valor) => atualizarTexto(bloco.id, valor)}
 						aoFocar={() => selecionar(bloco.id)}
+					/>
+				</div>
+			{:else if modo === 'editar' && bloco.tipo === 'exercicio'}
+				<div class="canvas-conteudo">
+					<Exercicio
+						bloco={bloco}
+						modo="editar"
+						atualizar={(transformar) => atualizarBloco(bloco.id, transformar)}
 					/>
 				</div>
 			{:else}
@@ -182,7 +241,7 @@
 							<option value={3}>H3</option>
 						</select>
 					</div>
-				{:else if bloco.tipo !== 'texto'}
+				{:else if bloco.tipo !== 'texto' && bloco.tipo !== 'exercicio'}
 					<EditorBlocoCamada
 						bloco={bloco}
 						atualizar={(transformar) => atualizarBloco(bloco.id, transformar)}
@@ -193,7 +252,7 @@
 			{#if modo === 'editar'}
 				<div class="canvas-acciones">
 					<div class="flex items-center gap-1">
-						{#if bloco.tipo !== 'titulo' && bloco.tipo !== 'texto'}
+						{#if bloco.tipo !== 'titulo' && bloco.tipo !== 'texto' && bloco.tipo !== 'exercicio'}
 							<button
 								class="btn btn-xs btn-outline"
 								type="button"
@@ -228,7 +287,10 @@
 							value={bloco.tipo}
 							onchange={(event) => {
 								event.stopPropagation();
-								trocarTipo(bloco.id, event.currentTarget.value as Bloco['tipo']);
+								const select = event.currentTarget;
+								if (!trocarTipo(bloco.id, select.value as Bloco['tipo'])) {
+									select.value = bloco.tipo;
+								}
 							}}
 						>
 							{#each TIPOS_BLOCO as tipo}

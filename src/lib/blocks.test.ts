@@ -1,38 +1,76 @@
 import { describe, it, expect } from 'vitest';
-import { agruparPorSecao, ehBloco, normalizarBlocos, criarBloco, type AulaUi } from './blocks';
+import {
+	agruparPorSecao,
+	ehBloco,
+	mesmoNomeSecao,
+	normalizarBlocos,
+	normalizarNomeSecao,
+	criarBloco,
+	type AulaUi,
+	type SecaoUi
+} from './blocks';
 
-function aula(id: number, titulo: string, secao: string | null): AulaUi {
-	return { id, apostilaId: 1, titulo, secao, descricao: null, ordem: id };
+function aula(id: number, titulo: string, secaoId: number | null): AulaUi {
+	return { id, apostilaId: 1, titulo, secaoId, descricao: null, ordem: id };
+}
+
+function secao(id: number, nome: string, ordem: number): SecaoUi {
+	return { id, apostilaId: 1, nome, ordem };
 }
 
 describe('agruparPorSecao', () => {
+	const secoes = [secao(1, 'Bloco A', 0), secao(2, 'Bloco B', 1), secao(3, 'Bloco vazio', 2)];
 	const aulas = [
-		aula(1, 'aula 1', 'Bloco A'),
-		aula(2, 'aula 2', 'Bloco A'),
-		aula(3, 'aula 3', 'Bloco B'),
+		aula(1, 'aula 1', 1),
+		aula(2, 'aula 2', 1),
+		aula(3, 'aula 3', 2),
 		aula(4, 'aula 4', null)
 	];
 
-	it('agrupa aulas consecutivas da mesma seção', () => {
-		const grupos = agruparPorSecao(aulas);
-		expect(grupos.map((g) => g.secao)).toEqual(['Bloco A', 'Bloco B', null]);
+	it('agrupa por seção do catálogo, não por trechos consecutivos', () => {
+		const grupos = agruparPorSecao(secoes, aulas);
+		expect(grupos.map((g) => g.secao?.nome ?? null)).toEqual(['Bloco A', 'Bloco B', null]);
 		expect(grupos[0].aulas.map((a) => a.id)).toEqual([1, 2]);
 		expect(grupos[2].aulas.map((a) => a.id)).toEqual([4]);
 	});
 
-	it('preserva a ordem dentro de cada seção', () => {
-		const grupos = agruparPorSecao(aulas);
-		expect(grupos[1].aulas[0].id).toBe(3);
+	it('seções intercaladas ficam no mesmo grupo, na ordem do catálogo', () => {
+		const intercaladas = [aula(1, 'x', 1), aula(2, 'y', 2), aula(3, 'z', 1)];
+		const grupos = agruparPorSecao([secao(1, 'A', 1), secao(2, 'B', 0)], intercaladas);
+		expect(grupos.map((g) => g.secao?.nome)).toEqual(['B', 'A']);
+		expect(grupos[1].aulas.map((a) => a.id)).toEqual([1, 3]);
 	});
 
-	it('seções intercaladas viram grupos separados', () => {
-		const intercaladas = [
-			aula(1, 'x', 'A'),
-			aula(2, 'y', 'B'),
-			aula(3, 'z', 'A')
-		];
-		const grupos = agruparPorSecao(intercaladas);
-		expect(grupos).toHaveLength(3);
+	it('omite seções sem aulas e mantém as demais ordenadas', () => {
+		const grupos = agruparPorSecao(secoes, aulas);
+		expect(grupos.some((g) => g.secao?.nome === 'Bloco vazio')).toBe(false);
+	});
+
+	it('seção inexistente na lista cai em "sem seção"', () => {
+		const grupos = agruparPorSecao([], [aula(9, 'órfã', 99)]);
+		expect(grupos).toHaveLength(1);
+		expect(grupos[0].secao).toBeNull();
+	});
+
+	it('sem aulas de(section) nenhuma não gera grupo "sem seção"', () => {
+		const grupos = agruparPorSecao(secoes, [aula(1, 'aula 1', 1)]);
+		expect(grupos).toHaveLength(1);
+		expect(grupos[0].secao?.nome).toBe('Bloco A');
+	});
+});
+
+describe('normalizarNomeSecao / mesmoNomeSecao', () => {
+	it('colapsa espaços e limita o tamanho', () => {
+		expect(normalizarNomeSecao('  Bloco   1  ')).toBe('Bloco 1');
+		expect(normalizarNomeSecao('a'.repeat(80))).toHaveLength(60);
+		expect(normalizarNomeSecao('   ')).toBe('');
+		expect(normalizarNomeSecao(null)).toBe('');
+	});
+
+	it('compara nomes ignorando caixa e acentos', () => {
+		expect(mesmoNomeSecao('Bloco 1', 'bloco 1')).toBe(true);
+		expect(mesmoNomeSecao('Programação', 'programacao')).toBe(true);
+		expect(mesmoNomeSecao('Bloco 1', 'Bloco 2')).toBe(false);
 	});
 });
 
