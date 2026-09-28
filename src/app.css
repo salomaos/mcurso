@@ -46,6 +46,13 @@
 		-webkit-print-color-adjust: exact;
 		print-color-adjust: exact;
 	}
+
+	/* Cada pergunta fica inteira numa página: cortar no meio atrapalha quem
+	   corrige no papel impresso. */
+	.quebra-pagina {
+		break-inside: avoid;
+		page-break-inside: avoid;
+	}
 }
 
 @page {

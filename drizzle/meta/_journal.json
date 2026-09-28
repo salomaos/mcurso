@@ -22,6 +22,27 @@
       "when": 1790443622267,
       "tag": "0002_sudden_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790527512093,
+      "tag": "0003_cute_callisto",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790531370525,
+      "tag": "0004_superb_silver_sable",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790554906246,
+      "tag": "0005_naive_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }

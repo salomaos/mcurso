@@ -1,23 +1,30 @@
 <script lang="ts">
-	import type { Bloco } from '$lib/blocks';
+	import { hrefLinkInterno, type Bloco, type BlocoLink } from '$lib/blocks';
 	import Codigo from './Codigo.svelte';
 	import Mermaid from './Mermaid.svelte';
 	import Formula from './Formula.svelte';
 	import Exercicio from './Exercicio.svelte';
+	import Dissertativa from './Dissertativa.svelte';
 
 	type Modo = 'editar' | 'visualizar';
 	type Props = {
 		bloco: Bloco;
-		apostilaId: number;
+		apostilaId?: number;
 		baseHref?: string;
 		modo?: Modo;
+		/** Aula onde o bloco está: link de atividade ganha o `?aula=` do contexto. */
+		aulaContexto?: number;
 	};
 
-	let { bloco, apostilaId, baseHref = '/apostilas', modo = 'visualizar' }: Props = $props();
+	let { bloco, apostilaId, baseHref = '/apostilas', modo = 'visualizar', aulaContexto }: Props =
+		$props();
 
-	function hrefAula(aulaId: number) {
-		return `${baseHref}/${apostilaId}/aulas/${aulaId}`;
-	}
+	const ROTULO_LINK: Record<BlocoLink['tipoLink'], string> = {
+		aula: 'aula',
+		anexo: 'anexo',
+		exercicio: 'atividade',
+		externo: 'link'
+	};
 </script>
 
 {#if bloco.tipo === 'titulo'}
@@ -34,7 +41,7 @@
 	<Codigo codigo={bloco.codigo} linguagem={bloco.linguagem} />
 {:else if bloco.tipo === 'mermaid'}
 	<div class="bg-base-100 border border-base-300 p-4 rounded-box my-2">
-		<Mermaid diagrama={bloco.diagrama} id={bloco.id} />
+		<Mermaid diagrama={bloco.diagrama} id={bloco.id} tema={bloco.tema} />
 	</div>
 {:else if bloco.tipo === 'imagem'}
 	<figure class="my-3 flex flex-col items-center">
@@ -44,10 +51,10 @@
 		{/if}
 	</figure>
 {:else if bloco.tipo === 'link'}
-	{@const interno = bloco.tipoLink === 'aula'}
+	{@const hrefInterno = hrefLinkInterno(bloco, apostilaId, baseHref, aulaContexto)}
 	{@const externo = bloco.tipoLink === 'externo'}
 	<a
-		href={interno ? hrefAula(bloco.aulaId ?? 0) : bloco.url}
+		href={hrefInterno ?? bloco.url}
 		target={externo ? '_blank' : undefined}
 		rel={externo ? 'noopener noreferrer' : undefined}
 		class="badge badge-outline gap-1 py-3 px-2"
@@ -55,7 +62,7 @@
 			if (modo === 'editar') event.preventDefault();
 		}}
 	>
-		<span class="text-xs uppercase font-semibold">{bloco.tipoLink}</span>
+		<span class="text-xs uppercase font-semibold">{ROTULO_LINK[bloco.tipoLink]}</span>
 		<span>{bloco.rotulo}</span>
 		{#if externo}
 			<span class="text-xs opacity-60">↗</span>
@@ -88,4 +95,6 @@
 	<Formula latex={bloco.latex} destaque={bloco.destaque} />
 {:else if bloco.tipo === 'exercicio'}
 	<Exercicio bloco={bloco} {modo} />
+{:else if bloco.tipo === 'dissertativa'}
+	<Dissertativa bloco={bloco} {modo} />
 {/if}

@@ -64,8 +64,7 @@ test('arrastar bloco no canvas reordena os blocos', async ({ page }) => {
 	const ordem = cartoes.locator('.canvas-conteudo');
 
 	for (const texto of ['A', 'B', 'C']) {
-		await page.locator('.canvas-adicionar select').selectOption('texto');
-		await page.getByRole('button', { name: 'Adicionar bloco' }).click();
+		await page.getByRole('button', { name: 'Texto', exact: true }).click();
 		await page.getByLabel('Texto do bloco').last().click();
 		await page.keyboard.type(texto);
 	}
@@ -94,8 +93,7 @@ test('setas do teclado movem o bloco em foco', async ({ page }) => {
 
 	const ordem = page.locator('[data-canvas-block] .canvas-conteudo');
 	for (const texto of ['A', 'B', 'C']) {
-		await page.locator('.canvas-adicionar select').selectOption('texto');
-		await page.getByRole('button', { name: 'Adicionar bloco' }).click();
+		await page.getByRole('button', { name: 'Texto', exact: true }).click();
 		await page.getByLabel('Texto do bloco').last().click();
 		await page.keyboard.type(texto);
 	}

@@ -151,7 +151,7 @@
 	.canvas-titulo,
 	.canvas-texto {
 		cursor: text;
-		outline: none;
+		/* outline: none; */
 		border-radius: calc(var(--rounded-box, 1rem) * 0.25);
 		transition: background-color 120ms ease, box-shadow 120ms ease;
 	}

@@ -48,3 +48,37 @@ export const aulas = sqliteTable(
 	},
 	(t) => [index('idx_aulas_apostila').on(t.apostilaId), index('idx_aulas_secao').on(t.secaoId)]
 );
+
+// Anexo é material de apoio solto: não pertence a apostila nem a aula. Vive na
+// própria tabela (não em `aulas`) e o aluno chega nele por link dentro de uma aula.
+export const anexos = sqliteTable('anexos', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	titulo: text('titulo').notNull(),
+	descricao: text('descricao'),
+	blocos: text('blocos', { mode: 'json' })
+		.notNull()
+		.$defaultFn(() => []),
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
+// Atividade de exercícios: conteúdo solto, mesmo formato de blocos das aulas e
+// dos anexos. O gabarito fica no servidor e só volta na tela de resultado.
+export const exercicios = sqliteTable('exercicios', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	titulo: text('titulo').notNull(),
+	descricao: text('descricao'),
+	blocos: text('blocos', { mode: 'json' })
+		.notNull()
+		.$defaultFn(() => []),
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});

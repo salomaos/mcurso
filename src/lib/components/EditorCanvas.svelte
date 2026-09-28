@@ -1,9 +1,12 @@
 <script lang="ts">
 	import BlocoRender from './BlocoRender.svelte';
+	import Dissertativa from './Dissertativa.svelte';
 	import EditorBlocoCamada from './EditorBlocoCamada.svelte';
 	import Exercicio from './Exercicio.svelte';
+	import Icone from './Icone.svelte';
 	import TextoEditavel from './TextoEditavel.svelte';
 	import { criarBloco, TIPOS_BLOCO, type Bloco, type Blocos } from '$lib/blocks';
+	import type { AlvoLink } from '$lib/conteudo';
 	import { arrastar, moverItem } from '$lib/arrastar';
 
 	type Modo = 'editar' | 'visualizar';
@@ -11,12 +14,22 @@
 	type Props = {
 		blocos: Blocos;
 		atualizar: (novos: Blocos) => void;
-		apostilaId: number;
+		apostilaId?: number;
 		modo: Modo;
+		alvos?: { aulas: AlvoLink[]; anexos: AlvoLink[]; exercicios: AlvoLink[] };
+		rotulo?: string;
+		aulaContexto?: number;
 	};
 
-	let { blocos, atualizar, apostilaId, modo }: Props = $props();
-	let novoTipo = $state<Bloco['tipo']>('texto');
+	let {
+		blocos,
+		atualizar,
+		apostilaId,
+		modo,
+		alvos,
+		rotulo = 'aula',
+		aulaContexto
+	}: Props = $props();
 	let selecionadoId = $state<string | null>(null);
 
 	const CAMPOS_COMPARTILHADOS = [
@@ -31,7 +44,7 @@
 		'rotulo',
 		'tipoLink',
 		'url',
-		'aulaId',
+		'alvoId',
 		'latex',
 		'destaque'
 	] as const;
@@ -63,9 +76,14 @@
 		'pergunta',
 		'alternativas',
 		'explicacao',
+		'orientacao',
 		'cabecalho',
 		'linhas'
 	] as const;
+
+	// Blocos com edição dentro do próprio card (exercício, dissertativa): não têm
+	// camada de configuração nem botão "Editar".
+	const EM_CARTAO = new Set<Bloco['tipo']>(['exercicio', 'dissertativa']);
 
 	function temConteudo(bloco: Bloco): boolean {
 		const padrao = criarBloco(bloco.tipo) as unknown as Record<string, unknown>;
@@ -94,10 +112,13 @@
 		);
 	}
 
-	function adicionar(tipo: Bloco['tipo'] = novoTipo, posicao = blocos.length) {
+	function adicionar(tipo: Bloco['tipo']) {
 		const bloco = criarBloco(tipo);
+		const selecionado = selecionadoId
+			? blocos.findIndex((atual) => atual.id === selecionadoId)
+			: -1;
 		const copia = [...blocos];
-		copia.splice(posicao, 0, bloco);
+		copia.splice(selecionado === -1 ? copia.length : selecionado + 1, 0, bloco);
 		atualizar(copia);
 		selecionadoId = bloco.id;
 	}
@@ -192,7 +213,9 @@
 >
 	{#if blocos.length === 0}
 		<div class="alert alert-info">
-			{modo === 'editar' ? 'Esta aula ainda não tem blocos.' : 'Esta aula ainda não tem conteúdo.'}
+			{modo === 'editar'
+				? `Esta ${rotulo} ainda não tem blocos.`
+				: `Esta ${rotulo} ainda não tem conteúdo.`}
 		</div>
 	{/if}
 
@@ -214,13 +237,21 @@
 						aoFocar={() => selecionar(bloco.id)}
 					/>
 				</div>
-			{:else if modo === 'editar' && bloco.tipo === 'exercicio'}
+			{:else if modo === 'editar' && (bloco.tipo === 'exercicio' || bloco.tipo === 'dissertativa')}
 				<div class="canvas-conteudo">
-					<Exercicio
-						bloco={bloco}
-						modo="editar"
-						atualizar={(transformar) => atualizarBloco(bloco.id, transformar)}
-					/>
+					{#if bloco.tipo === 'exercicio'}
+						<Exercicio
+							bloco={bloco}
+							modo="editar"
+							atualizar={(transformar) => atualizarBloco(bloco.id, transformar)}
+						/>
+					{:else}
+						<Dissertativa
+							bloco={bloco}
+							modo="editar"
+							atualizar={(transformar) => atualizarBloco(bloco.id, transformar)}
+						/>
+					{/if}
 				</div>
 			{:else}
 				<div
@@ -230,7 +261,7 @@
 					onpointerdown={() => selecionar(bloco.id)}
 				>
 					{#key `${bloco.id}:${chaveVisual(bloco)}`}
-						<BlocoRender bloco={bloco} {apostilaId} {modo} />
+						<BlocoRender bloco={bloco} {apostilaId} {modo} {aulaContexto} />
 					{/key}
 				</div>
 			{/if}
@@ -252,10 +283,11 @@
 							<option value={3}>H3</option>
 						</select>
 					</div>
-				{:else if bloco.tipo !== 'texto' && bloco.tipo !== 'exercicio'}
+				{:else if bloco.tipo !== 'texto' && !EM_CARTAO.has(bloco.tipo)}
 					<EditorBlocoCamada
 						bloco={bloco}
 						atualizar={(transformar) => atualizarBloco(bloco.id, transformar)}
+						{alvos}
 					/>
 				{/if}
 			{/if}
@@ -272,7 +304,7 @@
 						>
 							⠿
 						</button>
-						{#if bloco.tipo !== 'titulo' && bloco.tipo !== 'texto' && bloco.tipo !== 'exercicio'}
+						{#if bloco.tipo !== 'titulo' && bloco.tipo !== 'texto' && !EM_CARTAO.has(bloco.tipo)}
 							<button
 								class="btn btn-xs btn-outline"
 								type="button"
@@ -324,15 +356,24 @@
 	{/each}
 
 	{#if modo === 'editar'}
-		<div class="canvas-adicionar">
-			<select class="select select-sm select-bordered" aria-label="Tipo do novo bloco" bind:value={novoTipo}>
-				{#each TIPOS_BLOCO as tipo}
-					<option value={tipo.id}>{tipo.rotulo}</option>
+		<div class="canvas-adicionar space-y-2">
+			<span class="text-xs font-semibold uppercase tracking-wide opacity-60">Adicionar bloco</span>
+			<div
+				class="flex flex-wrap justify-center gap-2"
+				role="group"
+				aria-label="Adicionar bloco"
+			>
+				{#each TIPOS_BLOCO as tipo (tipo.id)}
+					<button
+						class="btn btn-sm btn-outline h-auto w-20 flex-col items-center gap-1 px-1 py-2"
+						type="button"
+						onclick={() => adicionar(tipo.id)}
+					>
+						<Icone nome={tipo.icone} />
+						<span class="text-xs leading-tight">{tipo.rotulo}</span>
+					</button>
 				{/each}
-			</select>
-			<button class="btn btn-sm btn-outline w-72" type="button" onclick={() => adicionar()}>
-				+ Adicionar bloco
-			</button>
+			</div>
 		</div>
 	{/if}
 </div>
@@ -391,10 +432,6 @@
 	}
 
 	.canvas-adicionar {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
 		padding: 1rem 0 0.25rem;
 		border-top: 1px dashed color-mix(in srgb, currentColor 20%, transparent);
 	}

@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { TEMA_MERMAID_PADRAO, type TemaMermaid } from '$lib/blocks';
 
 	type Props = {
 		diagrama: string;
 		id: string;
+		tema?: TemaMermaid;
 	};
 
-	let { diagrama, id }: Props = $props();
+	let { diagrama, id, tema = TEMA_MERMAID_PADRAO }: Props = $props();
 
 	const ZOOM_MINIMO = 0.25;
 	const ZOOM_MAXIMO = 5;
@@ -250,7 +252,7 @@
 		return true;
 	}
 
-	async function renderizar(definicao: string, cancelado: () => boolean) {
+	async function renderizar(definicao: string, tema: TemaMermaid, cancelado: () => boolean) {
 		if (!container) return;
 
 		const atual = ++sequencia;
@@ -267,7 +269,7 @@
 			const mermaid = (await import('mermaid')).default;
 			mermaid.initialize({
 				startOnLoad: false,
-				theme: 'neutral'
+				theme: tema
 			});
 			const resultado = await mermaid.render(`mermaid-${id}-${atual}`, definicao);
 			if (cancelado() || atual !== sequencia || !container) return;
@@ -297,12 +299,16 @@
 		}
 	}
 
-	function agendarAtualizacao(definicao: string, cancelado: () => boolean) {
+	function agendarAtualizacao(
+		definicao: string,
+		tema: TemaMermaid,
+		cancelado: () => boolean
+	) {
 		atualizando = true;
 		if (temporizador) clearTimeout(temporizador);
 		temporizador = setTimeout(() => {
 			temporizador = undefined;
-			void renderizar(definicao, cancelado);
+			void renderizar(definicao, tema, cancelado);
 		}, ATRASO_ATUALIZACAO);
 	}
 
@@ -311,7 +317,7 @@
 		let observador: ResizeObserver | undefined;
 		const canceladoAtivo = () => cancelado;
 
-		void renderizar(diagrama, canceladoAtivo);
+		void renderizar(diagrama, tema, canceladoAtivo);
 
 		if (viewport) {
 			viewport.addEventListener('dblclick', aoAjustarParaTela);
@@ -349,11 +355,12 @@
 
 	$effect(() => {
 		const definicao = diagrama;
+		const temaAtual = tema;
 		if (primeiraRenderizacao) {
 			primeiraRenderizacao = false;
 			return;
 		}
-		agendarAtualizacao(definicao, () => false);
+		agendarAtualizacao(definicao, temaAtual, () => false);
 	});
 </script>
 

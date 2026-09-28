@@ -1,0 +1,1 @@
+ALTER TABLE `aulas` ADD `tipo` text DEFAULT 'aula' NOT NULL;

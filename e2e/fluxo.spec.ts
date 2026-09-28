@@ -110,11 +110,9 @@ test('canvas edita tabela e exercício e mantém os dados', async ({ page }) => 
 	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
 	await expect(page).toHaveURL(/\/editar/);
 
-	const tipoNovo = page.locator('.canvas-adicionar select');
-	const adicionar = page.getByRole('button', { name: 'Adicionar bloco' });
+	const adicionar = (tipo: string) => page.getByRole('button', { name: tipo, exact: true }).click();
 
-	await tipoNovo.selectOption('tabela');
-	await adicionar.click();
+	await adicionar('Tabela');
 	await page.getByPlaceholder('Coluna').fill('Entrada');
 	await page.getByPlaceholder('Valor').fill('A1');
 	await page.getByRole('button', { name: '+ Linha' }).click();
@@ -122,8 +120,7 @@ test('canvas edita tabela e exercício e mantém os dados', async ({ page }) => 
 	await page.getByPlaceholder('Coluna').nth(1).fill('Saída');
 	await page.getByPlaceholder('Valor').nth(1).fill('B1');
 
-	await tipoNovo.selectOption('exercicio');
-	await adicionar.click();
+	await adicionar('Exercício');
 	const enunciado = page.getByLabel('Enunciado do exercício', { exact: true });
 	await enunciado.click();
 	await page.keyboard.type('Qual é a resposta?');
@@ -195,8 +192,7 @@ test('diagrama mermaid atualiza ao vivo sem fechar o editor', async ({ page }) =
 	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
 	await expect(page).toHaveURL(/\/editar/);
 
-	await page.locator('.canvas-adicionar select').selectOption('mermaid');
-	await page.getByRole('button', { name: 'Adicionar bloco' }).click();
+	await page.getByRole('button', { name: 'Diagrama', exact: true }).click();
 
 	const definicao = page.getByLabel('Definição Mermaid');
 	const svg = page.locator('.mermaid-conteudo svg');
@@ -229,6 +225,55 @@ test('diagrama mermaid atualiza ao vivo sem fechar o editor', async ({ page }) =
 
 	await viewport.dispatchEvent('wheel', { deltaY: 120, ctrlKey: true });
 	await expect(zoom).toHaveText(zoomInicial ?? '');
+});
+
+test('tema do diagrama mermaid fica ao lado do rótulo e é salvo', async ({ page }) => {
+	await page.goto('/login');
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
+	await page.getByRole('button', { name: 'Entrar' }).click();
+	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
+
+	await page.goto('/apostilas/nova');
+	await page.getByLabel('Título').fill(`Mermaid tema ${Date.now()}`);
+	await page.getByRole('button', { name: 'Criar' }).click();
+	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
+	await expect(page).toHaveURL(/\/editar/);
+
+	await page.getByRole('button', { name: 'Diagrama', exact: true }).click();
+
+	const tema = page.getByLabel('Tema do diagrama Mermaid');
+	const rotulo = page.getByText('Definição Mermaid');
+	const definicao = page.getByLabel('Definição Mermaid');
+	const svg = page.locator('.mermaid-conteudo svg');
+	await expect(tema).toHaveValue('neutral');
+
+	// Select na mesma linha do rótulo, encostado na direita (alinhado ao textarea).
+	const centro = (caixa: { y: number; height: number }) => caixa.y + caixa.height / 2;
+	const caixaRotulo = (await rotulo.boundingBox())!;
+	const caixaTema = (await tema.boundingBox())!;
+	const caixaDefinicao = (await definicao.boundingBox())!;
+	expect(Math.abs(centro(caixaTema) - centro(caixaRotulo))).toBeLessThan(14);
+	expect(caixaTema.x).toBeGreaterThan(caixaRotulo.x + caixaRotulo.width);
+	expect(Math.abs(caixaTema.x + caixaTema.width - (caixaDefinicao.x + caixaDefinicao.width))).toBeLessThan(
+		2
+	);
+
+	await expect(svg).toBeVisible();
+	const estiloNeutro = await page.locator('.mermaid-conteudo').innerHTML();
+
+	await tema.selectOption('forest');
+	await expect
+		.poll(async () => (await page.locator('.mermaid-conteudo').innerHTML()) !== estiloNeutro)
+		.toBe(true);
+	await expect(svg).toContainText('flowchart');
+
+	await page.getByRole('button', { name: 'Salvar aula' }).click();
+	await expect(page).toHaveURL(/\/aulas\/\d+$/);
+	await expect(page.getByLabel('Tema do diagrama Mermaid', { exact: true })).toHaveCount(0);
+
+	await page.goto(`${new URL(page.url()).pathname}/editar`);
+	await page.getByRole('group', { name: 'Prévia do bloco mermaid' }).click();
+	await expect(page.getByLabel('Tema do diagrama Mermaid')).toHaveValue('forest');
 });
 
 test('painel de seções: cria, valida, renomeia, reordena e exclui', async ({ page }) => {
@@ -321,8 +366,7 @@ test('trocar tipo de bloco com conteúdo pede confirmação', async ({ page }) =
 	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
 	await expect(page).toHaveURL(/\/editar/);
 
-	await page.locator('.canvas-adicionar select').selectOption('texto');
-	await page.getByRole('button', { name: 'Adicionar bloco' }).click();
+	await page.getByRole('button', { name: 'Texto', exact: true }).click();
 
 	const texto = page.getByLabel('Texto do bloco');
 	await texto.click();
@@ -338,8 +382,7 @@ test('trocar tipo de bloco com conteúdo pede confirmação', async ({ page }) =
 	await expect(page.getByLabel('Código fonte')).toBeVisible();
 	await expect(texto).toHaveCount(0);
 
-	await page.locator('.canvas-adicionar select').selectOption('texto');
-	await page.getByRole('button', { name: 'Adicionar bloco' }).click();
+	await page.getByRole('button', { name: 'Texto', exact: true }).click();
 	const vazio = page.getByLabel('Texto do bloco').last();
 	let perguntou = false;
 	page.on('dialog', (dialogo) => {
@@ -350,4 +393,44 @@ test('trocar tipo de bloco com conteúdo pede confirmação', async ({ page }) =
 	await expect(page.getByLabel('Definição LaTeX')).toBeVisible();
 	expect(perguntou).toBe(false);
 	await expect(vazio).toHaveCount(0);
+});
+
+test('grid de criação adiciona o bloco escolhido logo abaixo do selecionado', async ({ page }) => {
+	await page.goto('/login');
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
+	await page.getByRole('button', { name: 'Entrar' }).click();
+
+	await page.goto('/apostilas/nova');
+	await page.getByLabel('Título').fill(`Grid E2E ${Date.now()}`);
+	await page.getByRole('button', { name: 'Criar' }).click();
+	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
+	await expect(page).toHaveURL(/\/editar/);
+
+	const grade = page.getByRole('group', { name: 'Adicionar bloco' });
+	await expect(grade.getByRole('button')).toHaveCount(10);
+	await expect(page.getByLabel('Tipo do novo bloco')).toHaveCount(0);
+
+	const posicoes = async () =>
+		page
+			.getByRole('button', { name: /Mover bloco \d/ })
+			.evaluateAll((botoes) => botoes.map((botao) => botao.getAttribute('aria-label')));
+
+	const primeiro = page.getByLabel('Texto do bloco').first();
+	await page.getByRole('button', { name: 'Título', exact: true }).click();
+	await primeiro.click();
+	await page.keyboard.type('Primeiro');
+	await page.getByRole('button', { name: 'Tabela', exact: true }).click();
+	await expect(posicoes()).resolves.toEqual([
+		'Mover bloco 1: Título',
+		'Mover bloco 2: Tabela'
+	]);
+
+	// Com o primeiro bloco selecionado, o novo entra entre ele e o que já vinha depois.
+	await primeiro.click();
+	await page.getByRole('button', { name: 'Código', exact: true }).click();
+	await expect(posicoes()).resolves.toEqual([
+		'Mover bloco 1: Título',
+		'Mover bloco 2: Código',
+		'Mover bloco 3: Tabela'
+	]);
 });

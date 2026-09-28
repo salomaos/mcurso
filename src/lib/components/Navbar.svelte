@@ -20,6 +20,8 @@
 		{#if user}
 			<nav class="flex items-center gap-1">
 				<a href="/" class="btn btn-ghost btn-sm">Apostilas</a>
+				<a href="/anexos" class="btn btn-ghost btn-sm">Anexos</a>
+				<a href="/exercicios" class="btn btn-ghost btn-sm">Atividades</a>
 				<a href="/apostilas/nova" class="btn btn-ghost btn-sm">Nova apostila</a>
 			</nav>
 		{/if}

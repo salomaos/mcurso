@@ -1,21 +1,21 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import BlocoRender from '$lib/components/BlocoRender.svelte';
-	import type { Blocos } from '$lib/blocks';
+	import TextoMatematico from '$lib/components/TextoMatematico.svelte';
+	import { corretasDoExercicio, type Blocos } from '$lib/blocks';
+	import { ROTULO_TIPO, rotasConteudo, type ContextoConteudo } from '$lib/conteudo';
 
 	let {
 		blocos,
-		apostilaId,
-		apostilaTitulo,
-		aulaId,
-		aulaTitulo,
+		conteudoId,
+		conteudoTitulo,
+		contexto,
 		baseHref = '/apostilas'
 	}: {
 		blocos: Blocos;
-		apostilaId: number;
-		apostilaTitulo: string;
-		aulaId: number;
-		aulaTitulo: string;
+		conteudoId: number;
+		conteudoTitulo: string;
+		contexto: ContextoConteudo;
 		baseHref?: string;
 	} = $props();
 
@@ -23,6 +23,11 @@
 	let revelado = $state(false);
 	const total = $derived(blocos.length);
 	const bloco = $derived(blocos[indice] ?? null);
+	// Gabarito em lista: a questão pode ter mais de uma alternativa verdadeira.
+	const gabarito = $derived(
+		bloco?.tipo === 'exercicio' ? corretasDoExercicio(bloco) : ([] as number[])
+	);
+	const { proprio, voltar, apostilaId } = $derived(rotasConteudo(contexto, conteudoId, baseHref));
 
 	function ir(delta: number) {
 		indice = Math.min(total - 1, Math.max(0, indice + delta));
@@ -30,7 +35,7 @@
 	}
 
 	function fechar() {
-		location.href = `${baseHref}/${apostilaId}/aulas/${aulaId}`;
+		location.href = proprio;
 	}
 
 	onMount(() => {
@@ -53,14 +58,10 @@
 		window.addEventListener('keydown', aoTeclar);
 		return () => window.removeEventListener('keydown', aoTeclar);
 	});
-
-	function ahrefRetorno() {
-		return `${baseHref}/${apostilaId}/aulas/${aulaId}`;
-	}
 </script>
 
 <svelte:head>
-	<title>Apresentar — {aulaTitulo}</title>
+	<title>Apresentar {ROTULO_TIPO[contexto.tipo].toLowerCase()} — {conteudoTitulo}</title>
 </svelte:head>
 
 <div class="fixed inset-0 z-50 bg-base-200 text-base-content flex flex-col">
@@ -68,13 +69,13 @@
 	<div class="flex items-center justify-between gap-2 px-4 py-2 border-b border-base-300 shrink-0">
 		<div class="flex items-center gap-2 min-w-0">
 			<a
-				href={ahrefRetorno()}
+				href={proprio}
 				class="btn btn-ghost btn-xs"
 				title="Fechar apresentação (Esc)"
 			>✕ Fechar</a>
-			<span class="text-xs opacity-60 truncate hidden sm:inline">{apostilaTitulo}</span>
+			<span class="text-xs opacity-60 truncate hidden sm:inline">{voltar.rotulo}</span>
 			<span class="opacity-30 hidden sm:inline">/</span>
-			<span class="text-xs font-semibold truncate">{aulaTitulo}</span>
+			<span class="text-xs font-semibold truncate">{conteudoTitulo}</span>
 		</div>
 		<span class="text-xs opacity-60 tabular-nums shrink-0">{indice + 1} / {total}</span>
 	</div>
@@ -98,7 +99,7 @@
 						{:else if bloco && bloco.tipo === 'exercicio'}
 							<div class="space-y-6 w-full max-w-3xl">
 								<h2 class="text-2xl sm:text-4xl font-bold leading-snug whitespace-pre-wrap text-center">
-									{bloco.pergunta}
+									<TextoMatematico texto={bloco.pergunta} />
 								</h2>
 								{#if !revelado}
 									<button
@@ -109,14 +110,14 @@
 									<div class="grid gap-3 sm:grid-cols-2">
 										{#each bloco.alternativas as alternativa, j}
 											<div
-												class="card p-4 {j === bloco.correta
+												class="card p-4 {gabarito.includes(j)
 													? 'border-2 border-success text-success'
 													: 'opacity-70'}"
 											>
 												<div class="text-sm font-bold opacity-60">
 													{String.fromCharCode(65 + j)})
 												</div>
-												<div>{alternativa}</div>
+												<div><TextoMatematico texto={alternativa} /></div>
 											</div>
 										{/each}
 									</div>
@@ -128,7 +129,7 @@
 								{/if}
 							</div>
 						{:else if bloco}
-							<BlocoRender bloco={bloco} apostilaId={apostilaId} baseHref={baseHref} />
+							<BlocoRender bloco={bloco} {apostilaId} {baseHref} />
 						{/if}
 					</div>
 				{/key}

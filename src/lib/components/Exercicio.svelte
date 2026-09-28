@@ -1,6 +1,13 @@
 <script lang="ts">
 	import TextoEditavel from './TextoEditavel.svelte';
-	import type { Bloco, BlocoExercicio } from '$lib/blocks';
+	import TextoMatematico from './TextoMatematico.svelte';
+	import {
+		corretasDoExercicio,
+		ehMultiplaEscolha,
+		type Bloco,
+		type BlocoExercicio
+	} from '$lib/blocks';
+	import { SELECOES_EXERCICIO, type SelecaoExercicio } from '$lib/conteudo';
 
 	type Modo = 'editar' | 'visualizar';
 	type Props = {
@@ -11,14 +18,19 @@
 
 	let { bloco, modo = 'visualizar', atualizar }: Props = $props();
 
-	let resposta = $state<number | null>(null);
+	let selecionadas = $state<number[]>([]);
 	let mostrado = $state(false);
 
 	const editando = $derived(modo === 'editar');
+	const multipla = $derived(ehMultiplaEscolha(bloco));
+	const corretas = $derived(corretasDoExercicio(bloco));
+	const acertou = $derived(
+		selecionadas.length === corretas.length && selecionadas.every((indice, i) => indice === corretas[i])
+	);
 
 	$effect(() => {
 		JSON.stringify([bloco.id, bloco.pergunta, bloco.alternativas, bloco.correta, bloco.explicacao]);
-		resposta = null;
+		selecionadas = [];
 		mostrado = false;
 	});
 
@@ -40,26 +52,52 @@
 		});
 	}
 
+	// Trocar de modalidade leva o gabarito junto: uma resposta vira a lista com
+	// aquela, e várias viram a primeira (o que a lista já tinha).
+	function alterarSelecao(selecao: SelecaoExercicio) {
+		mudar((atual) => {
+			const atuais = corretasDoExercicio(atual);
+			return {
+				...atual,
+				selecao,
+				correta: selecao === 'radio' ? (atuais[0] ?? 0) : (atuais.length > 0 ? atuais : [0])
+			};
+		});
+	}
+
 	function marcarCorreta(indice: number) {
-		mudar((atual) => ({ ...atual, correta: indice }));
+		mudar((atual) => {
+			if (ehMultiplaEscolha(atual)) {
+				const lista = new Set(corretasDoExercicio(atual));
+				if (lista.has(indice)) lista.delete(indice);
+				else lista.add(indice);
+				const nova = [...lista].sort((a, b) => a - b);
+				// Sem nenhuma marcada a questão não tem resposta certa.
+				return { ...atual, correta: nova.length > 0 ? nova : [indice] };
+			}
+			return { ...atual, correta: indice };
+		});
 	}
 
 	function adicionarAlternativa() {
 		mudar((atual) => ({ ...atual, alternativas: [...atual.alternativas, ''] }));
 	}
 
+	// Remove a alternativa e remapeia o gabarito para os índices novos.
 	function removerAlternativa(indice: number) {
 		mudar((atual) => {
 			if (atual.alternativas.length <= 2) return atual;
 			const alternativas = [...atual.alternativas];
 			alternativas.splice(indice, 1);
-			const correta =
-				atual.correta === indice
-					? Math.min(indice, alternativas.length - 1)
-					: atual.correta > indice
-						? atual.correta - 1
-						: atual.correta;
-			return { ...atual, alternativas, correta };
+			const remapeadas = corretasDoExercicio(atual)
+				.filter((atual) => atual !== indice)
+				.map((atual) => (atual > indice ? atual - 1 : atual));
+			const corretasNovas = remapeadas.length > 0 ? remapeadas : [0];
+			return {
+				...atual,
+				alternativas,
+				correta: ehMultiplaEscolha(atual) ? corretasNovas : (corretasNovas[0] ?? 0)
+			};
 		});
 	}
 
@@ -70,12 +108,58 @@
 	function letra(indice: number) {
 		return String.fromCharCode(65 + indice);
 	}
+
+	function letrasDaGabarito() {
+		return corretas.map(letra).join(', ');
+	}
+
+	function escolher(indice: number) {
+		if (mostrado) return;
+		if (!multipla) {
+			selecionadas = [indice];
+			mostrado = true;
+			return;
+		}
+		selecionadas = selecionadas.includes(indice)
+			? selecionadas.filter((atual) => atual !== indice)
+			: [...selecionadas, indice].sort((a, b) => a - b);
+	}
+
+	function reiniciar() {
+		selecionadas = [];
+		mostrado = false;
+	}
 </script>
 
 <fieldset class="card card-bordered p-4 space-y-3">
-	<legend class="text-xs uppercase font-semibold opacity-60 px-1">Exercício</legend>
+	<legend class="text-xs uppercase font-semibold opacity-60 px-1">
+		{multipla ? 'Exercício (múltiplas escolhas)' : 'Exercício'}
+	</legend>
 
 	{#if editando}
+		<div class="flex flex-wrap items-end gap-2">
+			<label class="label text-xs" for={`selecao-${bloco.id}`}>
+				<span class="label-text">Tipo de resposta</span>
+			</label>
+			<select
+				id={`selecao-${bloco.id}`}
+				class="select select-xs select-bordered"
+				value={bloco.selecao ?? 'radio'}
+				onchange={(event) => alterarSelecao(event.currentTarget.value as SelecaoExercicio)}
+			>
+				{#each SELECOES_EXERCICIO as selecao}
+					<option value={selecao}>
+						{selecao === 'radio' ? 'Uma alternativa (rádio)' : 'Várias alternativas (caixas)'}
+					</option>
+				{/each}
+			</select>
+			<span class="text-xs opacity-60">
+				{multipla
+					? 'Marque todas as alternativas verdadeiras.'
+					: 'Marque a única alternativa verdadeira.'}
+			</span>
+		</div>
+
 		<div class="font-semibold">
 			<TextoEditavel
 				texto={bloco.pergunta}
@@ -100,10 +184,10 @@
 						/>
 					</div>
 					<input
-						class="radio radio-sm"
-						type="radio"
+						class={multipla ? 'checkbox checkbox-sm' : 'radio radio-sm'}
+						type={multipla ? 'checkbox' : 'radio'}
 						name={`correta-${bloco.id}`}
-						checked={bloco.correta === indice}
+						checked={corretas.includes(indice)}
 						onchange={() => marcarCorreta(indice)}
 						title="Marcar como correta"
 						aria-label={`Marcar alternativa ${letra(indice)} como correta`}
@@ -122,6 +206,10 @@
 			{/each}
 		</div>
 
+		<p class="text-xs opacity-60">
+			Fórmula entre <code>$</code>: <code>alternativa $\frac{1}{2}$</code>.
+		</p>
+
 		<div>
 			<button class="btn btn-xs btn-ghost" type="button" onclick={adicionarAlternativa}>
 				+ Alternativa
@@ -139,44 +227,59 @@
 			/>
 		</div>
 	{:else}
-		<p class="font-semibold whitespace-pre-wrap">{bloco.pergunta}</p>
+		<p class="font-semibold"><TextoMatematico texto={bloco.pergunta} /></p>
 
 		<div class="space-y-2">
-			{#each bloco.alternativas as alternativa, idx}
-				<button
-					type="button"
-					class="btn btn-sm btn-block justify-start whitespace-normal h-auto min-h-10"
-					class:btn-primary={mostrado && idx === bloco.correta}
-					class:btn-ghost={resposta === null || (mostrado && idx !== bloco.correta)}
-					disabled={mostrado}
-					onclick={() => {
-						resposta = idx;
-						mostrado = true;
-					}}
+			{#each bloco.alternativas as alternativa, indice}
+				{@const escolhida = selecionadas.includes(indice)}
+				{@const gabarito = corretas.includes(indice)}
+				<label
+					class="btn btn-sm btn-block h-auto min-h-10 justify-start gap-2 whitespace-normal text-left"
+					class:btn-primary={!mostrado}
+					class:btn-ghost={!mostrado}
+					class:btn-success={mostrado && gabarito}
+					class:btn-error={mostrado && escolhida && !gabarito}
+					class:btn-outline={mostrado && !escolhida && !gabarito}
 				>
-					<span class="text-xs opacity-60 font-bold mr-1">{letra(idx)})</span>
-					<span>{alternativa}</span>
-				</button>
+					<input
+						class={multipla ? 'checkbox checkbox-sm' : 'radio radio-sm'}
+						type={multipla ? 'checkbox' : 'radio'}
+						name={`inline-${bloco.id}`}
+						checked={escolhida}
+						disabled={mostrado}
+						onchange={() => escolher(indice)}
+						aria-label={`Alternativa ${letra(indice)}`}
+					/>
+					<span class="text-xs opacity-60 font-bold">{letra(indice)})</span>
+					<span><TextoMatematico texto={alternativa} /></span>
+					{#if mostrado && gabarito}
+						<span class="ml-auto text-xs font-semibold uppercase">gabarito</span>
+					{/if}
+				</label>
 			{/each}
 		</div>
 
-		{#if mostrado}
-			<div class="alert {resposta === bloco.correta ? 'alert-success' : 'alert-error'} text-sm" role="status">
-				{resposta === bloco.correta
-					? 'Correto!'
-					: `Incorreto — resposta certa: ${letra(bloco.correta)}`}
-			</div>
-			{#if bloco.explicacao}
-				<div class="text-sm opacity-80 whitespace-pre-wrap">{bloco.explicacao}</div>
-			{/if}
+		{#if multipla && !mostrado}
 			<button
 				type="button"
-				class="btn btn-ghost btn-xs"
-				onclick={() => {
-					resposta = null;
-					mostrado = false;
-				}}
+				class="btn btn-sm"
+				disabled={selecionadas.length === 0}
+				onclick={() => (mostrado = true)}
 			>
+				Confirmar resposta
+			</button>
+		{/if}
+
+		{#if mostrado}
+			<div class="alert {acertou ? 'alert-success' : 'alert-error'} text-sm" role="status">
+				{acertou ? 'Correto!' : `Incorreto — resposta certa: ${letrasDaGabarito()}`}
+			</div>
+			{#if bloco.explicacao}
+				<div class="text-sm opacity-80 whitespace-pre-wrap">
+					<TextoMatematico texto={bloco.explicacao} />
+				</div>
+			{/if}
+			<button type="button" class="btn btn-ghost btn-xs" onclick={reiniciar}>
 				Tentar novamente
 			</button>
 		{/if}

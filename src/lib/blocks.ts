@@ -1,10 +1,35 @@
 // Tipos e helpers dos blocos de conteúdo de uma aula.
 // Blocos são armazenados como JSON na coluna `aulas.blocos`.
 
+import { caminhoAnexo, caminhoAula, caminhoExercicio } from '$lib/conteudo';
+import type { NomeIcone } from '$lib/icones';
+import { SELECOES_EXERCICIO, type SelecaoExercicio } from '$lib/conteudo';
+
+export { SELECOES_EXERCICIO, type SelecaoExercicio };
+
 export type BlocoTexto = { id: string; tipo: 'texto'; conteudo: string };
 export type BlocoTitulo = { id: string; tipo: 'titulo'; texto: string; nivel: 1 | 2 | 3 };
 export type BlocoCodigo = { id: string; tipo: 'codigo'; linguagem: string; codigo: string };
-export type BlocoMermaid = { id: string; tipo: 'mermaid'; diagrama: string };
+export type BlocoMermaid = { id: string; tipo: 'mermaid'; diagrama: string; tema: TemaMermaid };
+
+// Temas do Mermaid aceitos no editor. `null` (sem estilo) e os temas
+// experimentais ficam de fora: são ruins de escolher e não somem em print.
+export const TEMAS_MERMAID = [
+	{ valor: 'neutral', rotulo: 'Neutro' },
+	{ valor: 'default', rotulo: 'Padrão' },
+	{ valor: 'forest', rotulo: 'Floresta' },
+	{ valor: 'dark', rotulo: 'Escuro' },
+	{ valor: 'base', rotulo: 'Base' }
+] as const;
+export type TemaMermaid = (typeof TEMAS_MERMAID)[number]['valor'];
+
+export const TEMA_MERMAID_PADRAO: TemaMermaid = 'neutral';
+
+const TEMAS_MERMAID_VALIDOS = new Set<string>(TEMAS_MERMAID.map((tema) => tema.valor));
+
+export function ehTemaMermaid(valor: unknown): valor is TemaMermaid {
+	return typeof valor === 'string' && TEMAS_MERMAID_VALIDOS.has(valor);
+}
 export type BlocoImagem = { id: string; tipo: 'imagem'; src: string; legenda?: string };
 export type BlocoLink = {
 	id: string;
@@ -12,17 +37,34 @@ export type BlocoLink = {
 	rotulo: string;
 	tipoLink: 'exercicio' | 'anexo' | 'aula' | 'externo';
 	url?: string;
-	aulaId?: number;
+	alvoId?: number;
 };
 export type BlocoTabela = { id: string; tipo: 'tabela'; cabecalho: string[]; linhas: string[][] };
 export type BlocoFormula = { id: string; tipo: 'formula'; latex: string; destaque: boolean };
+// Como o aluno responde: um botão de rádio (uma alternativa verdadeira) ou
+// caixas de seleção (várias alternativas verdadeiras). Definido em
+// `$lib/conteudo` (re-exportado aqui) porque o payload público também usa.
+//
+// `correta` é número em `radio` e lista em `checkbox`. Bloco gravado antes do
+// campo `selecao` é `radio` com número — daí os normalizadores aceitarem os dois
+// formatos (ver `corretasDoExercicio`).
 export type BlocoExercicio = {
 	id: string;
 	tipo: 'exercicio';
 	pergunta: string;
 	alternativas: string[];
-	correta: number;
+	selecao: SelecaoExercicio;
+	correta: number | number[];
 	explicacao?: string;
+};
+
+// Atividade aberta: o aluno escreve a resposta e ela aparece no resultado para
+// avaliação. Não entra na nota automática.
+export type BlocoDissertativa = {
+	id: string;
+	tipo: 'dissertativa';
+	pergunta: string;
+	orientacao?: string;
 };
 
 export type Bloco =
@@ -34,8 +76,28 @@ export type Bloco =
 	| BlocoLink
 	| BlocoTabela
 	| BlocoFormula
-	| BlocoExercicio;
+	| BlocoExercicio
+	| BlocoDissertativa;
 export type Blocos = Bloco[];
+
+export function ehMultiplaEscolha(bloco: { selecao?: unknown }): boolean {
+	return bloco.selecao === 'checkbox';
+}
+
+// Lista canônica de alternativas corretas, aceitando o formato antigo (número).
+// Índices fora da faixa saem: alternativa removida não pode continuar no gabarito.
+export function corretasDoExercicio(bloco: {
+	alternativas: string[];
+	correta: number | number[];
+}): number[] {
+	const cru = Array.isArray(bloco.correta) ? bloco.correta : [bloco.correta];
+	const total = bloco.alternativas.length;
+	const validos = cru.filter(
+		(indice): indice is number =>
+			typeof indice === 'number' && Number.isInteger(indice) && indice >= 0 && indice < total
+	);
+	return [...new Set(validos)].sort((a, b) => a - b);
+}
 
 export function novoId(): string {
 	return crypto.randomUUID();
@@ -51,7 +113,7 @@ export function criarBloco(tipo: Bloco['tipo']): Bloco {
 		case 'codigo':
 			return { id, tipo, linguagem: 'js', codigo: '' };
 		case 'mermaid':
-			return { id, tipo, diagrama: 'flowchart LR\n  A --> B' };
+			return { id, tipo, diagrama: 'flowchart LR\n  A --> B', tema: TEMA_MERMAID_PADRAO };
 		case 'imagem':
 			return { id, tipo, src: '' };
 		case 'link':
@@ -61,21 +123,24 @@ export function criarBloco(tipo: Bloco['tipo']): Bloco {
 		case 'formula':
 			return { id, tipo, latex: 'E = mc^2', destaque: true };
 		case 'exercicio':
-			return { id, tipo, pergunta: '', alternativas: ['', ''], correta: 0 };
+			return { id, tipo, pergunta: '', alternativas: ['', ''], selecao: 'radio', correta: 0 };
+		case 'dissertativa':
+			return { id, tipo, pergunta: '', orientacao: '' };
 	}
 }
 
 export const TIPOS_BLOCO = [
-	{ id: 'titulo', rotulo: 'Título' },
-	{ id: 'texto', rotulo: 'Texto' },
-	{ id: 'codigo', rotulo: 'Código' },
-	{ id: 'mermaid', rotulo: 'Diagrama' },
-	{ id: 'imagem', rotulo: 'Imagem' },
-	{ id: 'link', rotulo: 'Link' },
-	{ id: 'tabela', rotulo: 'Tabela' },
-	{ id: 'formula', rotulo: 'Fórmula' },
-	{ id: 'exercicio', rotulo: 'Exercício' }
-] as const;
+	{ id: 'titulo', rotulo: 'Título', icone: 'titulo' },
+	{ id: 'texto', rotulo: 'Texto', icone: 'texto' },
+	{ id: 'codigo', rotulo: 'Código', icone: 'codigo' },
+	{ id: 'mermaid', rotulo: 'Diagrama', icone: 'mermaid' },
+	{ id: 'imagem', rotulo: 'Imagem', icone: 'imagem' },
+	{ id: 'link', rotulo: 'Link', icone: 'link' },
+	{ id: 'tabela', rotulo: 'Tabela', icone: 'tabela' },
+	{ id: 'formula', rotulo: 'Fórmula', icone: 'formula' },
+	{ id: 'exercicio', rotulo: 'Exercício', icone: 'exercicio' },
+	{ id: 'dissertativa', rotulo: 'Dissertativa', icone: 'dissertativa' }
+] as const satisfies readonly { id: Bloco['tipo']; rotulo: string; icone: NomeIcone }[];
 
 // Formato de aula usado nas páginas (id + campos de exibição), independente do row do drizzle.
 export type AulaUi = {
@@ -134,7 +199,8 @@ const TIPOS_VALIDOS = new Set<Bloco['tipo']>([
 	'link',
 	'tabela',
 	'formula',
-	'exercicio'
+	'exercicio',
+	'dissertativa'
 ]);
 
 const TIPOS_LINK = new Set<BlocoLink['tipoLink']>(['exercicio', 'anexo', 'aula', 'externo']);
@@ -146,6 +212,10 @@ function ehUrlSegura(valor: unknown): valor is string {
 	} catch {
 		return false;
 	}
+}
+
+function ehAlvo(valor: unknown): valor is number {
+	return typeof valor === 'number' && Number.isInteger(valor) && valor > 0;
 }
 
 export function ehBloco(valor: unknown): valor is Bloco {
@@ -165,16 +235,21 @@ export function ehBloco(valor: unknown): valor is Bloco {
 		case 'codigo':
 			return typeof b.codigo === 'string' && typeof b.linguagem === 'string';
 		case 'mermaid':
-			return typeof b.diagrama === 'string';
+			// O tema é cosmético: um valor desconhecido é saneado no
+			// `normalizarCamposBloco`, e bloco antigo sem o campo vale o padrão.
+			return (
+				typeof b.diagrama === 'string' && (b.tema === undefined || typeof b.tema === 'string')
+			);
 		case 'imagem':
 			return typeof b.src === 'string' && (b.legenda === undefined || typeof b.legenda === 'string');
 		case 'link':
 			if (typeof b.rotulo !== 'string' || !TIPOS_LINK.has(b.tipoLink as BlocoLink['tipoLink'])) {
 				return false;
 			}
-			return b.tipoLink === 'aula'
-				? typeof b.aulaId === 'number' && Number.isInteger(b.aulaId) && b.aulaId > 0
-				: ehUrlSegura(b.url);
+			if (b.tipoLink === 'aula' || b.tipoLink === 'anexo' || b.tipoLink === 'exercicio') {
+				return ehAlvo(b.alvoId) || (b.tipoLink === 'aula' && ehAlvo(b.aulaId));
+			}
+			return ehUrlSegura(b.url);
 		case 'tabela':
 			return (
 				Array.isArray(b.cabecalho) &&
@@ -185,19 +260,34 @@ export function ehBloco(valor: unknown): valor is Bloco {
 		case 'formula':
 			return typeof b.latex === 'string' && (b.destaque === undefined || typeof b.destaque === 'boolean');
 		case 'exercicio':
+			return ehBlocoExercicio(b);
+		case 'dissertativa':
 			return (
 				typeof b.pergunta === 'string' &&
-				Array.isArray(b.alternativas) &&
-				b.alternativas.length >= 2 &&
-				b.alternativas.every((a) => typeof a === 'string') &&
-				typeof b.correta === 'number' &&
-				Number.isInteger(b.correta) &&
-				b.correta >= 0 &&
-				b.correta < b.alternativas.length &&
-				(b.explicacao === undefined || b.explicacao === null || typeof b.explicacao === 'string')
+				(b.orientacao === undefined || b.orientacao === null || typeof b.orientacao === 'string')
 			);
 	}
 	return false;
+}
+
+function ehBlocoExercicio(b: Record<string, unknown>): boolean {
+	const { pergunta, alternativas, explicacao, selecao, correta } = b;
+	if (typeof pergunta !== 'string') return false;
+	if (!Array.isArray(alternativas) || alternativas.length < 2) return false;
+	if (!alternativas.every((alternativa) => typeof alternativa === 'string')) return false;
+	if (!(explicacao === undefined || explicacao === null || typeof explicacao === 'string')) return false;
+
+	// `selecao` ausente = bloco antigo, de uma resposta só. Valor fora da lista é
+	// cosmético: saneado no `normalizarCamposBloco` (o bloco tem mais valor que o
+	// formato do gabarito), igual ao tema do Mermaid.
+	if (selecao !== undefined && typeof selecao !== 'string') return false;
+
+	const noIntervalo = (valor: unknown) =>
+		typeof valor === 'number' && Number.isInteger(valor) && valor >= 0 && valor < alternativas.length;
+	if (noIntervalo(correta)) return true;
+
+	// Várias corretas: tem de haver ao menos uma, senão a questão não tem resposta.
+	return Array.isArray(correta) && correta.length > 0 && correta.every(noIntervalo);
 }
 
 // Sanitiza blocos vindos de um POST (nunca confie no JSON bruto do cliente).
@@ -209,6 +299,15 @@ export function normalizarBlocos(valor: unknown): Blocos {
 // Garante campos opcionais com valores seguros por tipo.
 function normalizarCamposBloco(bloco: Bloco): Bloco {
 	switch (bloco.tipo) {
+		case 'mermaid':
+			return {
+				id: bloco.id,
+				tipo: 'mermaid',
+				diagrama: bloco.diagrama,
+				tema: ehTemaMermaid(bloco.tema) ? bloco.tema : TEMA_MERMAID_PADRAO
+			};
+		case 'link':
+			return normalizarLink(bloco);
 		case 'tabela':
 			return {
 				id: bloco.id,
@@ -218,16 +317,77 @@ function normalizarCamposBloco(bloco: Bloco): Bloco {
 			};
 		case 'formula':
 			return { id: bloco.id, tipo: 'formula', latex: bloco.latex, destaque: bloco.destaque !== false };
-		case 'exercicio':
-			return {
+		case 'exercicio': {
+			// Anotado para o literal não alargar para `string`.
+			const selecao: SelecaoExercicio = bloco.selecao === 'checkbox' ? 'checkbox' : 'radio';
+			const base = {
 				id: bloco.id,
-				tipo: 'exercicio',
+				tipo: 'exercicio' as const,
 				pergunta: bloco.pergunta,
 				alternativas: bloco.alternativas.map((a) => String(a)),
-				correta: Number(bloco.correta) || 0,
+				selecao,
 				explicacao: typeof bloco.explicacao === 'string' ? bloco.explicacao : undefined
+			};
+			const corretas = corretasDoExercicio(bloco);
+			// Checkbox sem gabarito não tem resposta certa: fica a primeira.
+			return {
+				...base,
+				correta: selecao === 'radio' ? (corretas[0] ?? 0) : (corretas.length > 0 ? corretas : [0])
+			};
+		}
+		case 'dissertativa':
+			return {
+				id: bloco.id,
+				tipo: 'dissertativa',
+				pergunta: bloco.pergunta,
+				orientacao: typeof bloco.orientacao === 'string' ? bloco.orientacao : undefined
 			};
 		default:
 			return bloco;
 	}
+}
+
+// Link interno guarda só o `alvoId` (id da aula na apostila atual, de um anexo
+// solto ou de uma atividade). O `aulaId` de conteúdos antigos vira `alvoId`;
+// link externo guarda a `url`.
+function normalizarLink(bloco: Bloco & { tipo: 'link' }): BlocoLink {
+	const legado = bloco as BlocoLink & { aulaId?: unknown };
+	const base: BlocoLink = { id: bloco.id, tipo: 'link', rotulo: bloco.rotulo, tipoLink: bloco.tipoLink };
+	if (bloco.tipoLink === 'aula' || bloco.tipoLink === 'anexo' || bloco.tipoLink === 'exercicio') {
+		const alvoId = ehAlvo(bloco.alvoId) ? bloco.alvoId : ehAlvo(legado.aulaId) ? legado.aulaId : undefined;
+		return alvoId === undefined ? base : { ...base, alvoId };
+	}
+	return ehUrlSegura(bloco.url) ? { ...base, url: bloco.url } : base;
+}
+
+// Link para uma aula/anexo/atividade renderiza como rota interna de conteúdo.
+// Aula depende da apostila que a contém; anexo e atividade são soltos. Sem
+// `apostilaId` (dentro de um anexo) um link de aula não tem para onde apontar.
+//
+// Atividade dentro de uma aula leva `?aula=`: é o contexto que a chave do
+// resultado registra, então o aluno responde "dentro" da aula de onde clicou.
+export function hrefLinkInterno(
+	bloco: BlocoLink,
+	apostilaId: number | undefined,
+	baseHref = '/apostilas',
+	aulaContexto?: number
+): string | null {
+	if (bloco.tipoLink !== 'aula' && bloco.tipoLink !== 'anexo' && bloco.tipoLink !== 'exercicio') return null;
+	if (!ehAlvo(bloco.alvoId)) return null;
+	if (bloco.tipoLink === 'anexo') return caminhoAnexo(bloco.alvoId);
+	if (bloco.tipoLink === 'exercicio') {
+		const caminho = caminhoExercicio(bloco.alvoId);
+		return aulaContexto === undefined ? caminho : `${caminho}?aula=${aulaContexto}`;
+	}
+	return apostilaId === undefined ? null : caminhoAula(apostilaId, bloco.alvoId, '', baseHref);
+}
+
+// Blocos que apontam para um conteúdo (usado nos links reversos do anexo e da
+// atividade). O tipo entra no filtro porque `aulas.id`, `anexos.id` e
+// `exercicios.id` são espaços distintos.
+export function linksPara(blocos: Blocos, alvo: { tipo: 'aula' | 'anexo' | 'exercicio'; id: number }) {
+	return blocos.filter(
+		(bloco): bloco is BlocoLink =>
+			bloco.tipo === 'link' && bloco.tipoLink === alvo.tipo && bloco.alvoId === alvo.id
+	);
 }

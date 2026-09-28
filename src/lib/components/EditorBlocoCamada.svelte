@@ -1,17 +1,37 @@
 <script lang="ts">
-	import type { Bloco } from '$lib/blocks';
+	import type { Bloco, BlocoLink } from '$lib/blocks';
+	import { ROTULO_ALVO, type AlvoLink, type TipoAlvo } from '$lib/conteudo';
+	import { TEMAS_MERMAID } from '$lib/blocks';
+	import SeletorAlvo from './SeletorAlvo.svelte';
 
 	type Props = {
 		bloco: Bloco;
 		atualizar: (transformar: (atual: Bloco) => Bloco) => void;
+		alvos?: { aulas: AlvoLink[]; anexos: AlvoLink[]; exercicios: AlvoLink[] };
 	};
 
-	let { bloco, atualizar }: Props = $props();
+	let { bloco, atualizar, alvos }: Props = $props();
 	let enviando = $state(false);
 	let erroUpload = $state<string | null>(null);
 
 	function alterar(campo: string, valor: string | number | boolean | undefined) {
 		atualizar((atual) => ({ ...atual, [campo]: valor } as Bloco));
+	}
+
+	function escolherAlvo(alvo: AlvoLink | null) {
+		atualizar((atual) => {
+			if (atual.tipo !== 'link') return atual;
+			const rotulo = alvo && !atual.rotulo.trim() ? alvo.titulo : atual.rotulo;
+			return { ...atual, rotulo, alvoId: alvo?.id, url: undefined };
+		});
+	}
+
+	// Trocar o tipo limpa o destino anterior (alvo ou URL).
+	function alterarTipoLink(tipo: string) {
+		atualizar((atual) => {
+			if (atual.tipo !== 'link') return atual;
+			return { ...atual, tipoLink: tipo as BlocoLink['tipoLink'], alvoId: undefined, url: undefined };
+		});
 	}
 
 	function atualizarTabela(
@@ -96,9 +116,22 @@
 		</div>
 	{:else if bloco.tipo === 'mermaid'}
 		<div class="form-control">
-			<label class="label" for={`mermaid-${bloco.id}`}>
-				<span class="label-text">Definição Mermaid</span>
-			</label>
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<label class="label" for={`mermaid-${bloco.id}`}>
+					<span class="label-text">Definição Mermaid</span>
+				</label>
+				<select
+					id={`mermaid-tema-${bloco.id}`}
+					class="select select-sm select-bordered w-40 shrink-0"
+					aria-label="Tema do diagrama Mermaid"
+					value={bloco.tema}
+					onchange={(event) => alterar('tema', event.currentTarget.value)}
+				>
+					{#each TEMAS_MERMAID as tema (tema.valor)}
+						<option value={tema.valor}>{tema.rotulo}</option>
+					{/each}
+				</select>
+			</div>
 			<textarea
 				id={`mermaid-${bloco.id}`}
 				class="textarea textarea-bordered w-full max-w-full font-mono min-h-36"
@@ -163,29 +196,30 @@
 				id={`link-tipo-${bloco.id}`}
 				class="select select-sm select-bordered"
 				value={bloco.tipoLink}
-				onchange={(event) => alterar('tipoLink', event.currentTarget.value)}
+				onchange={(event) => alterarTipoLink(event.currentTarget.value)}
 			>
-				<option value="exercicio">Exercício</option>
-				<option value="anexo">Anexo</option>
 				<option value="aula">Aula</option>
+				<option value="anexo">Anexo</option>
+				<option value="exercicio">Atividade</option>
 				<option value="externo">Externo</option>
 			</select>
 		</div>
-		{#if bloco.tipoLink === 'aula'}
+		{#if bloco.tipoLink === 'aula' || bloco.tipoLink === 'anexo' || bloco.tipoLink === 'exercicio'}
 			<div class="form-control">
-				<label class="label" for={`link-aula-${bloco.id}`}>
-					<span class="label-text">ID da aula</span>
-				</label>
-				<input
-					id={`link-aula-${bloco.id}`}
-					class="input input-sm input-bordered"
-					type="number"
-					value={bloco.aulaId ?? ''}
-					oninput={(event) => {
-						const valor = event.currentTarget.value;
-						alterar('aulaId', valor === '' ? undefined : Number(valor));
-					}}
-					placeholder="ID da aula"
+				<div class="label">
+					<span class="label-text">{ROTULO_ALVO[bloco.tipoLink as TipoAlvo]}</span>
+				</div>
+				<SeletorAlvo
+					tipoLink={bloco.tipoLink as TipoAlvo}
+					alvos={alvos?.[
+						bloco.tipoLink === 'anexo'
+							? 'anexos'
+							: bloco.tipoLink === 'exercicio'
+								? 'exercicios'
+								: 'aulas'
+					] ?? []}
+					alvoId={bloco.alvoId}
+					aoEscolher={escolherAlvo}
 				/>
 			</div>
 		{:else}

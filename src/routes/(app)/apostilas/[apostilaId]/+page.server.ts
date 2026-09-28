@@ -180,7 +180,10 @@ export const actions: Actions = {
 		if (!ordens) return fail(400, { erro: 'Ordem inválida.' });
 
 		const [existentes, listaSecoes] = await Promise.all([
-			db.select({ id: aulas.id }).from(aulas).where(eq(aulas.apostilaId, apostilaId)),
+			db
+				.select({ id: aulas.id })
+				.from(aulas)
+				.where(eq(aulas.apostilaId, apostilaId)),
 			db.select({ id: secoes.id }).from(secoes).where(eq(secoes.apostilaId, apostilaId))
 		]);
 		const validas = new Set(existentes.map((aula) => aula.id));
