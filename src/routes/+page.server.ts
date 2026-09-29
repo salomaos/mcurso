@@ -15,7 +15,10 @@ export const load: PageServerLoad = async () => {
 			.from(aulas)
 			.where(inArray(aulas.apostilaId, lista.map((a) => a.id)))
 			.groupBy(aulas.apostilaId);
-		for (const c of contagens) totalPorApostila.set(c.apostilaId, c.total);
+		// `count()` é tipado como `number`, mas no PostgreSQL (bigint) e no MySQL
+		// volta como string. Sem o Number(), a lista mostraria "12" e a tipagem
+		// ficaria mentindo.
+		for (const c of contagens) totalPorApostila.set(c.apostilaId, Number(c.total));
 	}
 
 	return {

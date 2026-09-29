@@ -5,6 +5,7 @@ import { asc, eq } from 'drizzle-orm';
 import { linksPara, normalizarBlocos, type Blocos } from '$lib/blocks';
 import type { AnexoUi, AlvoLink, ReferenciaAnexo } from '$lib/conteudo';
 import { db } from '$lib/server/db';
+import { inserir } from '$lib/server/db/inserir';
 import { anexos, aulas } from '$lib/server/db/schema';
 import { erroNaoEncontrado, lerConteudo, validarLinksInternos, type Falha } from '$lib/server/conteudo';
 
@@ -74,8 +75,7 @@ export async function alvosAnexos(): Promise<AlvoLink[]> {
 }
 
 export async function criarAnexo() {
-	const [anexo] = await db.insert(anexos).values({ titulo: 'Novo anexo' }).returning();
-	return anexo;
+	return inserir(anexos, { titulo: 'Novo anexo' });
 }
 
 export async function salvarAnexo(anexoId: number, dados: FormData): Promise<Falha | null> {

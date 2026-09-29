@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { inserir } from '$lib/server/db/inserir';
 import { apostilas } from '$lib/server/db/schema';
 import { requerSessao } from '$lib/server/guard';
 import type { Actions, PageServerLoad } from './$types';
@@ -18,7 +18,7 @@ export const actions: Actions = {
 
 		if (!titulo) return fail(400, { erro: 'Informe o título da apostila.' });
 
-		const [nova] = await db.insert(apostilas).values({ titulo, descricao }).returning();
+		const nova = await inserir(apostilas, { titulo, descricao });
 		throw redirect(303, `/apostilas/${nova.id}`);
 	}
 };

@@ -1,8 +1,11 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { and, asc, eq, max } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { mesmoNomeSecao, normalizarNomeSecao } from '$lib/blocks';
 import { db } from '$lib/server/db';
+import { inserir } from '$lib/server/db/inserir';
+import { maiorOrdem } from '$lib/server/db/ordem';
 import { apostilas, aulas, secoes } from '$lib/server/db/schema';
+import { emTransacao } from '$lib/server/db/transacao';
 import { requerSessao } from '$lib/server/guard';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -110,12 +113,8 @@ export const actions: Actions = {
 		if (await nomeEmUso(apostilaId, nome))
 			return fail(409, { erro: `Já existe uma seção chamada "${nome}".`, alvo: 'secao' });
 
-		const [linha] = await db
-			.select({ max: max(secoes.ordem) })
-			.from(secoes)
-			.where(eq(secoes.apostilaId, apostilaId));
-
-		await db.insert(secoes).values({ apostilaId, nome, ordem: (linha?.max ?? -1) + 1 });
+		const maior = await maiorOrdem(secoes, apostilaId);
+		await inserir(secoes, { apostilaId, nome, ordem: (maior ?? -1) + 1 });
 		return { ok: true };
 	},
 
@@ -143,9 +142,9 @@ export const actions: Actions = {
 		if (!await secaoDaApostila(apostilaId, secaoId))
 			return fail(404, { erro: 'Seção não encontrada.', alvo: 'secao' });
 
-		await db.transaction((tx) => {
-			tx.update(aulas).set({ secaoId: null }).where(eq(aulas.secaoId, secaoId)).run();
-			tx.delete(secoes).where(eq(secoes.id, secaoId)).run();
+		await emTransacao(async (tx) => {
+			await tx.update(aulas).set({ secaoId: null }).where(eq(aulas.secaoId, secaoId));
+			await tx.delete(secoes).where(eq(secoes.id, secaoId));
 		});
 		return { ok: true };
 	},
@@ -164,10 +163,10 @@ export const actions: Actions = {
 		if (ids.length !== existentes.length || ids.some((id) => !validas.has(id)))
 			return fail(400, { erro: 'Ordem inválida.' });
 
-		db.transaction((tx) => {
-			ids.forEach((id, indice) => {
-				tx.update(secoes).set({ ordem: indice }).where(eq(secoes.id, id)).run();
-			});
+		await emTransacao(async (tx) => {
+			for (const [indice, id] of ids.entries()) {
+				await tx.update(secoes).set({ ordem: indice }).where(eq(secoes.id, id));
+			}
 		});
 
 		return { ok: true };
@@ -198,13 +197,13 @@ export const actions: Actions = {
 		)
 			return fail(400, { erro: 'Ordem inválida.' });
 
-		db.transaction((tx) => {
-			ordens.forEach((ordem, indice) => {
-				tx.update(aulas)
+		await emTransacao(async (tx) => {
+			for (const [indice, ordem] of ordens.entries()) {
+				await tx
+					.update(aulas)
 					.set({ ordem: indice, secaoId: ordem.secaoId })
-					.where(eq(aulas.id, ordem.id))
-					.run();
-			});
+					.where(eq(aulas.id, ordem.id));
+			}
 		});
 
 		return { ok: true };
@@ -214,15 +213,12 @@ export const actions: Actions = {
 		requerSessao(event);
 		const apostilaId = Number(event.params.apostilaId);
 
-		const [linha] = await db
-			.select({ max: max(aulas.ordem) })
-			.from(aulas)
-			.where(eq(aulas.apostilaId, apostilaId));
-
-		const [nova] = await db
-			.insert(aulas)
-			.values({ apostilaId, titulo: 'Nova aula', ordem: (linha?.max ?? 0) + 1 })
-			.returning();
+		const maior = await maiorOrdem(aulas, apostilaId);
+		const nova = await inserir(aulas, {
+			apostilaId,
+			titulo: 'Nova aula',
+			ordem: (maior ?? 0) + 1
+		});
 
 		throw redirect(303, `/apostilas/${apostilaId}/aulas/${nova.id}/editar?novo=1`);
 	},
@@ -245,10 +241,10 @@ export const actions: Actions = {
 	excluir: async (event) => {
 		requerSessao(event);
 		const id = Number(event.params.apostilaId);
-		await db.transaction((tx) => {
-			tx.delete(aulas).where(eq(aulas.apostilaId, id)).run();
-			tx.delete(secoes).where(eq(secoes.apostilaId, id)).run();
-			tx.delete(apostilas).where(eq(apostilas.id, id)).run();
+		await emTransacao(async (tx) => {
+			await tx.delete(aulas).where(eq(aulas.apostilaId, id));
+			await tx.delete(secoes).where(eq(secoes.apostilaId, id));
+			await tx.delete(apostilas).where(eq(apostilas.id, id));
 		});
 		throw redirect(303, '/apostilas');
 	}

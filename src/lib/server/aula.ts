@@ -2,10 +2,12 @@
 // listagem. Para conteúdo solto (anexo), ver `src/lib/server/anexo.ts`.
 
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, max } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { normalizarBlocos, normalizarNomeSecao, mesmoNomeSecao, type Blocos } from '$lib/blocks';
 import type { AlvoLink } from '$lib/conteudo';
 import { db } from '$lib/server/db';
+import { inserir } from '$lib/server/db/inserir';
+import { maiorOrdem } from '$lib/server/db/ordem';
 import { apostilas, anexos, aulas, secoes } from '$lib/server/db/schema';
 import {
 	erroNaoEncontrado,
@@ -101,16 +103,13 @@ async function resolverSecao(
 		const jaExistente = existentes.find((secao) => mesmoNomeSecao(secao.nome, nomeSecao));
 		if (jaExistente) return { secaoId: jaExistente.id };
 
-		const [linha] = await db
-			.select({ max: max(secoes.ordem) })
-			.from(secoes)
-			.where(eq(secoes.apostilaId, apostilaId));
-		const [criada] = await db
-			.insert(secoes)
-			.values({ apostilaId, nome: nomeSecao, ordem: (linha?.max ?? -1) + 1 })
-			.returning();
-		return { secaoId: criada.id };
-	}
+		const maior = await maiorOrdem(secoes, apostilaId);
+		const criada = await inserir(secoes, {
+			apostilaId,
+			nome: nomeSecao,
+			ordem: (maior ?? -1) + 1
+		});
+		return { secaoId: criada.id };	}
 
 	if (!secaoIdBruto) return { secaoId: null };
 

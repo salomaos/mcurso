@@ -14,14 +14,18 @@
 		"test:watch": "vitest",
 		"test:e2e": "playwright test",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "drizzle-kit migrate"
+		"db:generate:all": "node scripts/drizzle.mjs",
+		"db:migrate": "drizzle-kit migrate",
+		"db:auth": "node scripts/gerar-auth-schema.mjs"
 	},
 	"devDependencies": {
+		"@better-auth/cli": "^1.4.21",
 		"@playwright/test": "^1.63.0",
 		"@sveltejs/adapter-node": "^5.5.7",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@types/better-sqlite3": "^9.6.0",
+		"@types/pg": "^8.23.1",
 		"drizzle-kit": "^0.31.10",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
@@ -37,6 +41,8 @@
 		"drizzle-orm": "^0.45.2",
 		"highlight.js": "^11.12.0",
 		"katex": "^0.18.7",
-		"mermaid": "^12.0.0"
+		"mermaid": "^12.0.0",
+		"mysql2": "^3.24.4",
+		"pg": "^8.23.0"
 	}
 }

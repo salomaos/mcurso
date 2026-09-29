@@ -1,6 +1,14 @@
 import 'dotenv/config';
 import { defineConfig, devices } from '@playwright/test';
-import { DB_E2E, EMAIL_E2E, SEGREDO_E2E, SENHA_E2E, UPLOADS_E2E } from './e2e/ambiente';
+import {
+	DB_E2E,
+	EMAIL_E2E,
+	PROVEDOR_E2E,
+	SEGREDO_E2E,
+	SENHA_E2E,
+	UPLOADS_E2E,
+	URL_E2E
+} from './e2e/ambiente';
 
 const PORT = Number(process.env.E2E_PORT ?? 5179);
 const baseURL = `http://localhost:${PORT}`;
@@ -8,6 +16,9 @@ const baseURL = `http://localhost:${PORT}`;
 // DB isolado para os testes E2E (recriado dentro do webServer e migrado pelo próprio
 // app no boot, sem `drizzle-kit`). As variáveis abaixo sobrescrevem o `.env` de propósito:
 // nada do ambiente de dev entra nos testes.
+//
+// O dialeto vem de `E2E_DB_PROVIDER` (padrão `sqlite`): rodar a suíte contra os três é
+// o que checa de fato que o app é o mesmo nos três.
 export default defineConfig({
 	testDir: 'e2e',
 	fullyParallel: false,
@@ -34,8 +45,14 @@ export default defineConfig({
 			BETTER_AUTH_SECRET: SEGREDO_E2E,
 			APP_MASTER_PASSWORD: SENHA_E2E,
 			APP_MASTER_EMAIL: EMAIL_E2E,
+			DB_PROVIDER: PROVEDOR_E2E,
+			DATABASE_URL: URL_E2E,
 			DB_PATH: DB_E2E,
-			UPLOADS_DIR: UPLOADS_E2E
+			UPLOADS_DIR: UPLOADS_E2E,
+			// `scripts/e2e-reset.mjs` roda na mesma linha do comando, então precisa
+			// receber as mesmas variáveis para saber qual banco zerar.
+			E2E_DB_PROVIDER: PROVEDOR_E2E,
+			E2E_DATABASE_URL: URL_E2E
 		}
 	}
 });

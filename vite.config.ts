@@ -3,6 +3,15 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+	ssr: {
+		// `mysql2` já é externo por estar em `dependencies`, mas o subpath
+		// `/promise` estava sendo reescrito para o pacote raiz no bundle do
+		// servidor — e o `mysql2` da raiz é a API de **callback**, cujo `query()`
+		// devolve um `Query` que não é promise. O drizzle dá `await` no retorno e
+		// o app morria no boot com "You have tried to call .then()...". Listar o
+		// subpath aqui mantém o `import` como está escrito.
+		external: ['mysql2', 'mysql2/promise']
+	},
 	plugins: [
 		sveltekit({
 			compilerOptions: {
