@@ -6,7 +6,7 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 
 - **SvelteKit 2 / Svelte 5** + **adapter-node** (SSR/Node). O `vite.config.ts` força **runes mode** em todo o app (`runes: true` para tudo fora de `node_modules`): componente novo já nasce com `$state`/`$derived`/`$props`/`$effect`, sem `export let`/`$:` legado. Scaffold: `pnpm create sv@latest`
 - Node 24, **pnpm**
-- **Drizzle ORM** + **SQLite** (`better-sqlite3` driver). Migrations via `drizzle-kit`. (PostgreSQL é troca futura, não agora)
+- **Drizzle ORM** + **SQLite** (`better-sqlite3` driver). Migrations geradas com `drizzle-kit` e **aplicadas no boot do app** (`db/migrar.ts`), não por passo separado de deploy. (PostgreSQL é troca futura, não agora)
 - **Better Auth** com adapter Drizzle; login por **senha mestra** — usuário único professor, sem registro/2FA
 - CSS: **`@ahmartecnologias/ahmardesign`** (Vanilla CSS). Tema padrão `brutalist` + seletor de tema
 - Diagramas: **Mermaid**. Código: **highlight.js**. Fórmulas: **KaTeX** (adicionado quando necessário)
@@ -14,14 +14,14 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 
 ## Comandos
 
-- Dev: `pnpm dev` | Build: `pnpm build` (só `vite build`; o `svelte-kit sync` vem do `prepare` no install e do `check`) | Preview: `pnpm preview`
+- Dev: `pnpm dev` | Build: `pnpm build` (`vite build` + `scripts/copiar-migracoes.mjs`, que joga `drizzle/` dentro de `build/drizzle` para o deploy; o `svelte-kit sync` vem do `prepare` no install e do `check`) | Preview: `pnpm preview`
 - Tipos: `pnpm check` / `pnpm check:watch` | Unit: `pnpm test` / `pnpm test:watch`
-- DB: `pnpm db:generate` (gera a migration) → `pnpm db:migrate` (aplica). O `drizzle.config.ts` carrega `dotenv/config` e usa `DB_PATH`
+- DB: `pnpm db:generate` (gera a migration) → `pnpm db:migrate` (aplica na mão; em dev e produção o **app já aplica sozinho no boot**). O `drizzle.config.ts` carrega `dotenv/config` e usa `DB_PATH`
 - E2E: `pnpm exec playwright test <specs>` — **sempre com as specs no argumento**. Sem argumento a coleta quebra: `e2e/repro-bugs.spec.ts` e `e2e/repro-tabela-exercicio.spec.ts` são arquivos de repro com sintaxe propositalmente inválida e **não** estão no `testIgnore` do `playwright.config.ts`
   - Suíte: `pnpm exec playwright test e2e/apresentacao.spec.ts e2e/arrastar.spec.ts e2e/fluxo.spec.ts e2e/tema.spec.ts e2e/anexos.spec.ts e2e/exercicios.spec.ts`
 - `pnpm check` sai com código 1 por **22 erros externos** em `..\ahmardesign\src\js\ahmardesign.js` (fonte da lib, não versionada aqui): baseline conhecido, não é regressão do app. O que importa: **zero diagnóstico em `src/` e `e2e/`**
 - Unit (`vitest.config.ts`) só coleta `src/**/*.{test,spec}.{js,ts}` e exclui `e2e/**`, com `environment: 'node'`
-- E2E **nunca toca no banco dev**: o `webServer` roda `pnpm build && node scripts/e2e-reset.mjs && pnpm exec drizzle-kit migrate && node build`, recriando `data/e2e.db` e `data/e2e-uploads` a cada execução (porta 5179, `workers: 1`, `fullyParallel: false`, `retries: 0`). As variáveis vivem em `e2e/ambiente.ts` e o `env` do `webServer` sobrescreve o `.env` de propósito (`dotenv` não sobrescreve, então nunca usar `process.env.X ?? ...` para isolar)
+- E2E **nunca toca no banco dev**: o `webServer` roda `pnpm build && node scripts/e2e-reset.mjs && node build`, recriando `data/e2e.db` e `data/e2e-uploads` a cada execução (porta 5179, `workers: 1`, `fullyParallel: false`, `retries: 0`). Sem `drizzle-kit migrate`: o app migra sozinho no boot, então o E2E exercita o mesmo caminho do deploy. As variáveis vivem em `e2e/ambiente.ts` e o `env` do `webServer` sobrescreve o `.env` de propósito (`dotenv` não sobrescreve, então nunca usar `process.env.X ?? ...` para isolar)
 
 ## Modelo de dados
 
@@ -62,7 +62,7 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 - **A lib é a fonte da verdade da UI**: construir com as classes do `ahmardesign` (`btn`, `card`, `select`, `alert`, `tabs`, utilitários de flex/gap/spacing/radius…). Antes de escrever qualquer estilo, verificar se a lib já não resolve — não recriar componentes nem aparência da lib no app
 - **CSS local (`<style>` no Svelte) precisa ser justificado**: só quando a lib não tem o que precisa, e no mínimo possível. Nunca estilizar por convenience/ajuste fino o que a lib já cobre
 - **Nunca hardcodar o que o tema muda** (raio, cor, espaçamento): usar os tokens/classes do tema, senão o layout quebra em temas quadrados como `brutalist` (`--rounded-box: 0px`). Ex.: raio → classes `.rounded-box`/`.rounded-btn`/`.rounded-badge` ou `var(--rounded-box)`/`.rounded-btn`; no CSS local, preferir a classe da lib
-- **Dev aponta para o repo local** via `link:../ahmardesign` no package.json (symlink/junction → mudanças na lib valem sem publicar). Para produção, trocar de volta para `^x.y.z` (ou usar `workspace:` se virar workspace)
+- **A lib vem do registry** (`^1.2.0` no package.json) para o deploy funcionar em qualquer host. Mudança na lib local só entra no app depois de `npm publish` + `pnpm install`; para developar contra o fonte, dá pra apontar temporariamente para `link:../ahmardesign` (symlink/junction) e voltar para `^x.y.z` antes de publicar (ou usar `workspace:` se virar workspace)
 - CSS importa no servidor normalmente: `@ahmartecnologias/ahmardesign/ahmardesign.css` via subcaminho do package `exports`
 - **O helper JS (`.../ahmardesign.js`) SÓ no cliente** — executa `AHMAR.init()` na carga e acessa `document.body`/`localStorage`: usar import dinâmico em `onMount`, nunca no SSR
 - Tema via `data-theme` no `<body>`; `AHMAR.setTheme()`; evento `ahmar-theme-change` no `window` para sincronizar store Svelte
@@ -79,9 +79,11 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 - adapter-node: dependência em `dependencies` fica **externa** no build (resolvida de `node_modules` em runtime); em `devDependencies` é **bundlada**. `better-sqlite3` (addon nativo) DEVE ficar em `dependencies` — se for bundlado, `require.main` explode em runtime ESM ("require is not defined"). `ssr.external`/`rollupOptions.external` no vite não funcionam nesse caso (rolldown ignora); a regra é o package.json
 - O `better-sqlite3` v13 já traz binário pronto em `prebuilds/*.node` (win32/linux/mac, com e sem musl), por isso `pnpm-workspace.yaml` pode deixar o build dele em `ignoredBuiltDependencies` sem quebrar nada
 - drizzle + better-sqlite3 é **síncrono**: callback de `db.transaction` não pode ser `async` ("Transaction function cannot return a promise") e builders só executam no `.run()`/`.execute()`/await — dentro da transação use `.run()` sem `await`
+- **Migration no boot, não no deploy**: `aplicarMigrations()` roda dentro de `db/index.ts`, que é importado por `auth.ts` → `hooks.server.ts` no boot, antes de qualquer consulta. Não usar `drizzle-kit migrate` no servidor (é devDependency e a Hostinger pode instalar só `dependencies`); `pnpm db:migrate` continua valendo para a mão. A pasta é resolvida por `pastaMigrations()` (`drizzle`, `build/drizzle`, `../drizzle`, ou `MIGRATIONS_DIR`) e o `build` deixa cópia em `build/drizzle` para o deploy não depender do checkout
+- `DB_PATH`/`UPLOADS_DIR` em produção precisam estar **fora da pasta de build**: host com build versionado (Hostinger) apaga a pasta a cada deploy, e o banco e os uploads somem junto
 - Arrasto de listas é genérico em `src/lib/arrastar.ts`: o item usa `{@attach arrastar(opcoes)}` e o container `data-arrasto-lista={grupo}`; `data-arrasto-item` marca cada item e `data-arrasto-alca` a alça (o arrasto só começa nela, para não sequestrar seleção/caret do `TextoEditavel`). `moverItem` faz o splice local e as classes `.arrastando`/`.arrasto-alvo(-fim)` vivem no `app.css` (a lib não tem estilo de arrasto)
 
 ## Estado verificado (última checagem local)
 
-- `pnpm test` 74/74 (6 arquivos), E2E 34/34, `pnpm build` ok, `pnpm check` só nos 22 erros externos do `ahmardesign`
-- **Fora do escopo por decisão, não é bug**: tela de validação da chave (a chave é gerada e assinada, mas ninguém confere ainda), chave sem as respostas discursivas, sem histórico/draft, sem multiusuário, PostgreSQL como troca futura, `package.json` apontando para `link:../ahmardesign` (em produção trocar por `^x.y.z`)
+- `pnpm test` 77/77 (7 arquivos), E2E 34/34, `pnpm build` ok, `pnpm check` 0 erros (a lib agora vem do registry, sem os 22 diagnósticos do fonte local)
+- **Fora do escopo por decisão, não é bug**: tela de validação da chave (a chave é gerada e assinada, mas ninguém confere ainda), chave sem as respostas discursivas, sem histórico/draft, sem multiusuário, PostgreSQL como troca futura

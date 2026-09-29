@@ -38,17 +38,16 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 74/74 (6 arquivos) |
+| `pnpm test` | 77/77 (7 arquivos) |
 | E2E (as 6 specs da suíte) | 34/34 |
 | `pnpm build` | ok |
-| `pnpm check` | 22 erros — **todos externos**, no código-fonte da lib de UI (`..\ahmardesign/src/js/ahmardesign.js`). É o baseline conhecido, não é regressão do app |
+| `pnpm check` | 0 erros |
 
 **Ainda não existe (decidido, não é bug)**
 - **Tela de validação da chave de integridade**: a chave é gerada e assinada, mas não há página que confira a assinatura. É o lugar natural para exigir a chave antes de dar a nota.
 - A chave **não cobre** as respostas discursivas (só a nota automática e o hash do gabarito objetivo).
 - Sem histórico nem rascunho: a edição é direta, com versão única.
 - Sem multiusuário (por design) e sem PostgreSQL (hoje é SQLite em arquivo; a troca é futura).
-- Em produção, o `package.json` ainda aponta para `link:../ahmardesign` (repo local) — trocar para `^x.y.z` ao publicar.
 
 ## Como começar
 
@@ -62,6 +61,7 @@ cp .env.example .env
 # dica: BETTER_AUTH_SECRET=$(openssl rand -hex 32)
 
 # criar/rodar migrações do banco (SQLite)
+# → opcional: o dev já aplica as migrations sozinho no boot
 pnpm db:migrate
 
 # subir o servidor de dev
@@ -75,7 +75,7 @@ pnpm dev
 | Comando | O que faz |
 | --- | --- |
 | `pnpm dev` | servidor de desenvolvimento (HMR) |
-| `pnpm build` | build de produção (`vite build`) |
+| `pnpm build` | build de produção (`vite build` + cópia de `drizzle/` para dentro de `build/`) |
 | `pnpm preview` | serve o build localmente |
 | `pnpm check` | tipos com `svelte-check` (ver baseline acima) |
 | `pnpm check:watch` | o mesmo, em watch |
@@ -83,7 +83,7 @@ pnpm dev
 | `pnpm test:watch` | unit em watch |
 | `pnpm test:e2e` | Playwright — **precisa das specs no argumento** (ver nota abaixo) |
 | `pnpm db:generate` | gera a migration a partir do schema Drizzle |
-| `pnpm db:migrate` | aplica as migrations no banco |
+| `pnpm db:migrate` | aplica as migrations no banco (o app também faz isso no boot) |
 
 > **E2E**: cada execução recria `data/e2e.db` e `data/e2e-uploads` (o banco de dev nunca é tocado) e sobe o app na porta 5179. Passe sempre as specs — `playwright test` sem argumento quebra na coleta, porque `e2e/repro-bugs.spec.ts` e `e2e/repro-tabela-exercicio.spec.ts` são arquivos de repro com sintaxe propositalmente inválida e não estão no `testIgnore`:
 > `pnpm exec playwright test e2e/apresentacao.spec.ts e2e/arrastar.spec.ts e2e/fluxo.spec.ts e2e/tema.spec.ts e2e/anexos.spec.ts e2e/exercicios.spec.ts`
@@ -135,20 +135,22 @@ src/
     uploads/             → serve os arquivos enviados (exige sessão)
 e2e/                     → Playwright (ambiente.ts com as credenciais/banco isolados)
 scripts/e2e-reset.mjs    → recria o banco de E2E antes de cada execução
+scripts/copiar-migracoes.mjs → copia drizzle/ para dentro de build/ no build
 drizzle/                 → migrations e snapshots
 ```
 
 ## Deploy (adapter-node)
 
-O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Dois pontos que já custaram tempo:
+O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Quatro pontos que já custaram tempo:
 
+- **As migrations são aplicadas pelo app no boot** (`src/lib/server/db/migrar.ts`, chamado pelo `db/index.ts` antes de qualquer consulta), não por um passo separado de deploy: `drizzle-kit` é `devDependency` e não existe no servidor. O log de boot diz quantas entraram — `[mcurso] 6 migração(ões) aplicada(s) em …` ou `[mcurso] banco em dia em …`. O `pnpm build` copia `drizzle/` para dentro de `build/drizzle`, então só a pasta de build precisa estar no ar (a resolução tenta `drizzle`, `build/drizzle`, `../drizzle` e aceita `MIGRATIONS_DIR`).
 - `better-sqlite3` fica em **`dependencies`**, nunca em `devDependencies` (o adapter-node deixa dependências externas resolvidas do `node_modules` em runtime; bundlado, o addon nativo quebra com "require is not defined"). Ele já vem com binário pronto em `prebuilds/`, sem compilar nada.
-- Variáveis de ambiente em produção: `DB_PATH` e `UPLOADS_DIR` precisam apontar para caminhos graváveis, mais `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `APP_MASTER_EMAIL` e `APP_MASTER_PASSWORD` (ver `.env.example`). O servidor escuta em `PORT`/`HOST`, com `ORIGIN` apontando para a URL pública (necessário para os cookies de sessão).
-- Trocar `link:../ahmardesign` por `^x.y.z` no `package.json` antes de publicar — o link funciona só no clone local.
+- Variáveis de ambiente em produção: `DB_PATH` e `UPLOADS_DIR` precisam apontar para caminhos graváveis **e persistentes** (fora da pasta de build, que some a cada novo deploy), mais `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (a URL pública, sem barra final), `APP_MASTER_EMAIL` e `APP_MASTER_PASSWORD` (ver `.env.example`). O servidor escuta em `PORT`/`HOST`, com `ORIGIN` apontando para a URL pública (necessário para os cookies de sessão).
+- A lib de UI entra como `^x.y.z` no `package.json` (versão publicada no registry). O `link:../ahmardesign` só funciona no clone local.
 
 ## Testes
 
-- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeituosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/arrastar.test.ts` (ordem no drag and drop) e `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app).
+- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/arrastar.test.ts` (ordem no drag and drop) e `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app).
 - **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts` e `e2e/tema.spec.ts`.
 - `e2e/repro-*.spec.ts` não fazem parte da suíte: são arquivos de repro propositalmente inválidos, usados para demonstrar falha e não coletados (veja a nota dos scripts).
 
