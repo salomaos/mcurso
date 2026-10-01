@@ -1,11 +1,21 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import BlocoRender from '$lib/components/BlocoRender.svelte';
+	import ListaBlocos from '$lib/components/ListaBlocos.svelte';
 	import Dissertativa from '$lib/components/Dissertativa.svelte';
 	import Questao from '$lib/components/Questao.svelte';
 	import { resultadoParaImagem } from '$lib/imagem';
+	import Campo from '$lib/components/ui/Campo.svelte';
+	import Pagina from '$lib/components/ui/Pagina.svelte';
 	import { guardarNome, lerNome } from '$lib/nome-aluno';
-	import { caminhoExercicio, type Correcao, type CorrecaoQuestao } from '$lib/conteudo';
+	import {
+	caminhoExercicio,
+	ROTULO_EDITAR,
+	ROTULO_IMPRIMIR_RESULTADO,
+	ROTULO_RESPONDER_DE_NOVO,
+	ROTULO_VISUALIZAR,
+	type Correcao,
+	type CorrecaoQuestao
+} from '$lib/conteudo';
 	import type { PageData } from './$types';
 
 	let { data, form } = $props<{ data: PageData; form: unknown }>();
@@ -81,7 +91,7 @@
 	<title>{data.atividade.titulo} — Atividade</title>
 </svelte:head>
 
-<div class="container max-w-3xl px-4 py-6 space-y-5">
+<Pagina largura="conteudo" espaco={5}>
 	<header class="space-y-2">
 		{#if data.contexto.aula}
 			<nav aria-label="Origem" class="flex flex-wrap items-center gap-1 text-sm opacity-70">
@@ -97,9 +107,9 @@
 		{/if}
 		{#if data.user}
 			<div class="flex gap-1 no-print">
-				<a href={`${caminhoExercicio(data.atividade.id)}/editar`} class="btn btn-outline btn-xs">
-					Editar
-				</a>
+<a href={`${caminhoExercicio(data.atividade.id)}/editar`} class="btn btn-outline btn-xs">
+				{ROTULO_EDITAR}
+			</a>
 			</div>
 		{/if}
 	</header>
@@ -112,7 +122,7 @@
 				</h2>
 				<div class="flex flex-wrap gap-2">
 					<button class="btn btn-outline btn-sm" type="button" onclick={() => window.print()}>
-						Imprimir / PDF
+						{ROTULO_IMPRIMIR_RESULTADO}
 					</button>
 					<button class="btn btn-primary btn-sm" type="button" onclick={baixarImagem} disabled={baixando}>
 						{baixando ? 'Gerando...' : 'Baixar imagem'}
@@ -132,11 +142,10 @@
 		</div>
 
 		{#if data.atividade.instrucoes.length > 0}
-			<div class="space-y-3">
-				{#each data.atividade.instrucoes as bloco (bloco.id)}
-					<BlocoRender {bloco} />
-				{/each}
-			</div>
+			<ListaBlocos
+				blocos={data.atividade.instrucoes}
+				apostilaId={data.contexto.aula?.apostilaId}
+			/>
 		{/if}
 
 		<div class="space-y-3">
@@ -156,7 +165,7 @@
 
 		<div class="flex flex-wrap gap-2 no-print">
 			<a href={caminhoExercicio(data.atividade.id)} class="btn btn-ghost btn-sm">
-				Responder de novo
+				{ROTULO_RESPONDER_DE_NOVO}
 			</a>
 		</div>
 	{:else}
@@ -164,11 +173,7 @@
 			<div class="alert alert-info">Esta atividade ainda não tem perguntas.</div>
 		{:else}
 			<form method="POST" action="?/responder" class="space-y-4">
-				<div class="form-control">
-					<label class="label" for="nome-aluno">
-						<span class="label-text">Seu nome</span>
-						<span class="label-text-alt opacity-60">fica só neste navegador, até fechar</span>
-					</label>
+				<Campo rotulo="Seu nome" id="nome-aluno" dica="fica só neste navegador, até fechar">
 					<input
 						id="nome-aluno"
 						class="input input-bordered w-full"
@@ -180,14 +185,13 @@
 						placeholder="Como está no caderno"
 						oninput={digitarNome}
 					/>
-				</div>
+				</Campo>
 
 				{#if data.atividade.instrucoes.length > 0}
-					<div class="space-y-3">
-						{#each data.atividade.instrucoes as bloco (bloco.id)}
-							<BlocoRender {bloco} />
-						{/each}
-					</div>
+					<ListaBlocos
+						blocos={data.atividade.instrucoes}
+						apostilaId={data.contexto.aula?.apostilaId}
+					/>
 				{/if}
 
 				<div class="space-y-3">
@@ -210,4 +214,4 @@
 			</form>
 		{/if}
 	{/if}
-</div>
+</Pagina>

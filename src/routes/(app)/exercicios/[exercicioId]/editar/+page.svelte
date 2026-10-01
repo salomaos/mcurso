@@ -16,12 +16,12 @@
 	alvos={data.alvos}
 	novo={data.novo}
 	{erro}
-/>
-
-<div class="container max-w-5xl px-4 pb-8">
-	<div class="alert alert-info text-sm">
-		Esta é a página que o aluno responde. O gabarito nunca aparece nela: a
-		correção acontece no servidor depois que ele envia.
-		<a href={publico} class="link">Abrir a página do aluno</a>
-	</div>
-</div>
+>
+	{#snippet rodape()}
+		<div class="alert alert-info text-sm">
+			Esta é a página que o aluno responde. O gabarito nunca aparece nela: a
+			correção acontece no servidor depois que ele envia.
+			<a href={publico} class="link">Abrir a página do aluno</a>
+		</div>
+	{/snippet}
+</EditorConteudo>

@@ -70,6 +70,16 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 - Componentes **não têm margem padrão**: usar `gap` (flex/grid) **ou** `.space-y-*` (irmãos não-flex), nunca os dois juntos no mesmo container
 - `AHMAR.init()` é idempotente — chamar no mount cobre elementos renderizados depois (`{#if}`, blocos dinâmicos)
 
+## Componentes de UI
+
+- **`DOCS/componentes-ui.md` é a fonte da verdade do que já foi extraído**: plano priorizado (P0–P3) com colunas de status (`⬜`/`🚧`/`✅`) e as ocorrências a unificar. **Ao criar um componente, marcar o status e a data lá** — não confiar em memória nem em commit antigo
+- **Primitivas genéricas vão em `src/lib/components/ui/`** (as previstas: `Pagina`, `Campo`, `BarraAcoes`, `Botao`, `Contador`, `CardConteudo`, `DataBadge`); **componentes de domínio ficam planos** ao lado dos atuais (previstos: `Alternativa`, `ListaBlocos`, `AlcaArrasto`)
+- **Wrapper é fino, nunca um design system paralelo**: padroniza *intenção* (qual largura, qual variante) e encapsula decisão repetida. Aparência continua sendo a classe da lib; `class`/`...rest` sempre repassados. Componente novo só nasce com **3+ repetições** do mesmo padrão — abaixo disso, deixar o `class` direto
+- **Nada de wrapper para o que já é classe da lib** (`alert`, `card`, `modal`, `table`, `tabs`, `btn`, utilitários de flex/gap). Se a inconsistência é de *classe*, padroniza-se a classe, não se cria componente
+- **Largura de página é sempre `Pagina`** (P0.1 do plano, já existe), nunca `container max-w-*` solto: `estreito` (2xl, criação) / `conteudo` (3xl, leitura e impressão) / `amplo` (5xl, edição e listagens). Editor e leitura do mesmo conteúdo usam larguras diferentes **de propósito** — não "corrigir" uma para a outra
+- **Rótulo de ação é contrato de E2E**: "Imprimir/PDF" (link de contexto), "Imprimir / salvar PDF" (página de impressão), "Imprimir / PDF" (cartão de resultado), "Apresentar" e "Visualizar" estão fixados em specs e viraram constante em `$lib/conteudo.ts`. **São três strings de impressão diferentes** — reaproveitar a constante errada quebra o E2E sem erro de tipo. Ao extrair, **reusar a string existente**, nunca renomear
+- **`Campo` com `extra` não usa `.label`**: o padding horizontal da lib empurra o controle extra 8px para dentro e ele desalinha da borda do campo (`fluxo.spec.ts` mede isso no tema do Mermaid). Com `extra` a linha do rótulo é flex puro
+
 ## Integrações com quirks conhecidos
 
 - Better Auth no SvelteKit precisa `basePath: '/api/auth'` na inicialização do `auth.ts`; o `src/hooks.server.ts` resolve a sessão **antes** de cada request e põe em `event.locals`, e o `svelteKitHandler` ainda atende `/api/auth/*`
@@ -87,3 +97,4 @@ App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código 
 
 - `pnpm test` 77/77 (7 arquivos), E2E 34/34, `pnpm build` ok, `pnpm check` 0 erros (a lib agora vem do registry, sem os 22 diagnósticos do fonte local)
 - **Fora do escopo por decisão, não é bug**: tela de validação da chave (a chave é gerada e assinada, mas ninguém confere ainda), chave sem as respostas discursivas, sem histórico/draft, sem multiusuário, PostgreSQL como troca futura
+- Sem bug conhecido aberto. O `apostilaId` faltando nas *instruções* da atividade foi corrigido: a página do aluno repassa `data.contexto.aula?.apostilaId` ao `ListaBlocos`, e sem `?aula=` na URL não existe apostila — aí `hrefLinkInterno` devolve `null` de propósito

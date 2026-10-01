@@ -12,6 +12,19 @@ export const ROTULO_TIPO: Record<TipoConteudo, string> = {
 	exercicio: 'Atividade'
 };
 
+// Rótulos das ações de conteúdo. São **contrato de E2E**: o Playwright procura esses
+// textos por nome, então mudar a string quebra a spec. São três de impressão, cada um
+// no seu lugar: o link de contexto abre `/imprimir`, o botão de dentro da página de
+// impressão é quem dispara `window.print()`, e o da tela de resultado do aluno imprime
+// o cartão de nota.
+export const ROTULO_EDITAR = 'Editar';
+export const ROTULO_APRESENTAR = 'Apresentar';
+export const ROTULO_IMPRIMIR = 'Imprimir/PDF';
+export const ROTULO_IMPRIMIR_PAGINA = 'Imprimir / salvar PDF';
+export const ROTULO_IMPRIMIR_RESULTADO = 'Imprimir / PDF';
+export const ROTULO_VISUALIZAR = 'Visualizar';
+export const ROTULO_RESPONDER_DE_NOVO = 'Responder de novo';
+
 // Como o aluno responde a uma questão: uma alternativa verdadeira (`radio`) ou
 // várias (`checkbox`). Vive aqui porque o payload público também precisa do
 // campo, e `conteudo.ts` é o módulo client-safe compartilhado.

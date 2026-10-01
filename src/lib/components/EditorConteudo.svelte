@@ -1,9 +1,13 @@
 <script lang="ts">
 	import EditorCanvas from './EditorCanvas.svelte';
 	import TextoEditavel from './TextoEditavel.svelte';
+	import BarraAcoes from './ui/BarraAcoes.svelte';
+	import Campo from './ui/Campo.svelte';
+	import Pagina from './ui/Pagina.svelte';
+	import type { Snippet } from 'svelte';
 	import type { Blocos, SecaoUi } from '$lib/blocks';
 	import { mesmoNomeSecao } from '$lib/blocks';
-	import { ROTULO_TIPO, rotasConteudo, type AlvoLink, type ContextoConteudo } from '$lib/conteudo';
+	import { ROTULO_EDITAR, ROTULO_TIPO, ROTULO_VISUALIZAR, rotasConteudo, type AlvoLink, type ContextoConteudo } from '$lib/conteudo';
 
 	type Conteudo = {
 		id: number;
@@ -21,10 +25,20 @@
 		novo: boolean;
 		erro?: string | null;
 		baseHref?: string;
+		/** Bloco extra no fim da página, já dentro da largura do editor. */
+		rodape?: Snippet;
 	};
 
-	let { conteudo, contexto, secoes, alvos, novo, erro = null, baseHref = '/apostilas' }: Props =
-		$props();
+	let {
+		conteudo,
+		contexto,
+		secoes,
+		alvos,
+		novo,
+		erro = null,
+		baseHref = '/apostilas',
+		rodape
+	}: Props = $props();
 
 	let modo = $state<'editar' | 'visualizar'>('editar');
 	const rotulo = $derived(ROTULO_TIPO[contexto.tipo]);
@@ -92,36 +106,35 @@
 	<title>Editar {rotulo.toLowerCase()} #{conteudo.id} — {voltar.rotulo}</title>
 </svelte:head>
 
-<div class="container max-w-5xl px-4 py-6 space-y-4">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<a href={proprio} class="btn btn-ghost btn-sm">← Voltar para {rotulo.toLowerCase()}</a>
-
-		<div class="flex flex-wrap items-center gap-3">
-			<span class="text-sm opacity-60">
-				{rotulo} #{conteudo.id} · {subtitulo}
-			</span>
-			<div class="join" role="group" aria-label="Modo do editor">
-				<button
-					class:btn-primary={modo === 'editar'}
-					class="btn btn-sm"
-					type="button"
-					aria-pressed={modo === 'editar'}
-					onclick={() => (modo = 'editar')}
-				>
-					Editar
-				</button>
-				<button
-					class:btn-primary={modo === 'visualizar'}
-					class="btn btn-sm"
-					type="button"
-					aria-pressed={modo === 'visualizar'}
-					onclick={() => (modo = 'visualizar')}
-				>
-					Visualizar
-				</button>
-			</div>
+<Pagina largura="amplo" espaco={4}>
+	<BarraAcoes
+		voltar={{ href: proprio, rotulo: `Voltar para ${rotulo.toLowerCase()}` }}
+		acoesClass="flex flex-wrap items-center gap-3"
+	>
+		<span class="text-sm opacity-60">
+			{rotulo} #{conteudo.id} · {subtitulo}
+		</span>
+		<div class="join" role="group" aria-label="Modo do editor">
+			<button
+				class:btn-primary={modo === 'editar'}
+				class="btn btn-sm"
+				type="button"
+				aria-pressed={modo === 'editar'}
+				onclick={() => (modo = 'editar')}
+			>
+				{ROTULO_EDITAR}
+			</button>
+			<button
+				class:btn-primary={modo === 'visualizar'}
+				class="btn btn-sm"
+				type="button"
+				aria-pressed={modo === 'visualizar'}
+				onclick={() => (modo = 'visualizar')}
+			>
+				{ROTULO_VISUALIZAR}
+			</button>
 		</div>
-	</div>
+	</BarraAcoes>
 
 	{#if erro}
 		<div class="alert alert-error">{erro}</div>
@@ -170,21 +183,22 @@
 								Cancelar
 							</button>
 						{:else}
-							<label class="text-sm font-semibold" for="secao-aula">Seção</label>
-							<select
-								id="secao-aula"
-								class="select select-sm select-bordered w-56"
-								aria-label="Seção da aula"
-								bind:value={secaoId}
-								onchange={() => {
-									novaSecao = '';
-								}}
-							>
-								<option value={null}>Sem seção</option>
-								{#each secoes as secao (secao.id)}
-									<option value={secao.id}>{secao.nome}</option>
-								{/each}
-							</select>
+							<Campo rotulo="Seção" id="secao-aula" class="w-auto">
+								<select
+									id="secao-aula"
+									class="select select-sm select-bordered w-56"
+									aria-label="Seção da aula"
+									bind:value={secaoId}
+									onchange={() => {
+										novaSecao = '';
+									}}
+								>
+									<option value={null}>Sem seção</option>
+									{#each secoes as secao (secao.id)}
+										<option value={secao.id}>{secao.nome}</option>
+									{/each}
+								</select>
+							</Campo>
 							<button
 								class="btn btn-ghost btn-sm"
 								type="button"
@@ -260,4 +274,8 @@
 			<a href={proprio} class="btn btn-ghost">Cancelar</a>
 		</div>
 	</form>
-</div>
+
+	{#if rodape}
+		{@render rodape()}
+	{/if}
+</Pagina>

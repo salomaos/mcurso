@@ -2,6 +2,8 @@
 	import type { Bloco, BlocoLink } from '$lib/blocks';
 	import { ROTULO_ALVO, type AlvoLink, type TipoAlvo } from '$lib/conteudo';
 	import { TEMAS_MERMAID } from '$lib/blocks';
+	import BarraAcoes from './ui/BarraAcoes.svelte';
+	import Campo from './ui/Campo.svelte';
 	import SeletorAlvo from './SeletorAlvo.svelte';
 
 	type Props = {
@@ -88,167 +90,140 @@
 </script>
 
 <div class="canvas-source space-y-3">
-	{#if bloco.tipo === 'codigo'}
-		<div class="form-control">
-			<label class="label" for={`linguagem-${bloco.id}`}>
-				<span class="label-text">Linguagem</span>
-			</label>
-			<input
-				id={`linguagem-${bloco.id}`}
-				class="input input-sm input-bordered"
-				type="text"
-				value={bloco.linguagem}
-				oninput={(event) => alterar('linguagem', event.currentTarget.value)}
-				placeholder="js, ts, python..."
-			/>
-		</div>
-		<div class="form-control">
-			<label class="label" for={`codigo-${bloco.id}`}>
-				<span class="label-text">Código fonte</span>
-			</label>
-			<textarea
-				id={`codigo-${bloco.id}`}
-				class="textarea textarea-bordered w-full max-w-full font-mono min-h-32"
-				value={bloco.codigo}
-				oninput={(event) => alterar('codigo', event.currentTarget.value)}
-				placeholder="// código aqui"
-			></textarea>
-		</div>
-	{:else if bloco.tipo === 'mermaid'}
-		<div class="form-control">
-			<div class="flex flex-wrap items-center justify-between gap-2">
-				<label class="label" for={`mermaid-${bloco.id}`}>
-					<span class="label-text">Definição Mermaid</span>
-				</label>
-				<select
-					id={`mermaid-tema-${bloco.id}`}
-					class="select select-sm select-bordered w-40 shrink-0"
-					aria-label="Tema do diagrama Mermaid"
-					value={bloco.tema}
-					onchange={(event) => alterar('tema', event.currentTarget.value)}
-				>
-					{#each TEMAS_MERMAID as tema (tema.valor)}
-						<option value={tema.valor}>{tema.rotulo}</option>
-					{/each}
-				</select>
-			</div>
-			<textarea
-				id={`mermaid-${bloco.id}`}
-				class="textarea textarea-bordered w-full max-w-full font-mono min-h-36"
-				value={bloco.diagrama}
-				oninput={(event) => alterar('diagrama', event.currentTarget.value)}
-				placeholder="flowchart LR\n  A --> B"
-			></textarea>
-		</div>
-	{:else if bloco.tipo === 'imagem'}
-		<div class="form-control">
-			<label class="label" for={`imagem-src-${bloco.id}`}>
-				<span class="label-text">URL da imagem</span>
-			</label>
-			<input
-				id={`imagem-src-${bloco.id}`}
-				class="input input-sm input-bordered"
-				type="text"
-				value={bloco.src}
-				oninput={(event) => alterar('src', event.currentTarget.value)}
-				placeholder="/uploads/... ou URL"
-			/>
-		</div>
-		<div class="form-control">
-			<label class="label" for={`imagem-legenda-${bloco.id}`}>
-				<span class="label-text">Legenda</span>
-			</label>
-			<input
-				id={`imagem-legenda-${bloco.id}`}
-				class="input input-sm input-bordered"
-				type="text"
-				value={bloco.legenda ?? ''}
-				oninput={(event) => alterar('legenda', event.currentTarget.value || undefined)}
-				placeholder="Legenda opcional"
-			/>
-		</div>
-		<label class="btn btn-sm btn-outline w-fit cursor-pointer">
-			<input class="hidden" type="file" accept="image/*" disabled={enviando} onchange={enviarImagem} />
-			{enviando ? 'Enviando...' : 'Enviar imagem'}
-		</label>
-		{#if erroUpload}
-			<div class="alert alert-error py-2 text-sm">{erroUpload}</div>
-		{/if}
-	{:else if bloco.tipo === 'link'}
-		<div class="form-control">
-			<label class="label" for={`link-rotulo-${bloco.id}`}>
-				<span class="label-text">Texto do link</span>
-			</label>
-			<input
-				id={`link-rotulo-${bloco.id}`}
-				class="input input-sm input-bordered"
-				type="text"
-				value={bloco.rotulo}
-				oninput={(event) => alterar('rotulo', event.currentTarget.value)}
-				placeholder="Texto exibido"
-			/>
-		</div>
-		<div class="form-control">
-			<label class="label" for={`link-tipo-${bloco.id}`}>
-				<span class="label-text">Tipo</span>
-			</label>
-			<select
-				id={`link-tipo-${bloco.id}`}
-				class="select select-sm select-bordered"
-				value={bloco.tipoLink}
-				onchange={(event) => alterarTipoLink(event.currentTarget.value)}
-			>
-				<option value="aula">Aula</option>
-				<option value="anexo">Anexo</option>
-				<option value="exercicio">Atividade</option>
-				<option value="externo">Externo</option>
-			</select>
-		</div>
-		{#if bloco.tipoLink === 'aula' || bloco.tipoLink === 'anexo' || bloco.tipoLink === 'exercicio'}
-			<div class="form-control">
-				<div class="label">
-					<span class="label-text">{ROTULO_ALVO[bloco.tipoLink as TipoAlvo]}</span>
-				</div>
-				<SeletorAlvo
-					tipoLink={bloco.tipoLink as TipoAlvo}
-					alvos={alvos?.[
-						bloco.tipoLink === 'anexo'
-							? 'anexos'
-							: bloco.tipoLink === 'exercicio'
-								? 'exercicios'
-								: 'aulas'
-					] ?? []}
-					alvoId={bloco.alvoId}
-					aoEscolher={escolherAlvo}
-				/>
-			</div>
-		{:else}
-			<div class="form-control">
-				<label class="label" for={`link-url-${bloco.id}`}>
-					<span class="label-text">URL</span>
-				</label>
+		{#if bloco.tipo === 'codigo'}
+			<Campo rotulo="Linguagem" id={`linguagem-${bloco.id}`}>
 				<input
-					id={`link-url-${bloco.id}`}
+					id={`linguagem-${bloco.id}`}
 					class="input input-sm input-bordered"
 					type="text"
-					value={bloco.url ?? ''}
-					oninput={(event) => alterar('url', event.currentTarget.value)}
-					placeholder="https://..."
+					value={bloco.linguagem}
+					oninput={(event) => alterar('linguagem', event.currentTarget.value)}
+					placeholder="js, ts, python..."
 				/>
-			</div>
-		{/if}
+			</Campo>
+			<Campo rotulo="Código fonte" id={`codigo-${bloco.id}`}>
+				<textarea
+					id={`codigo-${bloco.id}`}
+					class="textarea textarea-bordered w-full font-mono min-h-32"
+					value={bloco.codigo}
+					oninput={(event) => alterar('codigo', event.currentTarget.value)}
+					placeholder="// código aqui"
+				></textarea>
+			</Campo>
+		{:else if bloco.tipo === 'mermaid'}
+			<Campo rotulo="Definição Mermaid" id={`mermaid-${bloco.id}`}>
+				{#snippet extra()}
+					<select
+						id={`mermaid-tema-${bloco.id}`}
+						class="select select-sm select-bordered w-40 shrink-0"
+						aria-label="Tema do diagrama Mermaid"
+						value={bloco.tema}
+						onchange={(event) => alterar('tema', event.currentTarget.value)}
+					>
+						{#each TEMAS_MERMAID as tema (tema.valor)}
+							<option value={tema.valor}>{tema.rotulo}</option>
+						{/each}
+					</select>
+				{/snippet}
+				<textarea
+					id={`mermaid-${bloco.id}`}
+					class="textarea textarea-bordered w-full font-mono min-h-36"
+					value={bloco.diagrama}
+					oninput={(event) => alterar('diagrama', event.currentTarget.value)}
+					placeholder="flowchart LR\n  A --> B"
+				></textarea>
+			</Campo>
+		{:else if bloco.tipo === 'imagem'}
+			<Campo rotulo="URL da imagem" id={`imagem-src-${bloco.id}`}>
+				<input
+					id={`imagem-src-${bloco.id}`}
+					class="input input-sm input-bordered"
+					type="text"
+					value={bloco.src}
+					oninput={(event) => alterar('src', event.currentTarget.value)}
+					placeholder="/uploads/... ou URL"
+				/>
+			</Campo>
+			<Campo rotulo="Legenda" id={`imagem-legenda-${bloco.id}`}>
+				<input
+					id={`imagem-legenda-${bloco.id}`}
+					class="input input-sm input-bordered"
+					type="text"
+					value={bloco.legenda ?? ''}
+					oninput={(event) => alterar('legenda', event.currentTarget.value || undefined)}
+					placeholder="Legenda opcional"
+				/>
+			</Campo>
+			<label class="btn btn-outline btn-sm w-fit cursor-pointer">
+				<input class="hidden" type="file" accept="image/*" disabled={enviando} onchange={enviarImagem} />
+				{enviando ? 'Enviando...' : 'Enviar imagem'}
+			</label>
+			{#if erroUpload}
+				<div class="alert alert-error py-2 text-sm">{erroUpload}</div>
+			{/if}
+		{:else if bloco.tipo === 'link'}
+			<Campo rotulo="Texto do link" id={`link-rotulo-${bloco.id}`}>
+				<input
+					id={`link-rotulo-${bloco.id}`}
+					class="input input-sm input-bordered"
+					type="text"
+					value={bloco.rotulo}
+					oninput={(event) => alterar('rotulo', event.currentTarget.value)}
+					placeholder="Texto exibido"
+				/>
+			</Campo>
+			<Campo rotulo="Tipo" id={`link-tipo-${bloco.id}`}>
+				<select
+					id={`link-tipo-${bloco.id}`}
+					class="select select-sm select-bordered"
+					value={bloco.tipoLink}
+					onchange={(event) => alterarTipoLink(event.currentTarget.value)}
+				>
+					<option value="aula">Aula</option>
+					<option value="anexo">Anexo</option>
+					<option value="exercicio">Atividade</option>
+					<option value="externo">Externo</option>
+				</select>
+			</Campo>
+			{#if bloco.tipoLink === 'aula' || bloco.tipoLink === 'anexo' || bloco.tipoLink === 'exercicio'}
+				<Campo rotulo={ROTULO_ALVO[bloco.tipoLink as TipoAlvo]}>
+					<SeletorAlvo
+						tipoLink={bloco.tipoLink as TipoAlvo}
+						alvos={alvos?.[
+							bloco.tipoLink === 'anexo'
+								? 'anexos'
+								: bloco.tipoLink === 'exercicio'
+									? 'exercicios'
+									: 'aulas'
+						] ?? []}
+						alvoId={bloco.alvoId}
+						aoEscolher={escolherAlvo}
+					/>
+				</Campo>
+			{:else}
+				<Campo rotulo="URL" id={`link-url-${bloco.id}`}>
+					<input
+						id={`link-url-${bloco.id}`}
+						class="input input-sm input-bordered"
+						type="text"
+						value={bloco.url ?? ''}
+						oninput={(event) => alterar('url', event.currentTarget.value)}
+						placeholder="https://..."
+				/>
+				</Campo>
+			{/if}
 	{:else if bloco.tipo === 'tabela'}
-		<div class="flex flex-wrap items-center justify-between gap-2">
-			<span class="text-xs font-semibold uppercase tracking-wide opacity-60">Editor da tabela</span>
-			<div class="flex gap-1">
-				<button class="btn btn-xs btn-ghost" type="button" onclick={() => atualizarTabela('addCol', 0, 0)}>
-					+ Coluna
-				</button>
-				<button class="btn btn-xs btn-ghost" type="button" onclick={() => atualizarTabela('addLinha', 0, 0)}>
-					+ Linha
-				</button>
-			</div>
-		</div>
+		<BarraAcoes
+			rotulo="Editor da tabela"
+			rotuloClass="text-xs font-semibold uppercase tracking-wide opacity-60"
+		>
+			<button class="btn btn-ghost btn-xs" type="button" onclick={() => atualizarTabela('addCol', 0, 0)}>
+				+ Coluna
+			</button>
+			<button class="btn btn-ghost btn-xs" type="button" onclick={() => atualizarTabela('addLinha', 0, 0)}>
+				+ Linha
+			</button>
+		</BarraAcoes>
 		<div class="overflow-x-auto">
 			<table class="table table-bordered table-sm">
 				<thead>
@@ -304,18 +279,15 @@
 			</table>
 		</div>
 	{:else if bloco.tipo === 'formula'}
-		<div class="form-control">
-			<label class="label" for={`formula-${bloco.id}`}>
-				<span class="label-text">Definição LaTeX</span>
-			</label>
+		<Campo rotulo="Definição LaTeX" id={`formula-${bloco.id}`}>
 			<textarea
 				id={`formula-${bloco.id}`}
-				class="textarea textarea-bordered w-full max-w-full font-mono min-h-20"
+				class="textarea textarea-bordered w-full font-mono min-h-20"
 				value={bloco.latex}
 				oninput={(event) => alterar('latex', event.currentTarget.value)}
 				placeholder="E = mc^2"
 			></textarea>
-		</div>
+		</Campo>
 		<label class="flex items-center gap-2 text-sm">
 			<input
 				class="toggle toggle-sm"

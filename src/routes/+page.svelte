@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import Pagina from '$lib/components/ui/Pagina.svelte';
 
 	let { data } = $props<{ data: PageData }>();
 </script>
@@ -8,7 +9,7 @@
 	<title>Apostilas — mcurso</title>
 </svelte:head>
 
-<div class="container max-w-5xl px-4 py-6 space-y-4">
+<Pagina largura="amplo" espaco={4}>
 	<div class="flex items-center justify-between gap-2">
 		<div class="space-y-1">
 			<h1 class="text-3xl font-bold">Apostilas</h1>
@@ -50,4 +51,4 @@
 			</a>
 		{/each}
 	</div>
-</div>
+</Pagina>

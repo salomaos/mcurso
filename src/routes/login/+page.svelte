@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Campo from '$lib/components/ui/Campo.svelte';
 	import type { ActionData } from './$types';
 
 	let { form } = $props<{ form: ActionData }>();
@@ -19,20 +20,17 @@
 			<div class="alert alert-error">{form.erro}</div>
 		{/if}
 
-		<form method="POST" action="?/entrar" class="flex flex-col gap-3">
-			<div class="form-control">
-				<label class="label" for="senha">
-					<span class="label-text">Senha mestra</span>
-				</label>
+<form method="POST" action="?/entrar" class="flex flex-col gap-3">
+			<Campo rotulo="Senha mestra" id="senha">
 				<input
 					id="senha"
 					name="senha"
 					type="password"
 					class="input input-bordered"
-					placeholder="••••••••"
+					placeholder="·······"
 					required
 				/>
-			</div>
+			</Campo>
 			<button class="btn btn-primary btn-block" type="submit">Entrar</button>
 		</form>
 	</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Alternativa from './Alternativa.svelte';
 	import TextoMatematico from './TextoMatematico.svelte';
 	import { ehMultiplaEscolha } from '$lib/blocks';
 	import type { CorrecaoQuestao, QuestaoPublica } from '$lib/conteudo';
@@ -35,37 +36,17 @@
 
 	<div class="space-y-2">
 		{#each questao.alternativas as alternativa, indice (indice)}
-			{@const marcada = resultado !== undefined && resultado.correta.includes(indice)}
-			{@const escolhida = resultado !== undefined && resultado.escolhida.includes(indice)}
-			<label
-				class="btn btn-sm btn-block h-auto min-h-10 justify-start gap-2 whitespace-normal text-left"
-				class:btn-primary={!resultado}
-				class:btn-ghost={!resultado}
-				class:btn-success={resultado !== undefined && marcada}
-				class:btn-error={resultado !== undefined && escolhida && !marcada}
-				class:btn-outline={resultado !== undefined && !marcada && !escolhida}
-			>
-				<input
-					class={multipla ? 'checkbox checkbox-sm' : 'radio radio-sm'}
-					type={multipla ? 'checkbox' : 'radio'}
-					name={`q_${questao.id}`}
-					value={indice}
-					aria-label={`Alternativa ${letra(indice)}`}
-					checked={resultado ? escolhida : undefined}
-				/>
-				<span class="text-xs opacity-60 font-bold">{letra(indice)})</span>
-				<span><TextoMatematico texto={alternativa} /></span>
-				{#if resultado !== undefined}
-					<span class="ml-auto flex shrink-0 gap-1 text-xs font-semibold uppercase">
-						{#if marcada}<span class="badge badge-sm badge-success">gabarito</span>{/if}
-						{#if escolhida}
-							<span class="badge badge-sm {marcada ? 'badge-success' : 'badge-error'}">
-								selecionada
-							</span>
-						{/if}
-					</span>
-				{/if}
-			</label>
+			<Alternativa
+				letra={letra(indice)}
+				texto={alternativa}
+				tipo={questao.selecao}
+				name={`q_${questao.id}`}
+				value={indice}
+				resultado={resultado !== undefined}
+				marcada={resultado !== undefined && resultado.correta.includes(indice)}
+				escolhida={resultado !== undefined && resultado.escolhida.includes(indice)}
+				checked={resultado ? resultado.escolhida.includes(indice) : undefined}
+			/>
 		{/each}
 	</div>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import BarraAcoes from './ui/BarraAcoes.svelte';
 	import { TEMA_MERMAID_PADRAO, type TemaMermaid } from '$lib/blocks';
 
 	type Props = {
@@ -365,19 +366,23 @@
 </script>
 
 <div class="w-full">
-	<div class="flex flex-wrap items-center justify-between gap-2 mb-2 no-print">
-		<span class="text-xs opacity-60">Arraste para mover · Ctrl + roda para zoom</span>
-		<div class="flex items-center gap-1" aria-label="Controles do diagrama">
-			<button
-				class="btn btn-xs btn-ghost"
-				type="button"
-				onclick={diminuirZoom}
-				disabled={carregando || erro !== null}
-				aria-label="Diminuir zoom"
-				title="Diminuir zoom"
-			>
-				−
-			</button>
+	<BarraAcoes
+		rotulo="Arraste para mover · Ctrl + roda para zoom"
+		noPrint
+		class="mb-2"
+		acoesRotulo="Controles do diagrama"
+		acoesClass="flex items-center gap-1"
+	>
+		<button
+			class="btn btn-ghost btn-xs"
+			type="button"
+			onclick={diminuirZoom}
+			disabled={carregando || erro !== null}
+			aria-label="Diminuir zoom"
+			title="Diminuir zoom"
+		>
+			−
+		</button>
 		<span
 			class="text-xs tabular-nums min-w-12 text-center"
 			aria-label="Zoom atual"
@@ -385,28 +390,27 @@
 		>
 			{Math.round(zoom * 100)}%
 		</span>
-			<button
-				class="btn btn-xs btn-ghost"
-				type="button"
-				onclick={aumentarZoom}
-				disabled={carregando || erro !== null}
-				aria-label="Aumentar zoom"
-				title="Aumentar zoom"
-			>
-				+
-			</button>
-			<button
-				class="btn btn-xs btn-outline"
-				type="button"
-				onclick={aoAjustarParaTela}
-				disabled={carregando || erro !== null}
-				aria-label="Ajustar diagrama à tela"
-				title="Ajustar à tela"
-			>
-				Ajustar
-			</button>
-		</div>
-	</div>
+		<button
+			class="btn btn-ghost btn-xs"
+			type="button"
+			onclick={aumentarZoom}
+			disabled={carregando || erro !== null}
+			aria-label="Aumentar zoom"
+			title="Aumentar zoom"
+		>
+			+
+		</button>
+		<button
+			class="btn btn-outline btn-xs"
+			type="button"
+			onclick={aoAjustarParaTela}
+			disabled={carregando || erro !== null}
+			aria-label="Ajustar diagrama à tela"
+			title="Ajustar à tela"
+		>
+			Ajustar
+		</button>
+	</BarraAcoes>
 
 	<div
 		bind:this={viewport}

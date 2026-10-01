@@ -1,6 +1,13 @@
 <script lang="ts">
-	import BlocoRender from './BlocoRender.svelte';
-	import { ROTULO_TIPO, rotasConteudo, type ContextoConteudo } from '$lib/conteudo';
+	import BarraAcoes from './ui/BarraAcoes.svelte';
+	import ListaBlocos from './ListaBlocos.svelte';
+	import Pagina from './ui/Pagina.svelte';
+	import {
+		ROTULO_IMPRIMIR_PAGINA,
+		ROTULO_TIPO,
+		rotasConteudo,
+		type ContextoConteudo
+	} from '$lib/conteudo';
 	import type { Blocos } from '$lib/blocks';
 
 	type Conteudo = {
@@ -27,13 +34,12 @@
 	<title>Imprimir - {conteudo.titulo}</title>
 </svelte:head>
 
-<div class="container max-w-3xl px-4 py-6 space-y-5 pt-8">
-	<div class="no-print flex items-center justify-between gap-2">
-		<a href={proprio} class="btn btn-ghost btn-sm">← Voltar</a>
-		<div class="flex gap-1">
-			<button class="btn btn-primary btn-sm" onclick={() => window.print()}>Imprimir / salvar PDF</button>
-		</div>
-	</div>
+<Pagina largura="conteudo" espaco={5} class="pt-8">
+	<BarraAcoes voltar={{ href: proprio, rotulo: 'Voltar' }} noPrint>
+		<button class="btn btn-primary btn-sm" onclick={() => window.print()}>
+			{ROTULO_IMPRIMIR_PAGINA}
+		</button>
+	</BarraAcoes>
 
 	<div class="text-xs opacity-60 flex justify-between">
 		<span>{voltar.rotulo}</span>
@@ -51,13 +57,9 @@
 		<hr class="border-base-300 my-2" />
 	</header>
 
-	<div class="space-y-3">
-		{#each conteudo.blocos as bloco (bloco.id)}
-			<BlocoRender {bloco} {apostilaId} {baseHref} />
-		{/each}
+	<ListaBlocos blocos={conteudo.blocos} {apostilaId} {baseHref} />
 
-		{#if conteudo.blocos.length === 0}
-			<p class="opacity-60 italic">{rotulo} sem conteúdo.</p>
-		{/if}
-	</div>
-</div>
+	{#if conteudo.blocos.length === 0}
+		<p class="opacity-60 italic">{rotulo} sem conteúdo.</p>
+	{/if}
+</Pagina>

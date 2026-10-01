@@ -1,6 +1,8 @@
 <script lang="ts">
 	import TextoEditavel from './TextoEditavel.svelte';
 	import TextoMatematico from './TextoMatematico.svelte';
+	import Alternativa from './Alternativa.svelte';
+	import Campo from './ui/Campo.svelte';
 	import {
 		corretasDoExercicio,
 		ehMultiplaEscolha,
@@ -138,21 +140,20 @@
 
 	{#if editando}
 		<div class="flex flex-wrap items-end gap-2">
-			<label class="label text-xs" for={`selecao-${bloco.id}`}>
-				<span class="label-text">Tipo de resposta</span>
-			</label>
-			<select
-				id={`selecao-${bloco.id}`}
-				class="select select-xs select-bordered"
-				value={bloco.selecao ?? 'radio'}
-				onchange={(event) => alterarSelecao(event.currentTarget.value as SelecaoExercicio)}
-			>
-				{#each SELECOES_EXERCICIO as selecao}
-					<option value={selecao}>
-						{selecao === 'radio' ? 'Uma alternativa (rádio)' : 'Várias alternativas (caixas)'}
-					</option>
-				{/each}
-			</select>
+			<Campo rotulo="Tipo de resposta" id={`selecao-${bloco.id}`} class="w-auto">
+				<select
+					id={`selecao-${bloco.id}`}
+					class="select select-xs select-bordered"
+					value={bloco.selecao ?? 'radio'}
+					onchange={(event) => alterarSelecao(event.currentTarget.value as SelecaoExercicio)}
+				>
+					{#each SELECOES_EXERCICIO as selecao}
+						<option value={selecao}>
+							{selecao === 'radio' ? 'Uma alternativa (rádio)' : 'Várias alternativas (caixas)'}
+						</option>
+					{/each}
+				</select>
+			</Campo>
 			<span class="text-xs opacity-60">
 				{multipla
 					? 'Marque todas as alternativas verdadeiras.'
@@ -231,31 +232,19 @@
 
 		<div class="space-y-2">
 			{#each bloco.alternativas as alternativa, indice}
-				{@const escolhida = selecionadas.includes(indice)}
-				{@const gabarito = corretas.includes(indice)}
-				<label
-					class="btn btn-sm btn-block h-auto min-h-10 justify-start gap-2 whitespace-normal text-left"
-					class:btn-primary={!mostrado}
-					class:btn-ghost={!mostrado}
-					class:btn-success={mostrado && gabarito}
-					class:btn-error={mostrado && escolhida && !gabarito}
-					class:btn-outline={mostrado && !escolhida && !gabarito}
-				>
-					<input
-						class={multipla ? 'checkbox checkbox-sm' : 'radio radio-sm'}
-						type={multipla ? 'checkbox' : 'radio'}
-						name={`inline-${bloco.id}`}
-						checked={escolhida}
-						disabled={mostrado}
-						onchange={() => escolher(indice)}
-						aria-label={`Alternativa ${letra(indice)}`}
-					/>
-					<span class="text-xs opacity-60 font-bold">{letra(indice)})</span>
-					<span><TextoMatematico texto={alternativa} /></span>
-					{#if mostrado && gabarito}
-						<span class="ml-auto text-xs font-semibold uppercase">gabarito</span>
-					{/if}
-				</label>
+				<Alternativa
+					letra={letra(indice)}
+					texto={alternativa}
+					tipo={bloco.selecao ?? 'radio'}
+					name={`inline-${bloco.id}`}
+					value={indice}
+					resultado={mostrado}
+					marcada={corretas.includes(indice)}
+					escolhida={selecionadas.includes(indice)}
+					checked={selecionadas.includes(indice)}
+					desabilitada={mostrado}
+					aoEscolher={(indice) => escolher(indice)}
+				/>
 			{/each}
 		</div>
 

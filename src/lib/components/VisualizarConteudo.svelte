@@ -1,6 +1,15 @@
 <script lang="ts">
-	import BlocoRender from './BlocoRender.svelte';
-	import { ROTULO_TIPO, rotasConteudo, type ContextoConteudo } from '$lib/conteudo';
+	import BarraAcoes from './ui/BarraAcoes.svelte';
+	import ListaBlocos from './ListaBlocos.svelte';
+	import Pagina from './ui/Pagina.svelte';
+	import {
+		ROTULO_APRESENTAR,
+		ROTULO_EDITAR,
+		ROTULO_IMPRIMIR,
+		ROTULO_TIPO,
+		rotasConteudo,
+		type ContextoConteudo
+	} from '$lib/conteudo';
 	import type { Blocos } from '$lib/blocks';
 
 	type Conteudo = {
@@ -30,23 +39,18 @@
 	<title>{conteudo.titulo} — {voltar.rotulo}</title>
 </svelte:head>
 
-<div class="container max-w-3xl px-4 py-6 space-y-5">
-	<div class="flex items-center justify-between gap-2 no-print">
-		<a href={voltar.href} class="btn btn-ghost btn-sm">← {voltar.rotulo}</a>
-		<div class="flex gap-1">
-			{#if logado}
-				<a href={`${proprio}/editar`} class="btn btn-outline btn-sm">Editar</a>
-			{/if}
-			<a href={`${proprio}/imprimir`} class="btn btn-ghost btn-sm" target="_blank">Imprimir/PDF</a>
-			<a
-				href={`${proprio}/apresentar`}
-				class="btn btn-sm"
-				title="Modo apresentação (slides)"
-			>
-				Apresentar
-			</a>
-		</div>
-	</div>
+<Pagina largura="conteudo" espaco={5}>
+	<BarraAcoes {voltar} noPrint>
+		{#if logado}
+			<a href={`${proprio}/editar`} class="btn btn-outline btn-sm">{ROTULO_EDITAR}</a>
+		{/if}
+		<a href={`${proprio}/imprimir`} class="btn btn-ghost btn-sm" target="_blank">
+			{ROTULO_IMPRIMIR}
+		</a>
+		<a href={`${proprio}/apresentar`} class="btn btn-sm" title="Modo apresentação (slides)">
+			{ROTULO_APRESENTAR}
+		</a>
+	</BarraAcoes>
 
 	<header class="space-y-1">
 		<span class="badge badge-outline">{conteudo.secao ?? rotulo}</span>
@@ -67,9 +71,5 @@
 		</div>
 	{/if}
 
-	<div class="space-y-3">
-		{#each conteudo.blocos as bloco (bloco.id)}
-			<BlocoRender {bloco} {apostilaId} {baseHref} {aulaContexto} />
-		{/each}
-	</div>
-</div>
+	<ListaBlocos blocos={conteudo.blocos} {apostilaId} {baseHref} {aulaContexto} />
+</Pagina>

@@ -2,7 +2,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import { arrastar, moverItem } from '$lib/arrastar';
 	import { agruparPorSecao, type AulaUi, type SecaoUi } from '$lib/blocks';
-	import TextoEditavel from '$lib/components/TextoEditavel.svelte';
+import TextoEditavel from '$lib/components/TextoEditavel.svelte';
+	import Pagina from '$lib/components/ui/Pagina.svelte';
 	import type { PageData } from './$types';
 
 	let { data, form } = $props<{ data: PageData; form: unknown }>();
@@ -112,7 +113,7 @@
 	<title>{titulo} — mcurso</title>
 </svelte:head>
 
-<div class="container max-w-5xl px-4 py-6 space-y-6">
+<Pagina largura="amplo" espaco={6}>
 	<div class="flex items-center gap-2">
 		<a href="/" class="btn btn-ghost btn-sm">← Apostilas</a>
 		<span class="divider-horizontal opacity-40"></span>
@@ -382,4 +383,4 @@
 			</form>
 		{/if}
 	</div>
-</div>
+</Pagina>
