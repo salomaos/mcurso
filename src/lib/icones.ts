@@ -8,7 +8,8 @@ export type NomeIcone =
 	| 'tabela'
 	| 'formula'
 	| 'exercicio'
-	| 'dissertativa';
+	| 'dissertativa'
+	| 'mais';
 
 export type Forma =
 	| { tipo: 'caminho'; d: string }
@@ -59,5 +60,7 @@ export const FORMAS_ICONE: Record<NomeIcone, Forma[]> = {
 		{ tipo: 'caminho', d: 'M4 15.5h6' },
 		{ tipo: 'caminho', d: 'M4 11.5h4' },
 		{ tipo: 'caminho', d: 'm14.5 15.5 5.5-5.5 2 2-5.5 5.5-3 .5z' }
-	]
+	],
+	// Fora da lista de blocos: é a ação "adicionar bloco" entre dois blocos do editor.
+	mais: [{ tipo: 'caminho', d: 'M12 5v14M5 12h14' }]
 };

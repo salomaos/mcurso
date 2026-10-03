@@ -307,6 +307,9 @@ describe('TIPOS_BLOCO', () => {
 	it('cobre todos os tipos que o editor sabe criar', () => {
 		const icones = TIPOS_BLOCO.map((tipo) => tipo.icone);
 		expect(new Set(icones).size).toBe(icones.length);
-		expect(icones.sort()).toEqual(Object.keys(FORMAS_ICONE).sort());
+		// Ícone pode existir sem ser de bloco (ações, ex.: o `mais` da faixa de
+		// inserção), mas nenhum bloco pode ficar sem o seu.
+		const desenhados = Object.keys(FORMAS_ICONE);
+		for (const icone of icones) expect(desenhados).toContain(icone);
 	});
 });

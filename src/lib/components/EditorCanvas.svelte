@@ -1,5 +1,6 @@
 <script lang="ts">
   import BlocoRender from "./BlocoRender.svelte";
+  import CriadorBloco from "./CriadorBloco.svelte";
   import Dissertativa from "./Dissertativa.svelte";
   import EditorBlocoCamada from "./EditorBlocoCamada.svelte";
   import Exercicio from "./Exercicio.svelte";
@@ -37,6 +38,13 @@
     aulaContexto,
   }: Props = $props();
   let selecionadoId = $state<string | null>(null);
+  // Faixa de inserção aberta entre dois blocos. Guarda o id do bloco que vem
+  // **depois** do ponto de inserção (e não o índice), para não depender da ordem
+  // enquanto o usuário mexe na lista.
+  let insercaoAberta = $state<string | null>(null);
+  // Valor de `insercaoAberta` para a faixa do topo (não há bloco acima dela para
+  // guardar id). Um id de bloco é UUID, então a string não colide.
+  const INICIO = "inicio";
 
   const CAMPOS_COMPARTILHADOS = [
     "texto",
@@ -134,6 +142,61 @@
     selecionadoId = bloco.id;
   }
 
+  /**
+   * Cria o bloco logo depois de `id` (é o bloco que fica **acima** da faixa onde o
+   * usuário clicou). Guardar o id em vez do índice deixa a inserção correta mesmo
+   * se a lista mudar enquanto a faixa está aberta.
+   */
+  function adicionarDepois(id: string, tipo: Bloco["tipo"]) {
+    const indice = blocos.findIndex((atual) => atual.id === id);
+    if (indice < 0) return;
+    const bloco = criarBloco(tipo);
+    const copia = [...blocos];
+    copia.splice(indice + 1, 0, bloco);
+    fecharInsercao();
+    atualizar(copia);
+    selecionadoId = bloco.id;
+  }
+
+  /**
+   * Cria o bloco no topo da lista, logo abaixo do título/descrição do conteúdo.
+   * `id` é o bloco de baixo (o primeiro): se ele sumir enquanto a faixa está
+   * aberta, cai no índice 0 em vez de não criar nada.
+   */
+  function adicionarAntes(id: string, tipo: Bloco["tipo"]) {
+    const indice = blocos.findIndex((atual) => atual.id === id);
+    const bloco = criarBloco(tipo);
+    const copia = [...blocos];
+    copia.splice(indice < 0 ? 0 : indice, 0, bloco);
+    fecharInsercao();
+    atualizar(copia);
+    selecionadoId = bloco.id;
+  }
+
+  function fecharInsercao() {
+    if (insercaoAberta === null) return;
+    insercaoAberta = null;
+  }
+
+  /**
+   * Clique fora (ou Esc) fecha a faixa. Precisa ser na **fase de captura** e usar
+   * `composedPath`: o clique no botão já trocou o `{#if}` e tirou o botão do DOM,
+   * então no `onclick` comum o `event.target` já está solto, o `closest` volta
+   * `null` e a faixa abriria e fecharia no mesmo clique.
+   */
+  function insercaoFora(event: MouseEvent) {
+    if (insercaoAberta === null) return;
+    const dentro = event
+      .composedPath()
+      .some((nó) => nó instanceof HTMLElement && nó.hasAttribute("data-inserir-bloco"));
+    if (dentro) return;
+    fecharInsercao();
+  }
+
+  function insercaoTecla(event: KeyboardEvent) {
+    if (event.key === "Escape") fecharInsercao();
+  }
+
   function remover(id: string) {
     atualizar(blocos.filter((bloco) => bloco.id !== id));
     if (selecionadoId === id) selecionadoId = null;
@@ -217,9 +280,11 @@
   }
 </script>
 
+<svelte:window onclickcapture={insercaoFora} onkeydown={insercaoTecla} />
+
 <div
   class:modo-visualizacao={modo === "visualizar"}
-  class="editor-canvas space-y-3"
+  class="editor-canvas space-y-4"
   data-arrasto-lista="blocos"
   {@attach anexarBlocos}
 >
@@ -231,6 +296,41 @@
     </div>
   {/if}
 
+  <!--
+    Faixa do topo: mesma coisa da faixa de baixo, mas ancorada na borda de cima
+    da lista — é o que permite criar um bloco logo abaixo do título/descrição do
+    conteúdo, que fica no cabeçalho acima da lista. Como aqui não existe um
+    `article` acima, o botão mora direto no canvas (também absoluto, para não
+    entrar no fluxo) e é o próprio botão que se revela no hover.
+    Só aparece com blocos na lista: sem nenhum, quem cria o primeiro é o grid do
+    fim.
+  -->
+  {#if modo === "editar" && blocos.length > 0 && insercaoAberta !== INICIO}
+    <button
+      class="canvas-inserir-btn canvas-inserir-inicio btn btn-xs h-4 min-h-0 w-full rounded-btn border-base-300 font-normal"
+      type="button"
+      data-inserir-bloco
+      title="Adicionar bloco aqui"
+      aria-label={`Adicionar bloco antes do bloco 1: ${rotuloTipo(blocos[0].tipo)}`}
+      onclick={() => (insercaoAberta = INICIO)}
+    >
+      <Icone nome="mais" tamanho={12} />
+      <span>Adicionar bloco</span>
+    </button>
+  {/if}
+
+  {#if modo === "editar" && insercaoAberta === INICIO && blocos.length > 0}
+    <div class="canvas-inserir-grade space-y-2 py-3" data-inserir-bloco>
+      <span class="block text-center text-xs font-semibold uppercase tracking-wide opacity-60"
+        >Adicionar bloco antes de “{rotuloTipo(blocos[0].tipo)}”</span
+      >
+      <CriadorBloco
+        aoCriar={(tipo) => adicionarAntes(blocos[0].id, tipo)}
+        rotuloGrupo="Tipos de bloco"
+      />
+    </div>
+  {/if}
+
   {#each blocos as bloco, indice (bloco.id)}
     <article
       class:canvas-bloco-selecionado={modo === "editar" &&
@@ -238,7 +338,14 @@
       class="canvas-bloco rounded-box"
       data-canvas-block={bloco.id}
       data-arrasto-item={bloco.id}
-      onfocusin={() => modo === "editar" && selecionar(bloco.id)}
+      onfocusin={(evento) => {
+        if (modo !== "editar") return;
+        // O botão da faixa de inserção mora dentro do bloco: focá-lo não pode
+        // selecionar o bloco, senão a camada de configuração abre, o bloco
+        // cresce e o `pointerup` cai fora do botão (o clique nunca acontece).
+        if ((evento.target as HTMLElement).closest("[data-inserir-bloco]")) return;
+        selecionar(bloco.id);
+      }}
     >
       {#if modo === "editar" && (bloco.tipo === "titulo" || bloco.tipo === "texto")}
         <div class="canvas-conteudo">
@@ -368,7 +475,38 @@
           </div>
         </div>
       {/if}
+
+      <!--
+        Botão da faixa de inserção: fica dentro do bloco, ancorado na borda de
+        baixo, flutuando sobre o vão. Fora do fluxo de propósito — se entrasse
+        como irmão, o `space-y-3` contaria a faixa duas vezes e cada vão
+        cresceria 0.75rem, que é justamente o vai e volta que a faixa evita.
+        Só não existe no último bloco: para acrescentar no fim quem serve é o
+        grid do fim da lista.
+      -->
+      {#if modo === "editar" && indice < blocos.length - 1 && insercaoAberta !== bloco.id}
+        <button
+          class="canvas-inserir-btn btn btn-xs h-4 min-h-0 w-full rounded-btn border-base-300 font-normal"
+          type="button"
+          data-inserir-bloco
+          title="Adicionar bloco aqui"
+          aria-label={`Adicionar bloco depois do bloco ${indice + 1}: ${rotuloTipo(bloco.tipo)}`}
+          onclick={() => (insercaoAberta = bloco.id)}
+        >
+          <Icone nome="mais" tamanho={12} />
+          <span>Adicionar bloco</span>
+        </button>
+      {/if}
     </article>
+
+    {#if modo === "editar" && insercaoAberta === bloco.id}
+      <div class="canvas-inserir-grade space-y-2 py-3" data-inserir-bloco>
+        <span class="block text-center text-xs font-semibold uppercase tracking-wide opacity-60"
+          >Adicionar bloco depois de “{rotuloTipo(bloco.tipo)}”</span
+        >
+        <CriadorBloco aoCriar={(tipo) => adicionarDepois(bloco.id, tipo)} rotuloGrupo="Tipos de bloco" />
+      </div>
+    {/if}
   {/each}
 
   {#if modo === "editar"}
@@ -376,22 +514,7 @@
       <span class="text-xs font-semibold uppercase tracking-wide opacity-60"
         >Adicionar bloco</span
       >
-      <div
-        class="flex flex-wrap justify-center gap-2"
-        role="group"
-        aria-label="Adicionar bloco"
-      >
-        {#each TIPOS_BLOCO as tipo (tipo.id)}
-          <button
-            class="btn btn-sm btn-outline h-auto w-20 flex-col items-center gap-1 px-1 py-2"
-            type="button"
-            onclick={() => adicionar(tipo.id)}
-          >
-            <Icone nome={tipo.icone} />
-            <span class="text-xs leading-tight">{tipo.rotulo}</span>
-          </button>
-        {/each}
-      </div>
+      <CriadorBloco aoCriar={adicionar} />
     </div>
   {/if}
 </div>
@@ -454,6 +577,47 @@
   .canvas-adicionar {
     padding: 1rem 0 0.25rem;
     border-top: 1px dashed color-mix(in srgb, currentColor 20%, transparent);
+  }
+
+  /* Botão da faixa de inserção: absoluto na borda de baixo do bloco, centrado no
+   vão entre ele e o próximo (1rem do `space-y-4`). Só aparece no hover — a lib
+   não tem "revelar no hover" e `opacity-0` dela é `!important`, então a
+   transição vive aqui. */
+  .canvas-inserir-btn {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1.05rem;
+    z-index: 1;
+    border-style: dashed;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .canvas-bloco:hover .canvas-inserir-btn,
+  .canvas-inserir-btn:hover,
+  .canvas-inserir-btn:focus-visible {
+    opacity: 1;
+  }
+
+  /* Faixa do topo: no vão entre o cabeçalho (título/descrição) e o primeiro
+   bloco. Mesmo deslocamento do vão de baixo, agora para cima. */
+  .canvas-inserir-inicio {
+    top: -1.05rem;
+    bottom: auto;
+  }
+
+  /* Sem hover não existe o gatilho: no toque quem cria bloco é o grid do fim. */
+  @media (hover: none) {
+    .canvas-inserir-btn {
+      display: none;
+    }
+  }
+
+  /* Aberta, a grade ocupa o fluxo e empurra os vizinhos. */
+  .canvas-inserir-grade {
+    border-top: 1px dashed color-mix(in srgb, currentColor 20%, transparent);
+    border-bottom: 1px dashed color-mix(in srgb, currentColor 20%, transparent);
   }
 
   :global(.canvas-bloco .canvas-source) {
