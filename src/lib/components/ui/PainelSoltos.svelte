@@ -14,6 +14,7 @@
 
 <script lang="ts" generics="T extends ItemSoltos">
 	import type { Snippet } from 'svelte';
+	import CabecalhoPagina from './CabecalhoPagina.svelte';
 	import Pagina from './Pagina.svelte';
 
 	type Props = {
@@ -75,15 +76,11 @@
 </script>
 
 <Pagina largura="amplo" espaco={4}>
-	<div class="flex flex-wrap items-start justify-between gap-2">
-		<div class="space-y-1">
-			<h1 class="text-3xl font-bold">{titulo}</h1>
-			<p class="text-sm opacity-70">{descricao}</p>
-		</div>
+	<CabecalhoPagina {titulo} subtitulo={descricao}>
 		<form method="POST" action="?/criar">
 			<button class="btn btn-primary" type="submit">{rotuloCriar}</button>
 		</form>
-	</div>
+	</CabecalhoPagina>
 
 	{#if erro}
 		<div class="alert alert-error">{erro}</div>

@@ -163,7 +163,40 @@ feito. Ao concluir um item, mude para `✅` e registre a data. Ao começar, `�
 
 ## P1
 
-### ⬜ P1.1 `CabecalhoPagina` — `src/lib/components/ui/CabecalhoPagina.svelte`
+### ✅ P1.1 `CabecalhoPagina` — `src/lib/components/ui/CabecalhoPagina.svelte`
+
+> **Feito em 03/10/2026.** Props: `titulo`, `subtitulo?`, `etiqueta?` (selo acima do
+> h1), `children?` (ações à direita), `class?`. Migrados os **6** que cabiam:
+> `routes/+page.svelte`, `apostilas/[apostilaId]` (ramo público), `VisualizarConteudo`,
+> `EditorConteudo` (modo visualizar), `exercicios/[exercicioId]` (página do aluno) e
+> `ui/PainelSoltos` — que agora repassa `titulo`/`descricao` em vez de ter markup próprio.
+> **Quatro divergências resolvidas de uma vez**: o subtítulo era `text-sm opacity-70` em 2
+> lugares e `opacity-80` em 4 (padronizou `opacity-80`), o selo aparecia em 3 dos 6, o
+> alinhamento da ação era `items-center` no índice e `items-start` no `PainelSoltos`
+> (padronizou `items-start`), e o "Editar" da atividade era `btn-xs` embaixo da
+> descrição — virou `btn-sm` à direita do título, como nas outras telas.
+>
+> Ganho de paridade: o subtítulo ganhou `whitespace-pre-wrap`. Só a página do aluno tinha
+> (e **precisa**: as instruções da atividade são texto com quebras de linha) — as outras
+> cinco compactavam a descrição num bloco só. `getByText`/`toHaveText` do Playwright
+> normalizam espaço, então nenhum contrato de E2E mudou.
+>
+> Duas decisões que só apareceram na implementação:
+>
+> 1. **`<h1>` e não `h2`**, e o selo **fora** do `h1`: as specs localizam o título por
+>    `getByRole('heading', { level: 1 })` (`anexos.spec.ts:51,67,121,125`,
+>    `fluxo.spec.ts:6,61`) e o nome acessível precisa continuar sendo só o título.
+> 2. **A origem da atividade (`apostila › aula`) saiu do cabeçalho** e virou irmão acima
+>    dele: é `nav`, não título. O custo é o vão passar de `space-y-2` para o `space-y-5`
+>    da `Pagina` entre a origem e o cabeçalho — intentional, é o ritmo das outras telas.
+>
+> **Ficaram de fora (e por quê)**:
+>
+> | Fora | Motivo |
+> | --- | --- |
+> | `ImprimirConteudo` | A página de impressão tem *running head* em maiúsculas (não é selo) e uma `<hr>` embaixo do cabeçalho. Caberia só trocando o selo por badge e inventando uma prop para a régua — o doc proíbe estender a API para caber um caso. O `h1` e o subtítulo já usam as classes do componente, então a divergência visual é zero. |
+> | `login/+page.svelte` | Não é `Pagina`: é card centralizado (`max-w-sm`) com escala própria (`text-2xl`). É tela de autenticação, não cabeçalho de página. |
+> | `apostilas/nova/+page.svelte` | `h1` em `text-2xl` na largura `estreito` de criação: escala deliberada, não divergência. |
 
 Par "badge + `<h1 class="text-3xl font-bold">` + subtítulo" 8× com hierarquias inconsistentes
 (`space-y-1` vs `space-y-2`, badge antes ou depois do h1).
@@ -171,6 +204,10 @@ Par "badge + `<h1 class="text-3xl font-bold">` + subtítulo" 8× com hierarquias
 `VisualizarConteudo.svelte:51-57` · `ImprimirConteudo.svelte:43-52` ·
 `EditorConteudo.svelte:224-232` · `exercicios/[exercicioId]/+page.svelte:85-105`
 Props: `titulo`, `subtitulo?`, `etiqueta?`, `class?` — Baixo / Baixo
+
+> **Contagem real (03/10/2026):** eram **7**, não 8 — `ui/PainelSoltos` ganhou um na
+> extração do P0.2. Dos 7, 6 migraram (o 7º é a página de impressão), e há dois fora do
+> plano original: `apostilas/nova` e `login` usam `text-2xl` (escala própria).
 
 ### ⬜ P1.2 `BotaoExcluir` — `src/lib/components/ui/BotaoExcluir.svelte`
 
@@ -392,11 +429,35 @@ E2E 34/34). Duas lições que valem para o resto do plano:
    `ROTULO_IMPRIMIR_RESULTADO` (botão do cartão de resultado do aluno). Reaproveitar a
    constante errada quebra o E2E sem erro de tipo — o rótulo é contrato, não detalhe.
 
-**Fica para quando a tela for tocada de novo:** P1.1, P1.2, P1.4, P1.5, P2.1–P2.5 e P3.x.
+**Rodada 03/10/2026 — P1.1 `CabecalhoPagina` concluído** (`pnpm test` 77/77, `pnpm check` 0,
+E2E 41/41, `pnpm build` ok). Antes de codar, as contagens do plano foram **re-verificadas** e
+várias mudaram depois das extrações anteriores — o número entre parênteses é o de hoje:
+
+| Item | Plano | Real | Situação |
+| --- | --- | --- | --- |
+| P1.1 `CabecalhoPagina` | 8 | **7** | ✅ feito (6 migrados; impressão fora) |
+| P1.2 `BotaoExcluir` | 5 | **4** | o `PainelSoltos` eliminou os 2 de anexo/atividade |
+| P1.4 `Contador` | 6 | **5** | 2 já dentro do `PainelSoltos` (5 de UI) |
+| P1.5 `Botao` | ~54 | **76** | 7 não cabem (têm `class:` condicional) |
+| P2.1 `AlcaArrasto` | 3 | 3 | `title` igual nos 3, `aria-label` em 3 formatos |
+| P2.2 `AcoesConteudo` | 5 | 5 | sobraram 2 literais fora das constantes: `"Ver"` e `"PDF"` |
+| P2.3 `DataBadge` | 3 | **2** | o padrão já unificado no `PainelSoltos` |
+| P2.4 `CardConteudo` | 3 | **0** | os 2 que sobram não compartilham esqueleto → fechar |
+| P2.5 `SecaoBloco` | 3 | **6** | 4 veículos (`span`, `legend`, `div`, prop) → virar **classe** em `app.css`, não componente |
+| P3.1 glifos | ~7 | **22** | `×` U+00D7 ×3 e `✕` U+2715 ×1 são o mesmo "remover" com fallback de fonte diferente |
+| P3.3 `<style>` | 190 | **232** | 4 `:global()` atravessando fronteira |
+
+**Ordem sugerida a partir daqui:** P2.1 `AlcaArrasto` (+ o `⠿` do P3.1, uma passada só) →
+P1.4 `Contador` → P1.2 `BotaoExcluir`. **P1.5 `Botao` e P2.2 `AcoesConteudo` só quando a
+tela for tocada por outro motivo**: o `Botao` é o item com mais chance de virar design system
+paralelo, e o `AcoesConteudo` depende de decidir o que fazer com `"Ver"`/`"PDF"` (renomear
+quebra contrato de E2E).
+
+**Fica para quando a tela for tocada de novo:** P1.2, P1.4, P1.5, P2.1–P2.5 e P3.x.
 Em P0.2 vale revisar se o contador deve mostrar o total não filtrado
 (`PainelSoltos` usa `itens.length`, que já vem filtrado das páginas).
 
 **Convenção de pasta:** `src/lib/components/ui/` para as primitivas genéricas
-(`Pagina`, `Campo`, `BarraAcoes`, `Botao`, `Contador`, `CardConteudo`, `DataBadge`);
-componentes de domínio (`Alternativa`, `ListaBlocos`, `AlcaArrasto`) ficam ao lado dos
-atuais.
+(`Pagina`, `Campo`, `BarraAcoes`, `CabecalhoPagina`, `Botao`, `Contador`, `CardConteudo`,
+`DataBadge`); componentes de domínio (`Alternativa`, `ListaBlocos`, `AlcaArrasto`) ficam ao
+lado dos atuais.

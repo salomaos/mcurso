@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
 
 	let { data } = $props<{ data: PageData }>();
@@ -10,15 +11,11 @@
 </svelte:head>
 
 <Pagina largura="amplo" espaco={4}>
-	<div class="flex items-center justify-between gap-2">
-		<div class="space-y-1">
-			<h1 class="text-3xl font-bold">Apostilas</h1>
-			<p class="text-sm opacity-70">Material de aula para leitura e impressão.</p>
-		</div>
+	<CabecalhoPagina titulo="Apostilas" subtitulo="Material de aula para leitura e impressão.">
 		{#if data.user}
 			<a href="/apostilas/nova" class="btn btn-primary">Nova apostila</a>
 		{/if}
-	</div>
+	</CabecalhoPagina>
 
 	{#if data.apostilas.length === 0}
 		<div class="alert alert-info">

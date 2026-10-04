@@ -5,6 +5,7 @@
 	import Questao from '$lib/components/Questao.svelte';
 	import { resultadoParaImagem } from '$lib/imagem';
 	import Campo from '$lib/components/ui/Campo.svelte';
+	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
 	import { guardarNome, lerNome } from '$lib/nome-aluno';
 	import {
@@ -92,27 +93,29 @@
 </svelte:head>
 
 <Pagina largura="conteudo" espaco={5}>
-	<header class="space-y-2">
-		{#if data.contexto.aula}
-			<nav aria-label="Origem" class="flex flex-wrap items-center gap-1 text-sm opacity-70">
-				<span>{data.contexto.aula.apostilaTitulo}</span>
-				<span aria-hidden="true">›</span>
-				<span>{data.contexto.aula.titulo}</span>
-			</nav>
-		{/if}
-		<span class="badge badge-outline">Atividade</span>
-		<h1 class="text-3xl font-bold">{data.atividade.titulo}</h1>
-		{#if data.atividade.descricao}
-			<p class="opacity-80 whitespace-pre-wrap">{data.atividade.descricao}</p>
-		{/if}
+	{#if data.contexto.aula}
+		<!-- A origem fica fora do cabeçalho: é navegação, não título. -->
+		<nav aria-label="Origem" class="flex flex-wrap items-center gap-1 text-sm opacity-70">
+			<span>{data.contexto.aula.apostilaTitulo}</span>
+			<span aria-hidden="true">›</span>
+			<span>{data.contexto.aula.titulo}</span>
+		</nav>
+	{/if}
+
+	<CabecalhoPagina
+		titulo={data.atividade.titulo}
+		subtitulo={data.atividade.descricao}
+		etiqueta="Atividade"
+	>
 		{#if data.user}
-			<div class="flex gap-1 no-print">
-<a href={`${caminhoExercicio(data.atividade.id)}/editar`} class="btn btn-outline btn-xs">
+			<a
+				href={`${caminhoExercicio(data.atividade.id)}/editar`}
+				class="btn btn-outline btn-sm no-print"
+			>
 				{ROTULO_EDITAR}
 			</a>
-			</div>
 		{/if}
-	</header>
+	</CabecalhoPagina>
 
 	{#if resultado}
 		<div class="card card-bordered p-4 space-y-3 no-print quebra-pagina">

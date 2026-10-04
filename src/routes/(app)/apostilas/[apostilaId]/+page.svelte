@@ -3,6 +3,7 @@
 	import { arrastar, moverItem } from '$lib/arrastar';
 	import { agruparPorSecao, type AulaUi, type SecaoUi } from '$lib/blocks';
 import TextoEditavel from '$lib/components/TextoEditavel.svelte';
+	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
 	import type { PageData } from './$types';
 
@@ -167,13 +168,8 @@ import TextoEditavel from '$lib/components/TextoEditavel.svelte';
 				</span>
 			</div>
 		</form>
-	{:else}
-		<header class="space-y-1">
-			<h1 class="text-3xl font-bold">{data.apostila.titulo}</h1>
-			{#if data.apostila.descricao}
-				<p class="opacity-80">{data.apostila.descricao}</p>
-			{/if}
-		</header>
+{:else}
+		<CabecalhoPagina titulo={data.apostila.titulo} subtitulo={data.apostila.descricao} />
 	{/if}
 
 	{#if data.user}

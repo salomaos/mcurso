@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BarraAcoes from './ui/BarraAcoes.svelte';
+	import CabecalhoPagina from './ui/CabecalhoPagina.svelte';
 	import ListaBlocos from './ListaBlocos.svelte';
 	import Pagina from './ui/Pagina.svelte';
 	import {
@@ -52,13 +53,11 @@
 		</a>
 	</BarraAcoes>
 
-	<header class="space-y-1">
-		<span class="badge badge-outline">{conteudo.secao ?? rotulo}</span>
-		<h1 class="text-3xl font-bold">{conteudo.titulo}</h1>
-		{#if conteudo.descricao}
-			<p class="opacity-80">{conteudo.descricao}</p>
-		{/if}
-	</header>
+	<CabecalhoPagina
+		titulo={conteudo.titulo}
+		subtitulo={conteudo.descricao}
+		etiqueta={conteudo.secao ?? rotulo}
+	/>
 
 	{#if conteudo.blocos.length === 0}
 		<div class="alert alert-info">

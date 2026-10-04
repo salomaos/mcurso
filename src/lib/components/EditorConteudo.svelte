@@ -2,6 +2,7 @@
 	import EditorCanvas from './EditorCanvas.svelte';
 	import TextoEditavel from './TextoEditavel.svelte';
 	import BarraAcoes from './ui/BarraAcoes.svelte';
+	import CabecalhoPagina from './ui/CabecalhoPagina.svelte';
 	import Campo from './ui/Campo.svelte';
 	import Pagina from './ui/Pagina.svelte';
 	import type { Snippet } from 'svelte';
@@ -152,7 +153,7 @@
 				</p>
 
 				{#if contexto.tipo === 'aula'}
-					<div class="flex flex-wrap items-center gap-2">
+					<div class="flex flex-wrap items-end gap-2">
 						{#if criandoSecao}
 							<!-- svelte-ignore a11y_autofocus -->
 							<input
@@ -235,15 +236,9 @@
 						aoDigitar={(valor) => (descricao = valor)}
 					/>
 				</div>
-			{:else}
-				{#if nomeSecaoAtual}
-					<span class="badge badge-outline">{nomeSecaoAtual}</span>
-				{/if}
-				<h1 class="text-3xl font-bold">{titulo}</h1>
-				{#if descricao}
-					<p class="opacity-80">{descricao}</p>
-				{/if}
-			{/if}
+{:else}
+			<CabecalhoPagina {titulo} subtitulo={descricao} etiqueta={nomeSecaoAtual} />
+		{/if}
 		</header>
 
 		<input type="hidden" name="titulo" value={titulo} />
