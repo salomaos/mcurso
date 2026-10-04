@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import BlocoRender from '$lib/components/BlocoRender.svelte';
 	import TextoMatematico from '$lib/components/TextoMatematico.svelte';
-	import { corretasDoExercicio, type Blocos } from '$lib/blocks';
+	import { corretasDoExercicio, type Blocos, type NivelTitulo } from '$lib/blocks';
 	import { ROTULO_TIPO, rotasConteudo, type ContextoConteudo } from '$lib/conteudo';
 
 	let {
@@ -23,6 +23,17 @@
 	let revelado = $state(false);
 	const total = $derived(blocos.length);
 	const bloco = $derived(blocos[indice] ?? null);
+
+	// Slide é tela cheia: a escala é maior que a da leitura, mas segue a mesma
+	// ordem (H1 maior, H6 menor) para o nível escolhido no editor continuar valendo.
+	const TITULO_APRESENTACAO: Record<NivelTitulo, string> = {
+		1: 'text-4xl sm:text-6xl font-bold text-center leading-tight',
+		2: 'text-3xl sm:text-5xl font-bold text-center',
+		3: 'text-2xl sm:text-4xl font-semibold text-center',
+		4: 'text-xl sm:text-3xl font-semibold text-center',
+		5: 'text-lg sm:text-2xl font-semibold text-center',
+		6: 'text-base sm:text-xl font-medium uppercase tracking-wide text-center'
+	};
 	// Gabarito em lista: a questão pode ter mais de uma alternativa verdadeira.
 	const gabarito = $derived(
 		bloco?.tipo === 'exercicio' ? corretasDoExercicio(bloco) : ([] as number[])
@@ -89,13 +100,9 @@
 				{#key indice}
 					<div class="flex flex-col items-center gap-0 w-full">
 						{#if bloco && bloco.tipo === 'titulo'}
-							{#if bloco.nivel === 1}
-								<h1 class="text-4xl sm:text-6xl font-bold text-center leading-tight">{bloco.texto}</h1>
-							{:else if bloco.nivel === 3}
-								<h3 class="text-2xl sm:text-4xl font-semibold text-center">{bloco.texto}</h3>
-							{:else}
-								<h2 class="text-3xl sm:text-5xl font-bold text-center">{bloco.texto}</h2>
-							{/if}
+							<svelte:element this={`h${bloco.nivel}`} class={TITULO_APRESENTACAO[bloco.nivel]}>
+								{bloco.texto}
+							</svelte:element>
 						{:else if bloco && bloco.tipo === 'exercicio'}
 							<div class="space-y-6 w-full max-w-3xl">
 								<h2 class="text-2xl sm:text-4xl font-bold leading-snug whitespace-pre-wrap text-center">

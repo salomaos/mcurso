@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import type { NivelTitulo } from '$lib/blocks';
 
 	type Props = {
 		texto: string;
 		tipo: 'titulo' | 'texto';
-		nivel?: 1 | 2 | 3;
+		nivel?: NivelTitulo;
 		rotulo?: string;
 		marcador?: string;
 		focarAoMontar?: boolean;
@@ -28,6 +29,10 @@
 	let editando = $state(false);
 	let elemento = $state<HTMLElement>();
 	let montou = $state(false);
+
+	// `svelte:element` em vez de um `{#if}` por nível: trocar H2 para H4 troca só a
+	// tag, e o `bind:this` + o efeito de baixo reescrevem o texto no elemento novo.
+	const tagTitulo = $derived(`h${nivel}`);
 
 	const inicial = untrack(() => texto);
 
@@ -86,9 +91,12 @@
 	}
 </script>
 
-{#if tipo === 'titulo' && nivel === 1}
-	<h1
-		class="canvas-titulo canvas-titulo-1"
+{#if tipo === 'titulo'}
+	<svelte:element
+		this={tagTitulo}
+		class={`canvas-titulo canvas-titulo-${nivel}`}
+		role="heading"
+		aria-level={nivel}
 		contenteditable="plaintext-only"
 		data-marcador={marcador}
 		aria-label={rotulo}
@@ -99,35 +107,7 @@
 		onkeydown={pressionar}
 		onpaste={colar}
 		spellcheck="true"
-	>{inicial}</h1>
-{:else if tipo === 'titulo' && nivel === 3}
-	<h3
-		class="canvas-titulo canvas-titulo-3"
-		contenteditable="plaintext-only"
-		data-marcador={marcador}
-		aria-label={rotulo}
-		bind:this={elemento}
-		onfocus={focar}
-		oninput={digitar}
-		onblur={sair}
-		onkeydown={pressionar}
-		onpaste={colar}
-		spellcheck="true"
-	>{inicial}</h3>
-{:else if tipo === 'titulo'}
-	<h2
-		class="canvas-titulo canvas-titulo-2"
-		contenteditable="plaintext-only"
-		data-marcador={marcador}
-		aria-label={rotulo}
-		bind:this={elemento}
-		onfocus={focar}
-		oninput={digitar}
-		onblur={sair}
-		onkeydown={pressionar}
-		onpaste={colar}
-		spellcheck="true"
-	>{inicial}</h2>
+	>{inicial}</svelte:element>
 {:else}
 	<div
 		class="canvas-texto"
@@ -173,6 +153,9 @@
 		opacity: 0.5;
 	}
 
+	/* Tamanho por nível: espelha a escala do `BlocoRender` para o bloco não mudar de
+	   tamanho ao sair da edição. H5/H6 descem para `text-base`/`text-sm` porque
+	   abaixo de 1rem o título fica ilegível no canvas. */
 	.canvas-titulo-1 {
 		font-size: 1.875rem;
 		font-weight: 700;
@@ -189,6 +172,26 @@
 		font-size: 1.25rem;
 		font-weight: 600;
 		line-height: 1.3;
+	}
+
+	.canvas-titulo-4 {
+		font-size: 1.125rem;
+		font-weight: 600;
+		line-height: 1.35;
+	}
+
+	.canvas-titulo-5 {
+		font-size: 1rem;
+		font-weight: 600;
+		line-height: 1.4;
+	}
+
+	.canvas-titulo-6 {
+		font-size: 0.875rem;
+		font-weight: 500;
+		line-height: 1.4;
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
 	}
 
 	.canvas-texto {

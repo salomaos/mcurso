@@ -9,7 +9,13 @@ export type NomeIcone =
 	| 'formula'
 	| 'exercicio'
 	| 'dissertativa'
-	| 'mais';
+	| 'mais'
+	| 'negrito'
+	| 'italico'
+	| 'lista'
+	| 'listaNumerada'
+	| 'citacao'
+	| 'linha';
 
 export type Forma =
 	| { tipo: 'caminho'; d: string }
@@ -62,5 +68,29 @@ export const FORMAS_ICONE: Record<NomeIcone, Forma[]> = {
 		{ tipo: 'caminho', d: 'm14.5 15.5 5.5-5.5 2 2-5.5 5.5-3 .5z' }
 	],
 	// Fora da lista de blocos: é a ação "adicionar bloco" entre dois blocos do editor.
-	mais: [{ tipo: 'caminho', d: 'M12 5v14M5 12h14' }]
+	mais: [{ tipo: 'caminho', d: 'M12 5v14M5 12h14' }],
+	// Ações da barra de formatação do bloco de texto (markdown).
+	negrito: [{ tipo: 'caminho', d: 'M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z' }],
+	italico: [{ tipo: 'caminho', d: 'M15 5h-4M13 19H9M14 5l-4 14' }],
+	lista: [
+		{ tipo: 'circulo', cx: 5, cy: 7, raio: 1.25 },
+		{ tipo: 'circulo', cx: 5, cy: 12, raio: 1.25 },
+		{ tipo: 'circulo', cx: 5, cy: 17, raio: 1.25 },
+		{ tipo: 'caminho', d: 'M10 7h9M10 12h9M10 17h6' }
+	],
+	// Mesma grade da `lista`, mas com 1/2/3 no lugar da bolinha: sem dígito
+	// próprio, professor erra a modality só depois de ver o texto quebrado.
+	listaNumerada: [
+		{ tipo: 'caminho', d: 'M10 7h10M10 12h10M10 17h6' },
+		{ tipo: 'caminho', d: 'M4.4 6.2 5.6 5.3V8.8' },
+		{ tipo: 'caminho', d: 'M3 12.4c0-.6.5-1 1.1-1s1.1.4 1.1 1c0 .9-2.2 1.2-2.2 2.3h2.3' },
+		{ tipo: 'caminho', d: 'M3 17.1c0-.5.5-.9 1.1-.9h.5c.5 0 .9.3.9.7s-.4.7-.9.7h-.5c.6 0 1 .3 1 .8s-.4.8-1 .8H3.1' }
+	],
+	citacao: [
+		{ tipo: 'caminho', d: 'm7 8-3 4 3 4' },
+		{ tipo: 'caminho', d: 'm15 8-3 4 3 4' }
+	],
+	linha: [
+		{ tipo: 'caminho', d: 'M4.5 12h15M4.5 9.5v5M19.5 9.5v5' }
+	]
 };

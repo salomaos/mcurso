@@ -3,12 +3,14 @@ import {
 	agruparPorSecao,
 	corretasDoExercicio,
 	ehBloco,
+	ehNivelTitulo,
 	hrefLinkInterno,
 	linksPara,
 	mesmoNomeSecao,
 	normalizarBlocos,
 	normalizarNomeSecao,
 	criarBloco,
+	NIVEIS_TITULO,
 	TIPOS_BLOCO,
 	type AulaUi,
 	type SecaoUi
@@ -104,6 +106,23 @@ describe('normalizarBlocos / ehBloco', () => {
 		expect(ehBloco({ id: 't', tipo: 'titulo', texto: 'Título', nivel: '2' })).toBe(false);
 	});
 
+	it('aceita os 6 níveis de título e descarta os que não são heading', () => {
+		for (const nivel of NIVEIS_TITULO) {
+			expect(ehBloco({ id: 't', tipo: 'titulo', texto: 'Título', nivel: nivel.valor })).toBe(
+				true
+			);
+		}
+		expect(ehBloco({ id: 't', tipo: 'titulo', texto: 'Título', nivel: 0 })).toBe(false);
+		expect(ehBloco({ id: 't', tipo: 'titulo', texto: 'Título', nivel: 7 })).toBe(false);
+		expect(ehBloco({ id: 't', tipo: 'titulo', texto: 'Título', nivel: 2.5 })).toBe(false);
+		expect(ehNivelTitulo(4)).toBe(true);
+		expect(ehNivelTitulo(7)).toBe(false);
+	});
+
+	it('cria o título já em H1', () => {
+		expect(criarBloco('titulo')).toMatchObject({ tipo: 'titulo', nivel: 1 });
+	});
+
 	it('normaliza o tema do mermaid, mantendo o de bloco antigo sem o campo', () => {
 		const [novo] = normalizarBlocos([criarBloco('mermaid')]);
 		expect(novo.tipo === 'mermaid' && novo.tema).toBe('neutral');
@@ -195,6 +214,21 @@ describe('normalizarBlocos / ehBloco', () => {
 		expect(ehBloco({ id: 'e', tipo: 'exercicio', pergunta: 'q', alternativas: [], correta: 0 })).toBe(false);
 		expect(ehBloco({ id: 'e', tipo: 'exercicio', pergunta: 'q', alternativas: ['a', 'b'], correta: 5 })).toBe(false);
 		expect(ehBloco({ id: 'f', tipo: 'formula', latex: '' })).toBe(true);
+	});
+
+	it('normaliza a quebra de linha do texto sem podar a indentação', () => {
+		// O markdown usa a indentação como sintaxe (código cercado, lista
+		// aninhada), então normalizar aqui é só o `\r`, nunca `trim`.
+		const [crlf] = normalizarBlocos([
+			{ id: 't', tipo: 'texto', conteudo: '  - item\r\n    - sub\r\n\r\n```\r\n  const a = 1;\r\n```' }
+		]);
+		expect(crlf).toMatchObject({ tipo: 'texto' });
+		expect((crlf as { conteudo: string }).conteudo).toBe(
+			'  - item\n    - sub\n\n```\n  const a = 1;\n```'
+		);
+
+		const [cr] = normalizarBlocos([{ id: 't', tipo: 'texto', conteudo: 'um\rtwo' }]);
+		expect((cr as { conteudo: string }).conteudo).toBe('um\ntwo');
 	});
 });
 

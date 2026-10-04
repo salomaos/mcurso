@@ -98,6 +98,70 @@ test('edita título e descrição da apostila direto no conteúdo', async ({ pag
 	await expect(page.getByLabel('Título da apostila')).toHaveText(`${titulo} v2`);
 });
 
+test('botões de nível trocam o heading do título e o nível persiste', async ({ page }) => {
+	await page.goto('/login');
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
+	await page.getByRole('button', { name: 'Entrar' }).click();
+	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
+
+	await page.goto('/apostilas/nova');
+	await page.getByLabel('Título').fill(`Níveis E2E ${Date.now()}`);
+	await page.getByRole('button', { name: 'Criar' }).click();
+	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
+	await expect(page).toHaveURL(/\/editar/);
+
+	await page.getByRole('button', { name: 'Título', exact: true }).click();
+	const blocoTitulo = page.locator('[data-canvas-block]').first();
+	await blocoTitulo.getByLabel('Editar título', { exact: true }).click();
+	await page.keyboard.type('Seção do capítulo');
+
+	const niveis = blocoTitulo.getByRole('group', { name: 'Nível do título' });
+	await expect(niveis.getByRole('button')).toHaveText(['H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
+	// Rótulo curto pede explicação: o tooltip da lib vem do `data-tip` ("Título 1"…),
+	// que não entra no nome acessível — o do botão continua sendo o H visível.
+	await expect
+		.poll(() =>
+			niveis
+				.getByRole('button')
+				.evaluateAll((botoes) => botoes.map((botao) => botao.getAttribute('data-tip')))
+		)
+		.toEqual(['Título 1', 'Título 2', 'Título 3', 'Título 4', 'Título 5', 'Título 6']);
+	// Bloco novo já nasce no topo da hierarquia.
+	await expect(niveis.getByRole('button', { name: 'H1' })).toHaveAttribute('aria-pressed', 'true');
+
+	// H4 é o quarto botão: o valor é numérico, não a ordem do rótulo.
+	await niveis.getByRole('button', { name: 'H4' }).click();
+	await expect(niveis.getByRole('button', { name: 'H4' })).toHaveAttribute('aria-pressed', 'true');
+	await expect(niveis.getByRole('button', { name: 'H1' })).toHaveAttribute('aria-pressed', 'false');
+
+	// A tag real acompanha o nível escolhido. No canvas não dá para casar pelo
+	// nome acessível: o `aria-label` do editor ("Editar título") tem precedência
+	// sobre o texto, então a checagem é pela tag.
+	await expect(blocoTitulo.locator('h4')).toHaveText('Seção do capítulo');
+
+	await page.getByRole('button', { name: 'Salvar aula' }).click();
+	await expect(page).toHaveURL(/\/aulas\/\d+$/);
+	await expect(page.getByRole('heading', { name: 'Seção do capítulo', level: 4 })).toBeVisible();
+
+	await page.getByRole('link', { name: 'Editar', exact: true }).click();
+	await expect(page).toHaveURL(/\/editar/);
+	const persistidos = JSON.parse(await page.locator('input[name="blocos"]').inputValue()) as {
+		tipo: string;
+		nivel: number;
+	}[];
+	expect(persistidos[0].tipo).toBe('titulo');
+	expect(persistidos[0].nivel).toBe(4);
+
+	// A camada de configuração só existe com o bloco selecionado.
+	const blocoEditado = page.locator('[data-canvas-block]').first();
+	await blocoEditado.locator('h4').click();
+	await expect(
+		blocoEditado
+			.getByRole('group', { name: 'Nível do título' })
+			.getByRole('button', { name: 'H4' })
+	).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('canvas edita tabela e exercício e mantém os dados', async ({ page }) => {
 	await page.goto('/login');
 	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
@@ -375,7 +439,13 @@ test('trocar tipo de bloco com conteúdo pede confirmação', async ({ page }) =
 	const tipo = page.getByLabel('Tipo do bloco').first();
 	page.once('dialog', (dialogo) => dialogo.dismiss());
 	await tipo.selectOption('codigo');
-	await expect(texto).toHaveText('conteúdo que será perdido');
+	// Diálogo recusado: o bloco continua editando e o markdown segue intacto.
+	await expect(texto).toHaveValue('conteúdo que será perdido');
+	// Esc sai da edição e devolve a leitura formatada, que é o que o aluno leria.
+	await texto.press('Escape');
+	await expect(page.getByLabel('Editar texto')).toContainText('conteúdo que será perdido');
+	await page.getByLabel('Editar texto').click();
+	await expect(texto).toHaveValue('conteúdo que será perdido');
 
 	page.once('dialog', (dialogo) => dialogo.accept());
 	await tipo.selectOption('codigo');
@@ -415,7 +485,7 @@ test('grid de criação adiciona o bloco escolhido logo abaixo do selecionado', 
 			.getByRole('button', { name: /Mover bloco \d/ })
 			.evaluateAll((botoes) => botoes.map((botao) => botao.getAttribute('aria-label')));
 
-	const primeiro = page.getByLabel('Texto do bloco').first();
+	const primeiro = page.getByLabel('Editar título').first();
 	await page.getByRole('button', { name: 'Título', exact: true }).click();
 	await primeiro.click();
 	await page.keyboard.type('Primeiro');

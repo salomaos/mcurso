@@ -3,12 +3,13 @@
   import CriadorBloco from "./CriadorBloco.svelte";
   import Dissertativa from "./Dissertativa.svelte";
   import EditorBlocoCamada from "./EditorBlocoCamada.svelte";
+  import EditorTextoMarkdown from "./EditorTextoMarkdown.svelte";
   import Exercicio from "./Exercicio.svelte";
   import Icone from "./Icone.svelte";
   import TextoEditavel from "./TextoEditavel.svelte";
-  import Campo from "./ui/Campo.svelte";
   import {
     criarBloco,
+    NIVEIS_TITULO,
     TIPOS_BLOCO,
     type Bloco,
     type Blocos,
@@ -347,12 +348,23 @@
         selecionar(bloco.id);
       }}
     >
-      {#if modo === "editar" && (bloco.tipo === "titulo" || bloco.tipo === "texto")}
+      {#if modo === "editar" && bloco.tipo === "texto"}
+        <div class="canvas-conteudo">
+          <EditorTextoMarkdown
+            conteudo={bloco.conteudo}
+            ativo={selecionadoId === bloco.id}
+            aoAtivar={() => selecionar(bloco.id)}
+            aoDigitar={(valor) => atualizarTexto(bloco.id, valor)}
+            aoFocar={() => selecionar(bloco.id)}
+          />
+        </div>
+      {:else if modo === "editar" && bloco.tipo === "titulo"}
         <div class="canvas-conteudo">
           <TextoEditavel
-            texto={bloco.tipo === "titulo" ? bloco.texto : bloco.conteudo}
-            tipo={bloco.tipo}
-            nivel={bloco.tipo === "titulo" ? bloco.nivel : undefined}
+            texto={bloco.texto}
+            tipo="titulo"
+            nivel={bloco.nivel}
+            rotulo="Editar título"
             aoDigitar={(valor) => atualizarTexto(bloco.id, valor)}
             aoFocar={() => selecionar(bloco.id)}
           />
@@ -388,23 +400,31 @@
 
       {#if modo === "editar" && selecionadoId === bloco.id}
         {#if bloco.tipo === "titulo"}
+          <!--
+            Grupo de botões no lugar do `select`: são 6 valores fixos e cabem na
+            linha, então o professor troca o nível com um clique (o `select`
+            escondia os 3 níveis atrás de dois cliques). Mesmo padrão do seletor
+            de modo do editor: `join` + `aria-pressed` marcando o atual.
+            O rótulo curto (H1…H6) precisa de explicação, então cada botão leva
+            `tooltip` da lib com `data-tip="Título N"`: o texto do `::before` não
+            entra no nome acessível, que segue sendo o H visível.
+          -->
           <div class="canvas-configuracao">
-            <Campo rotulo="Nível" id={`nivel-${bloco.id}`} class="w-auto">
-              <select
-                id={`nivel-${bloco.id}`}
-                class="select select-xs select-bordered"
-                value={bloco.nivel}
-                onchange={(event) =>
-                  atualizarBloco(bloco.id, {
-                    ...bloco,
-                    nivel: Number(event.currentTarget.value) as 1 | 2 | 3,
-                  })}
-              >
-                <option value={1}>H1</option>
-                <option value={2}>H2</option>
-                <option value={3}>H3</option>
-              </select>
-            </Campo>
+            <div class="join" role="group" aria-label="Nível do título">
+              {#each NIVEIS_TITULO as nivel (nivel.valor)}
+                <button
+                  class:btn-primary={bloco.nivel === nivel.valor}
+                  class="btn btn-xs tooltip tooltip-top"
+                  data-tip={`Título ${nivel.valor}`}
+                  type="button"
+                  aria-pressed={bloco.nivel === nivel.valor}
+                  onclick={() =>
+                    atualizarBloco(bloco.id, { ...bloco, nivel: nivel.valor })}
+                >
+                  {nivel.rotulo}
+                </button>
+              {/each}
+            </div>
           </div>
         {:else if bloco.tipo !== "texto" && !EM_CARTAO.has(bloco.tipo)}
           <EditorBlocoCamada

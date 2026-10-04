@@ -8,9 +8,32 @@ import { SELECOES_EXERCICIO, type SelecaoExercicio } from '$lib/conteudo';
 export { SELECOES_EXERCICIO, type SelecaoExercicio };
 
 export type BlocoTexto = { id: string; tipo: 'texto'; conteudo: string };
-export type BlocoTitulo = { id: string; tipo: 'titulo'; texto: string; nivel: 1 | 2 | 3 };
+export type BlocoTitulo = {
+	id: string;
+	tipo: 'titulo';
+	texto: string;
+	nivel: NivelTitulo;
+};
 export type BlocoCodigo = { id: string; tipo: 'codigo'; linguagem: string; codigo: string };
 export type BlocoMermaid = { id: string; tipo: 'mermaid'; diagrama: string; tema: TemaMermaid };
+
+// Níveis do bloco `titulo`: os 6 do HTML. Sai tag de verdade (`h1`…`h6`), então o
+// sumário do navegador, a impressão e o leitor de tela veem a hierarquia.
+export const NIVEIS_TITULO = [
+	{ valor: 1, rotulo: 'H1' },
+	{ valor: 2, rotulo: 'H2' },
+	{ valor: 3, rotulo: 'H3' },
+	{ valor: 4, rotulo: 'H4' },
+	{ valor: 5, rotulo: 'H5' },
+	{ valor: 6, rotulo: 'H6' }
+] as const;
+export type NivelTitulo = (typeof NIVEIS_TITULO)[number]['valor'];
+
+const NIVEIS_TITULO_VALIDOS = new Set<string>(NIVEIS_TITULO.map((nivel) => String(nivel.valor)));
+
+export function ehNivelTitulo(valor: unknown): valor is NivelTitulo {
+	return typeof valor === 'number' && NIVEIS_TITULO_VALIDOS.has(String(valor));
+}
 
 // Temas do Mermaid aceitos no editor. `null` (sem estilo) e os temas
 // experimentais ficam de fora: são ruins de escolher e não somem em print.
@@ -107,7 +130,9 @@ export function criarBloco(tipo: Bloco['tipo']): Bloco {
 	const id = novoId();
 	switch (tipo) {
 		case 'titulo':
-			return { id, tipo, texto: '', nivel: 2 };
+			// H1 é o padrão: quem cria o título de uma seção quer o topo da
+			// hierarquia, e H2 era só o resquício do select de 3 níveis.
+			return { id, tipo, texto: '', nivel: 1 };
 		case 'texto':
 			return { id, tipo, conteudo: '' };
 		case 'codigo':
@@ -224,12 +249,7 @@ export function ehBloco(valor: unknown): valor is Bloco {
 	if (typeof b.id !== 'string' || b.id === '' || !TIPOS_VALIDOS.has(b.tipo as Bloco['tipo'])) return false;
 	switch (b.tipo) {
 		case 'titulo':
-			return (
-				typeof b.texto === 'string' &&
-				typeof b.nivel === 'number' &&
-				Number.isInteger(b.nivel) &&
-				[1, 2, 3].includes(b.nivel)
-			);
+			return typeof b.texto === 'string' && ehNivelTitulo(b.nivel);
 		case 'texto':
 			return typeof b.conteudo === 'string';
 		case 'codigo':
@@ -299,6 +319,11 @@ export function normalizarBlocos(valor: unknown): Blocos {
 // Garante campos opcionais com valores seguros por tipo.
 function normalizarCamposBloco(bloco: Bloco): Bloco {
 	switch (bloco.tipo) {
+		case 'texto':
+			// Só a quebra de linha: em markdown a indentação é sintaxe (código
+			// cercado, lista aninhada), então não dá para dar `trim` no texto.
+			// Um `\r` que venha de POST ou import quebraria a lista na leitura.
+			return { id: bloco.id, tipo: 'texto', conteudo: bloco.conteudo.replace(/\r\n?/g, '\n') };
 		case 'mermaid':
 			return {
 				id: bloco.id,

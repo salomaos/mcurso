@@ -26,9 +26,11 @@ test('apresenta blocos como slides e navega por teclado', async ({ page }) => {
 	await expect(page.getByLabel('Título da aula')).toHaveText('Encontro apresentável');
 
 	await page.getByRole('button', { name: 'Texto', exact: true }).click();
-	await page.getByRole('textbox', { name: 'Texto do bloco' }).nth(0).fill('Slide 1: o ponto inicial');
+	// Só o bloco selecionado fica em edição, então o `textbox` do markdown é o
+	// do bloco que acabou de ser criado.
+	await page.getByRole('textbox', { name: 'Texto do bloco' }).fill('Slide 1: o ponto inicial');
 	await page.getByRole('button', { name: 'Texto', exact: true }).click();
-	await page.getByRole('textbox', { name: 'Texto do bloco' }).nth(1).fill('Slide 2: a conclusão');
+	await page.getByRole('textbox', { name: 'Texto do bloco' }).fill('Slide 2: a conclusão');
 	await page.getByRole('button', { name: 'Visualizar' }).click();
 	await expect(page.getByRole('button', { name: 'Salvar aula' })).toHaveCount(0);
 	await expect(page.getByText('Slide 1: o ponto inicial')).toBeVisible();

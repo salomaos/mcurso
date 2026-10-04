@@ -36,6 +36,113 @@
 	bottom: -0.4rem;
 }
 
+/* Markdown do bloco de texto (ver `$lib/markdown`). Mora global, e não no
+   `TextoMarkdown.svelte`, porque o HTML vem de `{@html}`: dentro do `<style>` do
+   componente cada seletor precisaria de `:global()`, e o app não tem nenhum.
+   Cor e raio saem dos tokens do tema — nada fixo, senão quebra no `brutalist`. */
+.markdown {
+	line-height: 1.7;
+	overflow-wrap: break-word;
+}
+
+.markdown > * + * {
+	margin-top: 0.75rem;
+}
+
+/* Escala abaixo do bloco `Título` (que é 3xl/2xl/xl): aqui o título é parte do
+   texto, não um bloco da hierarquia da aula. */
+.markdown h1 {
+	font-size: 1.25rem;
+	font-weight: 700;
+}
+
+.markdown h2 {
+	font-size: 1.125rem;
+	font-weight: 700;
+}
+
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.markdown ul,
+.markdown ol {
+	padding-left: 1.5rem;
+}
+
+.markdown ul {
+	list-style: disc;
+}
+
+.markdown ol {
+	list-style: decimal;
+}
+
+.markdown li + li {
+	margin-top: 0.25rem;
+}
+
+.markdown blockquote {
+	border-left: 3px solid hsl(var(--bc) / 0.25);
+	padding-left: 0.75rem;
+	opacity: 0.85;
+}
+
+.markdown code {
+	font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+	font-size: 0.9em;
+	background-color: hsl(var(--b3));
+	padding: 0.1em 0.3em;
+	border-radius: calc(var(--rounded-box) * 0.2);
+}
+
+.markdown pre {
+	background-color: hsl(var(--b3));
+	padding: 0.75rem 1rem;
+	border-radius: var(--rounded-box);
+	overflow-x: auto;
+}
+
+.markdown pre code {
+	background: none;
+	padding: 0;
+	border-radius: 0;
+}
+
+.markdown hr {
+	border-top: 1px solid hsl(var(--bc) / 0.2);
+	margin: 1.25rem 0;
+}
+
+.markdown table {
+	display: block;
+	overflow-x: auto;
+	border-collapse: collapse;
+}
+
+.markdown th,
+.markdown td {
+	border: 1px solid hsl(var(--bc) / 0.2);
+	padding: 0.35rem 0.6rem;
+	text-align: left;
+}
+
+.markdown a {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+/* Fórmula de destaque (`$$...$$`): o KaTeX sai display, o vão é do bloco. */
+.markdown .markdown-formula {
+	overflow-x: auto;
+	padding: 0.25rem 0;
+	text-align: center;
+}
+
 @media print {
 	.no-print {
 		display: none !important;
@@ -50,6 +157,15 @@
 	/* Cada pergunta fica inteira numa página: cortar no meio atrapalha quem
 	   corrige no papel impresso. */
 	.quebra-pagina {
+		break-inside: avoid;
+		page-break-inside: avoid;
+	}
+
+	/* Markdown: código e tabela cortados no meio viram lixo no papel. */
+	.markdown pre,
+	.markdown blockquote,
+	.markdown table,
+	.markdown li {
 		break-inside: avoid;
 		page-break-inside: avoid;
 	}

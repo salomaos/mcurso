@@ -37,6 +37,7 @@
 		"drizzle-orm": "^0.45.3",
 		"highlight.js": "^11.12.0",
 		"katex": "^0.18.10",
+		"marked": "^18.0.14",
 		"mermaid": "^12.1.0"
 	},
 	"pnpm": {

@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { hrefLinkInterno, type Bloco, type BlocoLink } from '$lib/blocks';
+	import { hrefLinkInterno, type Bloco, type BlocoLink, type NivelTitulo } from '$lib/blocks';
 	import Codigo from './Codigo.svelte';
 	import Mermaid from './Mermaid.svelte';
 	import Formula from './Formula.svelte';
 	import Exercicio from './Exercicio.svelte';
 	import Dissertativa from './Dissertativa.svelte';
+	import TextoMarkdown from './TextoMarkdown.svelte';
 
 	type Modo = 'editar' | 'visualizar';
 	type Props = {
@@ -25,18 +26,23 @@
 		exercicio: 'atividade',
 		externo: 'link'
 	};
+
+	// Um lugar só para os 6 níveis: a tag (`h1`…`h6`), o tamanho e o respiro saem
+	// daqui, então trocar a escala é uma linha.
+	const TITULO_CLASSE: Record<NivelTitulo, string> = {
+		1: 'text-3xl font-bold mt-6 mb-2',
+		2: 'text-2xl font-bold mt-5 mb-2',
+		3: 'text-xl font-semibold mt-4 mb-1',
+		4: 'text-lg font-semibold mt-3 mb-1',
+		5: 'text-base font-semibold mt-2 mb-1',
+		6: 'text-sm font-medium uppercase tracking-wide mt-2 mb-1'
+	};
 </script>
 
 {#if bloco.tipo === 'titulo'}
-	{#if bloco.nivel === 1}
-		<h1 class="text-3xl font-bold mt-6 mb-2">{bloco.texto}</h1>
-	{:else if bloco.nivel === 3}
-		<h3 class="text-xl font-semibold mt-4 mb-1">{bloco.texto}</h3>
-	{:else}
-		<h2 class="text-2xl font-bold mt-5 mb-2">{bloco.texto}</h2>
-	{/if}
+	<svelte:element this={`h${bloco.nivel}`} class={TITULO_CLASSE[bloco.nivel]}>{bloco.texto}</svelte:element>
 {:else if bloco.tipo === 'texto'}
-	<div class="whitespace-pre-wrap leading-relaxed">{bloco.conteudo}</div>
+	<TextoMarkdown conteudo={bloco.conteudo} />
 {:else if bloco.tipo === 'codigo'}
 	<Codigo codigo={bloco.codigo} linguagem={bloco.linguagem} />
 {:else if bloco.tipo === 'mermaid'}

@@ -382,6 +382,122 @@ Cinco decisões que só apareceram na implementação:
 
 ---
 
+## Bloco de texto em markdown (fora do plano, pedido pontual)
+
+O bloco `texto` era `whitespace-pre-wrap` sobre a string crua: o professor digitava no
+`contenteditable` e o aluno lia exatamente a mesma coisa. Agora o `conteudo` é **markdown** —
+mesma coluna, mesmo formato, zero migration — e a leitura sai formatada por
+`src/lib/markdown.ts` (`marked` no servidor + KaTeX). Markdown é superseto do texto solto,
+então todo bloco antigo continua igual na tela.
+
+- `src/lib/markdown.ts` (novo): `markdownParaHtml()`. HTML bruto escapado na fonte (o
+  professor escreve markdown, não HTML), `breaks: true` (a quebra de linha do texto puro
+  precisa continuar valendo), `$...$`/`$$...$$` no SSR pela convenção de `$lib/matematica`,
+  e link/imagem só com URL segura — o `marked` não filtra `javascript:` no `href`.
+- `src/lib/components/TextoMarkdown.svelte` (novo): o `{@html}` — **único do app**, e o CSS
+  é o único lugar que teve que ir para o `app.css` porque dentro do `<style>` do componente
+  cada seletor precisaria de `:global()`. `.markdown` não é classe do ahmardesign, então é
+  o mesmo caso do P3.3 (232 linhas de `<style>` local virando utilitário de `app.css`).
+- `src/lib/components/EditorTextoMarkdown.svelte` (novo): `textarea` + barra de formatação
+  (negrito, itálico, código, lista, lista numerada, citação, linha horizontal, link) e
+  atalhos Ctrl+B/I/K. `TextoEditavel.svelte` continua sendo o editor do bloco `titulo`.
+
+Decisões e armadilhas que só apareceram na implementação:
+
+1. **`setRangeText`, não `value = …`.** É o que entra no undo do navegador: Ctrl+Z desfaz a
+   formatação. O `input` é disparado à mão para o canvas gravar, e o pai devolve o mesmo
+   valor, então o Svelte não reescreve o DOM e o caret não pula no meio da digitação.
+2. **A barra só aparece com o bloco em edição**, como a camada de configuração. Botão
+   `mousedown` com `preventDefault()` para o `textarea` não perder a seleção ao clicar.
+3. **`toHaveValue`, não `toHaveText`, nos E2E de texto.** O valor do `textarea` vive na
+   propriedade, não no `textContent`; `arrastar.spec.ts` lê a ordem dos blocos com
+   `evaluateAll` + `expect.poll` (`toHaveValues` é assertion de `<select multiple>`) e aceita
+   os dois estados do bloco (campo em edição ou prévia `.markdown`).
+4. **`normalizarCamposBloco` ganhou `case 'texto'` só para o `\r`.** Indentação é sintaxe em
+   markdown (código cercado, lista aninhada), então normalizar o texto não pode ser `trim`.
+5. **Limitação aceita:** `` `$x$` `` dentro de código inline vira fórmula, porque a extensão
+   inline do `marked` roda antes do tokenizador de código. Para LaTeX cru, usar ``` cercado.
+6. **Sem ação de Título na barra.** Heading é bloco próprio (`cabeçalhos`), e o markdown ainda
+   aceita `#` normalmente — botão seria um segundo caminho para a mesma coisa.
+7. **Lista e linha horizontal não substituem a seleção.** `envolver` mantém o texto
+   selecionado (é o que permite negrito e depois itálico); `prefixar`/`inserirLinha` colapsam
+   o caret no fim do trecho, senão a ação seguinte apaga o que foi escrito.
+
+**Rodada 04/10/2026** — `e2e/markdown.spec.ts` (novo, 10 testes) e o bloco `texto` virando
+markdown: `pnpm test` 94/94, `pnpm check` 0, E2E 51/51, `pnpm build` ok,
+`pnpm db:generate` sem mudança de schema (estado da rodada; a rodada (4) atualiza para 96/52).
+
+**Rodada 04/10/2026 (3)** — barra de formatação **grudada no topo da tela**
+(`sticky top-0 z-10` + `bg-base-100` + `shadow-sm`): o bloco rola junto com a página, então
+sem `sticky` a barra some junto com o topo dele no meio da edição. Só dá para usar porque
+nenhum ancestral corta o `sticky` (o `.card` da lib tem `overflow: hidden`, mas o canvas fica
+fora dele e o `.canvas-bloco` não tem `overflow`) — é o mesmo tipo de armadilha do
+`.canvas-acciones` absolute. Sem CSS local: só classes da lib. E2E novo em
+`e2e/markdown.spec.ts` confere a geometria (`boundingBox().y <= 1` depois de rolar 700px),
+porque `toBeInViewport` sozinho passaria com a barra ainda no lugar.
+
+**Rodada 04/10/2026 (2)** — prévia do bloco de texto: fora da edição o bloco mostra a
+mesma leitura do aluno (`TextoMarkdown.svelte` dentro de um `div role="button"`, `aria-label`
+`Editar texto`), e o clique volta a editar com o cursor no fim.
+
+O ponto que consumiu a rodada: **a troca editor → prévia muda a altura do bloco, então ela
+não pode acontecer no meio de um clique.** O `mousedown` no botão (Salvar, mover bloco…)
+tira o foco do campo, o bloco encolhe ~80px, o `mouseup` cai fora do botão e o `click` não é
+nem disparado — o formulário não submetia e o Playwright só dava timeout. Três armadilhas
+resolvidas, não reintroduzir:
+
+1. A saída por `focusout` fica **adiada enquanto o ponteiro estiver pressionado**
+   (`svelte:window` com `pointerdown`/`pointerup`), e o `setTimeout(…, 0)` acontece depois
+   do `click`, quando a ação do botão já rodou.
+2. O `cliqueFora` no `window` cobre o clique em área que não recebe foco, e precisa do
+   `composedPath()` — o botão pode ter saído do DOM no mesmo clique.
+3. `abrindo` descarta o `cliqueFora` do **mesmo** clique que abriu o editor: como o Svelte
+   atualiza o DOM no microtask entre os listeners, o clique que criou o bloco chega no
+   `window` com o editor já montado e fecharia na mesma hora.
+
+**Rodada 04/10/2026 (4)** — bloco `titulo` com **H1–H6 e o nível por botões**: o
+`select` "Nível" (H1/H2/H3) da camada de configuração virou seis `btn btn-xs` num `join`,
+com `role="group"`, `aria-label` `Nível do título` e `aria-pressed` no atual.
+
+Decisões:
+
+1. **Botão, não `select`.** São 6 valores fixos que cabem na linha; o `select` escondia os
+   3 níveis atrás de dois cliques. Mesmo padrão do seletor de modo do editor (`join` +
+   `aria-pressed`), então não é um widget novo — é o padrão já usado duas vezes.
+2. **`tooltip` da lib com `data-tip="Título N"`.** "H1" sozinho é críptico e o botão não
+   cabe com o nome por extenso; o tooltip explica sem `title` nativo (que duplicaria o
+   balão do browser). O texto do `::before` **não entra no nome acessível**, então
+   `getByRole('button', { name: 'H4' })` continua casando — e o E2E confere os `data-tip`
+   com `evaluateAll`, já que `toHaveAttribute` num locator de 6 elementos dá strict violation.
+3. **Bloco novo nasce em H1** (`criarBloco`), não em H2: H2 era resquício do select de
+   3 níveis, e título recomeçando a hierarquia no meio é o caso comum. Só muda bloco novo —
+   o que já está salvo no banco mantém o nível.
+4. **`NIVEIS_TITULO` em `blocks.ts` é a lista valida**, com `NivelTitulo` derivado dela e
+   `ehNivelTitulo` no `ehBloco`: nível fora de 1–6 descarta o bloco (campo obrigatório), então
+   o `Record<NivelTitulo, …>` dos mapas de classe é exaustivo por tipo.
+5. **`svelte:element this={\`h${nivel}\`}`** nos três lugares (`TextoEditavel`,
+   `BlocoRender`, `Apresentacao`) em vez de um `{#if}` por nível. No editor o elemento
+   continua `contenteditable`, e `bind:this` + o efeito que escreve `texto` no DOM
+   reposicionam o texto no elemento novo quando a tag muda.
+6. **`role="heading"` + `aria-level={nivel}` no `TextoEditavel`**: o linter não tem tag
+   estática para inferir o papel do `svelte:element` e cobra `a11y_no_static_element_interactions`.
+7. **Escala por nível em três mapas** — `TITULO_CLASSE` (leitura), `TITULO_APRESENTACAO`
+   (slide, maior) e `.canvas-titulo-{1..6}` (editor). O editor espelha a leitura para o
+   bloco não pular de tamanho ao sair da edição; H6 desce a `text-sm`/`uppercase` porque
+   abaixo de `text-base` o heading fica ilegível.
+8. **`rotulo="Editar título"` no `TextoEditavel` do bloco de título.** O default é
+   `Texto do bloco`, e três E2E que clicavam no título casavam por ele
+   (`inserir-bloco.spec.ts` ×2, `fluxo.spec.ts` na criação pelo grid); agora casam por
+   `Editar título`, que é o mesmo rótulo da prévia do bloco de texto (`Editar texto`).
+   Consequência de a11y: **no canvas o nome acessível do heading é `Editar título`, não o
+   texto**, então E2E que conferem o texto do título em edição têm de casar pela tag
+   (`locator('h4')`), não por `getByRole('heading', { name })`.
+
+`pnpm test` 96/96, `pnpm check` 0/0, E2E 52/52, `pnpm build` ok, `pnpm db:generate` sem
+mudança de schema.
+
+---
+
 ## Não criar — e por quê
 
 | Não criar | Justificativa |

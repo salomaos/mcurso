@@ -74,7 +74,7 @@ test('o grid do vão cria o bloco naquela posição, ignorando a seleção', asy
 
 	// Deixa o primeiro bloco selecionado: o grid do fim inseriria logo abaixo dele,
 	// mas o do vão tem que respeitar o ponto escolhido.
-	await page.getByLabel('Texto do bloco').first().click();
+	await page.getByLabel('Editar título').first().click();
 
 	await vaoDepoisDe(page, 1).click();
 	const grade = page.getByRole('group', { name: 'Tipos de bloco' });
@@ -126,7 +126,7 @@ test('Esc e o clique fora fecham o grid do vão', async ({ page }) => {
 test('o grid do fim continua existindo e segue o bloco selecionado', async ({ page }) => {
 	await abrirEditor(page, ['Título', 'Tabela']);
 
-	await page.getByLabel('Texto do bloco').first().click();
+	await page.getByLabel('Editar título').first().click();
 	await page.getByRole('group', { name: 'Adicionar bloco' }).getByRole('button', { name: 'Texto' }).click();
 	await expect(ordem(page)).resolves.toEqual([
 		'Mover bloco 1: Título',
