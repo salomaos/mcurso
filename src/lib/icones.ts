@@ -9,13 +9,15 @@ export type NomeIcone =
 	| 'formula'
 	| 'exercicio'
 	| 'dissertativa'
+	| 'simulacao'
 	| 'mais'
 	| 'negrito'
 	| 'italico'
 	| 'lista'
 	| 'listaNumerada'
 	| 'citacao'
-	| 'linha';
+	| 'linha'
+	| 'grade';
 
 export type Forma =
 	| { tipo: 'caminho'; d: string }
@@ -67,6 +69,11 @@ export const FORMAS_ICONE: Record<NomeIcone, Forma[]> = {
 		{ tipo: 'caminho', d: 'M4 11.5h4' },
 		{ tipo: 'caminho', d: 'm14.5 15.5 5.5-5.5 2 2-5.5 5.5-3 .5z' }
 	],
+	// Simulação: janela com play — o código do professor rodando no navegador.
+	simulacao: [
+		{ tipo: 'retangulo', x: 3, y: 4.5, largura: 18, altura: 15, raio: 2 },
+		{ tipo: 'caminho', d: 'm10.5 9 5 3-5 3z' }
+	],
 	// Fora da lista de blocos: é a ação "adicionar bloco" entre dois blocos do editor.
 	mais: [{ tipo: 'caminho', d: 'M12 5v14M5 12h14' }],
 	// Ações da barra de formatação do bloco de texto (markdown).
@@ -92,5 +99,13 @@ export const FORMAS_ICONE: Record<NomeIcone, Forma[]> = {
 	],
 	linha: [
 		{ tipo: 'caminho', d: 'M4.5 12h15M4.5 9.5v5M19.5 9.5v5' }
+	],
+	// Visualização em grade do seletor lista/grade: 2x2 de quadrados, para
+	// não confundir com a `lista` da barra markdown (que tem bolinha na esquerda).
+	grade: [
+		{ tipo: 'retangulo', x: 4, y: 4, largura: 7, altura: 7, raio: 1 },
+		{ tipo: 'retangulo', x: 13, y: 4, largura: 7, altura: 7, raio: 1 },
+		{ tipo: 'retangulo', x: 4, y: 13, largura: 7, altura: 7, raio: 1 },
+		{ tipo: 'retangulo', x: 13, y: 13, largura: 7, altura: 7, raio: 1 }
 	]
 };

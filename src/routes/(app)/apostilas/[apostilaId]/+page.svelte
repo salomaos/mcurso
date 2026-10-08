@@ -1,17 +1,30 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+import { invalidateAll } from '$app/navigation';
 	import { arrastar, moverItem } from '$lib/arrastar';
 	import { agruparPorSecao, type AulaUi, type SecaoUi } from '$lib/blocks';
-import TextoEditavel from '$lib/components/TextoEditavel.svelte';
+	import TextoEditavel from '$lib/components/TextoEditavel.svelte';
+	import CardConteudo from '$lib/components/ui/CardConteudo.svelte';
 	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
+	import SeletorVisao from '$lib/components/ui/SeletorVisao.svelte';
+	import { classeLista, getVisao } from '$lib/visao.svelte';
 	import type { PageData } from './$types';
 
 	let { data, form } = $props<{ data: PageData; form: unknown }>();
 
 	const secoes = $derived(data.secoes as SecaoUi[]);
 	const listaAulas = $derived(data.aulas as AulaUi[]);
-	const grupos = $derived(agruparPorSecao(secoes, listaAulas));
+	let busca = $state('');
+
+	// `listaAulas` é a lista real (seções, contagem e reordenação); `visiveis`
+	// é o que sobra da busca por título, o que agrupa e desenha os cartões.
+	const visiveis = $derived(
+		listaAulas.filter(
+			(aula) => !busca.trim() || aula.titulo.toLowerCase().includes(busca.trim().toLowerCase())
+		)
+	);
+	const grupos = $derived(agruparPorSecao(secoes, visiveis));
+	let visao = $derived(getVisao());
 
 	const aulasPorSecao = $derived(
 		secoes.map((secao) => ({
@@ -40,6 +53,10 @@ import TextoEditavel from '$lib/components/TextoEditavel.svelte';
 
 	function confirmar(tituloAula: string) {
 		return confirm(`Excluir a aula "${tituloAula}"?`);
+	}
+
+	function aoDigitar(event: Event) {
+		busca = (event.currentTarget as HTMLInputElement).value;
 	}
 
 	function confirmarApostila() {
@@ -90,6 +107,9 @@ import TextoEditavel from '$lib/components/TextoEditavel.svelte';
 	}
 
 	function moverAula(origemId: string, destino: { lista: string; indice: number }) {
+		// Com busca ativa `grupos` está filtrado: salvar a ordem por ele mandaria
+		// só o pedaço visível e bagunçaria o resto. A alça também some nesse caso.
+		if (busca.trim()) return;
 		const secaoId = destino.lista === '' ? null : Number(destino.lista);
 		const atual = grupos.flatMap((grupo) => grupo.aulas);
 		const de = atual.findIndex((aula) => String(aula.id) === origemId);
@@ -285,7 +305,31 @@ import TextoEditavel from '$lib/components/TextoEditavel.svelte';
 		</section>
 	{/if}
 
+{#if listaAulas.length > 0}
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<span class="text-sm opacity-70">
+				{visiveis.length}
+				{visiveis.length === 1 ? 'aula' : 'aulas'}
+			</span>
+			<div class="flex flex-wrap items-center gap-2">
+				<input
+					class="input input-sm input-bordered w-64"
+					type="search"
+					placeholder="Buscar por título..."
+					aria-label="Buscar aula por título"
+					value={busca}
+					oninput={aoDigitar}
+				/>
+				<SeletorVisao />
+			</div>
+		</div>
+	{/if}
+
 	<div class="space-y-6">
+		{#if busca.trim() && visiveis.length === 0}
+			<div class="alert alert-info">Nada encontrado para "{busca}".</div>
+		{/if}
+
 		{#each grupos as grupo, gi (grupo.secao?.id ?? `#${gi}`)}
 			<section
 				class="space-y-2"
@@ -300,64 +344,64 @@ import TextoEditavel from '$lib/components/TextoEditavel.svelte';
 					</h2>
 				{/if}
 
-				{#each grupo.aulas as aula (aula.id)}
-					<div
-						class="card card-bordered p-3 flex flex-col gap-2 sm:flex-row sm:items-center"
-						data-arrasto-item={aula.id}
-					>
-						{#if data.user}
-							<button
-								class="btn btn-ghost btn-xs self-start sm:self-auto"
-								type="button"
-								data-arrasto-alca
-								title="Arrastar para reordenar (ou use as setas do teclado)"
-								aria-label={`Mover a aula ${aula.titulo}`}
-							>
-								⠿
-							</button>
-						{/if}
-						<div class="flex-1">
-							<div class="font-semibold">{aula.titulo}</div>
-							{#if aula.descricao}
-								<div class="text-sm opacity-70">{aula.descricao}</div>
-							{/if}
-						</div>
+				<ul class={classeLista(visao)}>
+					{#each grupo.aulas as aula (aula.id)}
+						<CardConteudo
+							titulo={aula.titulo}
+							descricao={aula.descricao}
+							modo={visao}
+							rest={{ 'data-arrasto-item': aula.id }}
+						>
+							{#snippet alca()}
+								{#if data.user && !busca.trim()}
+									<button
+										class="btn btn-ghost btn-xs"
+										type="button"
+										data-arrasto-alca
+										title="Arrastar para reordenar (ou use as setas do teclado)"
+										aria-label={`Mover a aula ${aula.titulo}`}
+									>
+										⠿
+									</button>
+								{/if}
+							{/snippet}
 
-						<div class="flex flex-wrap items-center gap-1">
-							<a
-								href={`/apostilas/${data.apostila.id}/aulas/${aula.id}`}
-								class="btn btn-ghost btn-xs"
-							>
-								Ver
-							</a>
-							<a
-								href={`/apostilas/${data.apostila.id}/aulas/${aula.id}/imprimir`}
-								target="_blank"
-								class="btn btn-ghost btn-xs"
-							>
-								PDF
-							</a>
-
-							{#if data.user}
+							{#snippet acoes()}
 								<a
-									href={`/apostilas/${data.apostila.id}/aulas/${aula.id}/editar`}
-									class="btn btn-outline btn-xs"
+									href={`/apostilas/${data.apostila.id}/aulas/${aula.id}`}
+									class="btn btn-ghost btn-xs"
 								>
-									Editar
+									Ver
+								</a>
+								<a
+									href={`/apostilas/${data.apostila.id}/aulas/${aula.id}/imprimir`}
+									target="_blank"
+									class="btn btn-ghost btn-xs"
+								>
+									PDF
 								</a>
 
-								<form
-									method="POST"
-									action="?/excluirAula"
-									onsubmit={() => confirmar(aula.titulo)}
-								>
-									<input type="hidden" name="aulaId" value={aula.id} />
-									<button class="btn btn-error btn-ghost btn-xs">Excluir</button>
-								</form>
-							{/if}
-						</div>
-					</div>
-				{/each}
+								{#if data.user}
+									<a
+										href={`/apostilas/${data.apostila.id}/aulas/${aula.id}/editar`}
+										class="btn btn-outline btn-xs"
+									>
+										Editar
+									</a>
+
+									<form
+										method="POST"
+										action="?/excluirAula"
+										onsubmit={() => confirmar(aula.titulo)}
+									>
+										<input type="hidden" name="aulaId" value={aula.id} />
+										<button class="btn btn-error btn-ghost btn-xs">Excluir</button>
+									</form>
+								{/if}
+							{/snippet}
+						</CardConteudo>
+					{/each}
+				</ul>
 			</section>
 		{/each}
 

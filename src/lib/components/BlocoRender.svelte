@@ -5,9 +5,15 @@
 	import Formula from './Formula.svelte';
 	import Exercicio from './Exercicio.svelte';
 	import Dissertativa from './Dissertativa.svelte';
+	import Simulacao from './Simulacao.svelte';
 	import TextoMarkdown from './TextoMarkdown.svelte';
 
-	type Modo = 'editar' | 'visualizar';
+	// `imprimir` só muda o bloco de simulação (canvas não sai no papel, o código sai);
+	// para o resto é o mesmo que `visualizar`.
+	type Modo = 'editar' | 'visualizar' | 'imprimir';
+	// `Exercicio`/`Dissertativa`/`Simulacao` só conhecem os dois primeiros, então a
+	// impressão cai em `visualizar` para elas (só a simulação distingue a impressão).
+	type ModoConteudo = 'editar' | 'visualizar';
 	type Props = {
 		bloco: Bloco;
 		apostilaId?: number;
@@ -19,6 +25,10 @@
 
 	let { bloco, apostilaId, baseHref = '/apostilas', modo = 'visualizar', aulaContexto }: Props =
 		$props();
+
+	// `imprimir` não é um terceiro comportamento para o resto dos blocos (só a
+	// simulação distingue impressão de leitura), então eles recebem `visualizar`.
+	const modoConteudo = $derived(modo as ModoConteudo);
 
 	const ROTULO_LINK: Record<BlocoLink['tipoLink'], string> = {
 		aula: 'aula',
@@ -100,7 +110,22 @@
 {:else if bloco.tipo === 'formula'}
 	<Formula latex={bloco.latex} destaque={bloco.destaque} />
 {:else if bloco.tipo === 'exercicio'}
-	<Exercicio bloco={bloco} {modo} />
+	<Exercicio bloco={bloco} modo={modoConteudo} />
 {:else if bloco.tipo === 'dissertativa'}
-	<Dissertativa bloco={bloco} {modo} />
+	<Dissertativa bloco={bloco} modo={modoConteudo} />
+{:else if bloco.tipo === 'simulacao'}
+	{#if modo === 'imprimir'}
+		<!-- Canvas não imprime (a iframe não roda no papel): sai o código, que é o que
+		     o aluno precisa para rodar a simulação em p5/q5. -->
+		<div class="my-3 space-y-2">
+			<div class="text-xs uppercase tracking-wide opacity-60 font-semibold">
+				Simulação interativa ({bloco.biblioteca}) — código
+			</div>
+			<Codigo codigo={bloco.codigo} linguagem="js" />
+		</div>
+	{:else}
+		<div class="my-3">
+			<Simulacao bloco={bloco} modo={modoConteudo} />
+		</div>
+	{/if}
 {/if}

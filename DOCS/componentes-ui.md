@@ -87,7 +87,7 @@ feito. Ao concluir um item, mude para `✅` e registre a data. Ao começar, `�
 | | |
 | --- | --- |
 | **Problema** | `/anexos` e `/exercicios` são o mesmo painel. Manter os dois em sincronia já custa: o card de atividade tem badges que o de anexo não tem. |
-| **Props** | `singular`, `plural`, `descricao`, `rotuloCriar`, `vazio`, `busca`, `aoBuscar`, `total`, `filtrados` + snippets `cabecalhoCartao` e `acoesCartao` |
+| **Props** | `singular`, `plural`, `descricao`, `rotuloCriar`, `rotuloBusca`, `rotuloVazio`, `nomeId`, `rotuloTipoExcluir`, `tituloSemUso`, `tituloEmUso` + snippets `marcadores` e `acoes` (a busca é interna desde 08/10/2026: sem props `busca`/`aoBuscar`) |
 | **Ocorrências** | `anexos/+page.svelte:5-152` vs `exercicios/+page.svelte:5-165` (~110 linhas) |
 | **Esforço / risco** | Médio / Baixo (E2E `anexos.spec.ts` e `exercicios.spec.ts` cobrem os dois) |
 
@@ -281,13 +281,15 @@ Props: `proprio`, `logado`, `mostrarApresentar?`, `tamanho?` — Baixo / Médio
 > Os rótulos são contrato de E2E (`"Imprimir / PDF"`, `"Visualizar"`,
 > `"Imprimir / salvar PDF"`). **Não renomear** ao extrair.
 
-### ⬜ P2.3 `DataBadge` — `src/lib/components/ui/DataBadge.svelte`
+### ✅ P2.3 `DataBadge` — `src/lib/components/ui/DataBadge.svelte`
 
 `new Date(x).toLocaleDateString('pt-BR')` dentro de `badge badge-ghost text-xs shrink-0` 3×.
 `routes/+page.svelte:40-42` · `anexos/+page.svelte:81-83` · `exercicios/+page.svelte:81-83`
 Props: `valor: Date | string`, `class?` — Baixo / Baixo
+**Feito em 05/10/2026** como o slot `meta` do `CardConteudo` (P2.4); o plano já previa só 2
+ocorrências depois do `PainelSoltos` e a contagem real era 4 com a volta da home.
 
-### ⬜ P2.4 `CardConteudo` — `src/lib/components/ui/CardConteudo.svelte`
+### ✅ P2.4 `CardConteudo` — `src/lib/components/ui/CardConteudo.svelte`
 
 Esqueleto `li.card card-bordered p-4 space-y-2` (título+descrição + ações) nos painéis soltos
 e no grid de apostilas.
@@ -295,6 +297,12 @@ e no grid de apostilas.
 Props: `titulo`, `descricao?`, `acoes?`, `children?` — Baixo / Baixo
 
 > Baixo ROI se P0.2 for feito primeiro (ele já cobre o cartão dos painéis). Avaliar depois.
+
+**Feito em 05/10/2026**, e com escopo maior que o do plano: as **quatro** listas de conteúdo
+passaram a usar o mesmo cartão (apostilas na home, aulas no painel, anexos e atividades no
+`PainelSoltos`). Props reais: `titulo`, `href?`, `descricao?`, `modo` (`lista`/`grade`),
+`alca?` (arrasto), `meta?`, `marcadores?`, `detalhe?` (links reversos), `acoes?`, `class?` e
+`rest?` (atributos repassados, é por ele que entra o `data-arrasto-item` do painel).
 
 ### ⬜ P2.5 `SecaoBloco` — `src/lib/components/SecaoBloco.svelte`
 
@@ -498,6 +506,116 @@ mudança de schema.
 
 ---
 
+## Bloco de simulação p5/q5 (fora do plano, pedido pontual)
+
+Novo tipo de bloco `simulacao` (`biblioteca: 'p5' | 'q5'`, `codigo`, `altura`): código de
+simulação roda **no navegador do aluno**, dentro de uma `iframe` isolada, sem passar pelo
+servidor. JSON na coluna `blocos`, zero migration.
+
+- `src/lib/components/Simulacao.svelte` (novo): editor (textarea + seletor de biblioteca +
+  altura + botão Rodar) e leitura a partir do mesmo componente, com prévia ao vivo.
+- `src/routes/lib/[...caminho]/+server.ts` (novo): serve `p5.min.js` e `q5.js` do
+  `node_modules`, por allowlist. Sem CDN — o deploy funciona offline e o código do aluno
+  não depende de terceiro. Rota **pública**: o aluno lê sem login, e a sessão não é
+  necessária para um arquivo de biblioteca.
+- `BlocoRender.svelte` ganhou `modo="imprimir"` (repasse de `ListaBlocos`, usado por
+  `ImprimirConteudo`): só a simulação distingue impressão de leitura, os outros blocos
+  recebem `visualizar`.
+
+Decisões e armadilhas que só apareceram na implementação:
+
+1. **`sandbox="allow-scripts"` sem `allow-same-origin`.** A origem opaca é o que isola o
+   código do aluno da sessão, do DOM e do localStorage da página. Consequência: a iframe não
+   enxerga o tema, então a cor de fundo do canvas vai **por `postMessage`**
+   (`getComputedStyle(document.body)` no pai).
+2. **O código do professor nunca entra no `srcdoc`.** Chega por `postMessage` e é injetado
+   com `script.textContent` — é assim que `setup`/`draw` viram função no `window`, que é o
+   que as duas libs exigem para o **modo global** (`new Function` deixaria a declaração no
+   escopo local e a lib não acharia nada). Bônus: não existe tag de script do professor
+   para escapar dentro do arquivo.
+3. **O código entra ANTES da lib no bootstrap.** As duas libs se instanciam sozinhas quando
+   encontram `setup`/`draw`, mas isso acontece em `Promise`/`setTimeout` depois do script
+   carregar: quem disparasse a instância no `onload` da lib perderia a corrida e o bloco
+   ficaria em branco. O bootstrap ainda instancia na mão (`p5.instance`/`Q5._hasGlobal`)
+   como rede de segurança, se a versão instalada deixar de hacerlo sozinha.
+4. **Reexecutar = `{#key}` nova, não reinstanciar.** p5 guarda `p5.instance` e q5
+   `Q5._hasGlobal`: só um `document` novo roda o código de novo. A lib continua vindo do
+   cache do HTTP (a rota `/lib` manda ETag e responde 304), não da rede.
+5. **Debounce de 700 ms no editor e 0 na leitura.** Sem debounce, cada tecla recriaria a
+   moldura e recarregaria a lib (~1 MB no p5); na leitura não há digitação, então a
+   simulação do aluno abre rodando.
+6. **Impressão mostra o código, não o canvas** (canvas não sai no papel) — e o bloco
+   `codigo` da lib não serve como leitura do aluno, porque o aluno não tem a lib carregada
+   na página dele.
+7. **Trocar a biblioteca troca o exemplo junto só se o código ainda for o exemplo.** Código
+   já editado é do professor e fica intacto.
+8. **A UI limita a altura (120–900) em vez de recusar**, com `min`/`max` no input: com 1200
+   digitado o campo volta para 900, em vez de deixar o número na tela e o bloco com o valor
+   antigo. `ehAlturaSimulacao` valida o que vem do POST, no servidor.
+9. **`simulacao` não herda campo nenhum na troca de tipo** (`preservaDado` no
+   `EditorCanvas`): o `codigo` da simulação é um sketch p5/q5, então puxar o de um bloco
+   `Código` (um script em Python, por exemplo) trocaria o bloco sem nem avisar e entregaria
+   um desenho quebrado. Na volta (simulação → Código) o sketch vira snippet normalmente.
+10. **`simulacao` precisa entrar em `TIPOS_VALIDOS`** (`blocks.ts`), senão `ehBloco`
+    descarta o bloco inteiro no POST e a simulação nunca sobrevive ao Salvar. O unit
+    ("aceita o bloco do POST…") foi o que pegou isso.
+11. **Código e visualização lado a lado no topo, configurações numa linha abaixo**
+    (`grid lg:grid-cols-2 items-start`). Os dois lados vão em `Campo` para terem a mesma
+    linha de rótulo — e o da visualização precisa de `id` **na própria `iframe`**: sem ele o
+    `Campo` renderiza `<span class="label-text">` em vez de `<label for>`, e a linha fica
+    3px menor, o que desalinha o topo da caixa com o topo do `textarea`. `iframe` é
+    elemento rotulável, então o `for` é válido e clicar no rótulo foca a moldura.
+12. **Sem badge de "rodando"** (e sem a mensagem `rodou` do protocolo): o canvas rodando já
+    é a informação, e o retângulo sobre o desenho só ocupava espaço. O que volta da iframe é
+    só o erro.
+13. **Toggle de face no próprio bloco**: `join` de 2 botões (`role="group"`, rótulo "Modo da
+    simulação", `ROTULO_EDITAR`/`ROTULO_VISUALIZAR`) no topo à direita. "Visualizar" mostra a
+    **face do aluno** — a própria leitura, mesmo markup, sem código e sem configurações —, que
+    o "Visualizar" da página não serve porque joga fora a edição de todos os blocos. O `join` é
+    o mesmo do seletor de modo do `EditorConteudo`.
+14. **O canvas é do tamanho da caixa, não do código**: o bootstrap da casca chama
+    `resizeCanvas(window.innerWidth, window.innerHeight)` na instância (`p5.instance` /
+    `Q5.instances[0]`) assim que a lib instancia e em cada `resize` da moldura (campo
+    Altura), com `setInterval` de 50 ms por até 3 s para cobrir a corrida de instanciação. Sem
+    isso o `createCanvas(420, 260)` do professor continuava 420 px e o CSS só esticava a
+    imagem — **upscale**, que é exatamente o desenho desfocado que o professor reclamou na
+    visão final. Redimensionando o buffer, a simulação sai nítida em qualquer largura e a
+    prévia do professor e a tela do aluno mostram o mesmo desenho (*what you see is what you
+    get*). O `canvas { width: 100% !important; height: 100% !important }` do CSS da casca é
+    só a rede de segurança do instante antes da primeira instância.
+15. **Pegadinha de escopo na casca**: `ajustar()` recebe `dados` e lê `dados.biblioteca` —
+    chamar `ajustar(biblioteca, dados)` com um `biblioteca` que não existe no escopo do
+    handler mata o `message` com `ReferenceError` **depois** do `appendChild` da lib: o
+    sketch roda, o bloco parece funcionar, e só o resize nunca é registrado. Foi o que
+    manteve o bug do desenho desfocado vivo depois da primeira tentativa de corrigi-lo.
+16. **Dublê de `localStorage`/`sessionStorage` na casca** (logo no início do script, antes
+    da lib): as duas libs tocam armazenamento no start-up — o q5 monta `storeItem`/`getItem` no
+    construtor, o p5 sonda `localStorage` para o i18next — e o *getter* lança em documento
+    sandboxed sem `allow-same-origin` ("Forbidden in a sandboxed document"). Sem o dublê o q5
+    morre no primeiro frame e sobra o canvas padrão de 200x200 esticado pelo CSS. A origem
+    opaca é de propósito, então a resposta é `Object.defineProperty` no `window` com
+    implementação em memória; os métodos são **não enumeráveis** porque o `clearStorage` do p5
+    percorre `Object.keys(localStorage)` e não deve achar os próprios métodos. A moldura é
+    recriada a cada execução, então não há nada a persistir.
+17. **E2E que prova rodou, não que existe** (`trocar p5 por q5…`): `Q5.instances.length > 0` é
+    o sinal de que o construtor do q5 não morreu, e o `poll` do `buffer >= largura` é o sinal de
+    que a instância reagiu ao tamanho da caixa, que é o que prova que o esizeCanvas pegou. Os dois juntos pegam a regressão; o
+    `toHaveCount(0)` do alerta sozinho **não pega**, porque logo depois de `selectOption` a
+    moldura antiga (p5, sadia) ainda está na tela e o debounce de 700 ms não deu tempo do q5
+    aparecer. É a mesma armadilha de medir antes da troca.
+
+**Rodada 04/10/2026** — `e2e/simulacao.spec.ts` (novo, 7 testes: prévia rodando com o
+`canvas` ocupando a largura da moldura, `sandbox` sem `allow-same-origin`, erro de runtime no
+código e volta a rodar depois do conserto, troca p5 → q5 com o exemplo junto, alinhamento do
+layout e ausência do badge, toggle da face do aluno, altura, e leitura + impressão). O E2E entra
+no mesmo `canvas` **dentro da iframe** (`frameLocator`), o que prova que a lib carregou e o modo
+global pegou, e não só que a `iframe` existe; e `medidas()` compara a caixa do `canvas` com a da
+moldura **e** o atributo `width` (o buffer) com a largura exibida — `buffer >= largura` é o que
+distingue desenho nítido de upscale, então é a asserção que pega regressão de nitidez. Um teste
+também lê o pixel do canto com `getImageData` para provar que o código salvo rodou.
+
+---
+
 ## Não criar — e por quê
 
 | Não criar | Justificativa |
@@ -505,7 +623,7 @@ mudança de schema.
 | `Aviso` / `Alert` | As 23 ocorrências de `alert alert-*` **já são** a classe da lib em uma linha. Um wrapper trocaria `class="alert alert-error"` por `<Aviso tipo="erro">` sem ganhar aparência. O que precisa é **padronizar densidade** (`alert-error py-2 text-sm` ×4, `alert-info text-sm`), resolvido na classe, não no componente. |
 | `Card`, `Modal`, `Table`, `Tabs` | Já existem como classe pura na lib (`.card`, `.modal`, `.table`, `.tabs`) e o projeto usa direto. Wrapper aqui duplica a lib. |
 | `Grid`, `Flex`, `Stack`, `Espaco` | O projeto já usa `flex`/`grid`/`gap`/`space-y-*` direto. Um `Stack` seria camada sobre `gap`, que a lib já cobre. |
-| `SecaoLista` | `apostilas/[apostilaId]/+page.svelte:291-365` é caso único (arrasto entre listas, renomeação inline, badge de contagem). Sem segundo consumidor. |
+| `SecaoLista` | `apostilas/[apostilaId]/+page.svelte:291-365` é caso único (arrasto entre listas, renomeação inline, badge de contagem). Sem segundo consumidor. **Resolvido por outro caminho em 05/10/2026**: o cartão virou `CardConteudo` (P2.4) e a barra de contagem/visão ficou igual nas quatro listas. |
 | `EditorTabela` | `EditorBlocoCamada.svelte:240-305` é a **única** edição de tabela do app; o outro lado (`BlocoRender.svelte:71-93`) é leitura pura. Extrair cria indireção sem segundo consumidor. |
 | `ToolbarDiagrama` | `Mermaid.svelte:368-409` é único (zoom/ajustar). O layout já é coberto por `BarraAcoes`. |
 | `AlternarModo` | `EditorConteudo.svelte:103-122` é toggle `join` usado uma vez. Se precisar evoluir, o natural é migrar para `.tabs` da lib. |
@@ -513,7 +631,7 @@ mudança de schema.
 | `NomeAluno` | `exercicios/[exercicioId]/+page.svelte:167-183` já é coberto por `Campo` (P0.5). |
 | `CardSessao` | `exercicios/[exercicioId]/+page.svelte:108-132` tem identidade própria (nota, chave de integridade, impressão/PNG). Compor com `card` + `BarraAcoes` basta. |
 | `ResultadoQuestao` | O feedback "Correto!/Incorreto" já entra no `Alternativa` (P0.4). Não precisa de terceiro nível. |
-| Store/context de UI | Não há estado de UI compartilhado além do tema, já resolvido por `theme.svelte.ts` + `AHMAR` + o script anti-FOUC do `app.html`. |
+| Store/context de UI | Não há estado de UI compartilhado além do tema, já resolvido por `theme.svelte.ts` + `AHMAR` + o script anti-FOUC do `app.html`. **05/10/2026**: entrou `visao.svelte.ts` (lista/grade) com o mesmo desenho do tema, sem FOUC e sem script no `app.html`. |
 | `Icone` (novo) | Já existe (`Icone.svelte` + `icones.ts`). Falta **adicionar nomes**, não criar componente (P3.1). |
 
 ---
@@ -570,10 +688,93 @@ paralelo, e o `AcoesConteudo` depende de decidir o que fazer com `"Ver"`/`"PDF"`
 quebra contrato de E2E).
 
 **Fica para quando a tela for tocada de novo:** P1.2, P1.4, P1.5, P2.1–P2.5 e P3.x.
-Em P0.2 vale revisar se o contador deve mostrar o total não filtrado
-(`PainelSoltos` usa `itens.length`, que já vem filtrado das páginas).
+O contador do P0.2 foi resolvido em 08/10/2026: a barra mostra o **filtrado** e a
+mensagem de vazio usa o **total real** (duas contagens — ver a rodada do fim do doc).
 
 **Convenção de pasta:** `src/lib/components/ui/` para as primitivas genéricas
 (`Pagina`, `Campo`, `BarraAcoes`, `CabecalhoPagina`, `Botao`, `Contador`, `CardConteudo`,
-`DataBadge`); componentes de domínio (`Alternativa`, `ListaBlocos`, `AlcaArrasto`) ficam ao
-lado dos atuais.
+`DataBadge`, `SeletorVisao`); componentes de domínio (`Alternativa`, `ListaBlocos`,
+`AlcaArrasto`) ficam ao lado dos atuais.
+
+---
+
+## Rodada 05/10/2026 — listas de conteúdo padronizadas + visão lista/grade
+
+Pedido pontual (as quatro listas de conteúdo eram diferentes entre si) que acabou entregando
+P2.3 e P2.4 do plano. `pnpm test` 105/105, `pnpm check` 0/0, E2E 65/65, `pnpm build` ok.
+
+- **`CardConteudo`** (P2.4) é o cartão das **quatro** listas: apostilas na home, aulas no painel
+  da apostila, e os dois `PainelSoltos` (anexos e atividades). `PainelSoltos.svelte` saiu de 172
+  para 179 linhas, mas as ~110 duplicadas entre anexo e atividade continuam eliminadas e agora
+  o cartão do painel da apostila também é o mesmo.
+- **`SeletorVisao`** + **`src/lib/visao.svelte.ts`**: alternância lista/grade em todas elas, para
+  aluno e professor (a home é pública, então a preferência é do navegador, não da sessão).
+  `role="group"` "Modo de visualização", `join` de dois `btn btn-xs` com `aria-pressed` — o mesmo
+  desenho do seletor de nível do título e do "Modo da simulação".
+- **`DataBadge`** (P2.3) como slot `meta` do cartão.
+- **`CabecalhoPagina` com `ml-auto` no grupo de ações**: era o bug reportado.
+
+Decisões e armadilhas:
+
+1. **O cartão é `<a>` ou `<li>` conforme tenha ações.** Botão dentro de link é HTML inválido, então
+   sem ações o cartão inteiro é o link (é o caso da home, que só navega) e o container é `div`;
+   com ações o cartão é `li` e o container é `ul`. Componente que fixasse uma das duas tags
+   obrigaria a escolher entre link de cartão inteiro e link só no título — o `li` do painel
+   solto ainda é contrato de E2E (`anexos.spec.ts` e `exercicios.spec.ts` fazem
+   `locator('li', { hasText })`).
+2. **`ul` com `display: grid` é válido**, então `classeLista()` (`space-y-2` → `grid gap-4
+   sm:grid-cols-2`) serve para os dois modos sem trocar o container e sem duplicar o cartão.
+   Descrição ganha `line-clamp-2` na grade (cabe no cartão) e fica inteira na lista.
+3. **O snippet do `CardConteudo` não pode ter o mesmo nome da prop que ele preenche.** No
+   `PainelSoltos` o `{#snippet acoes()}` do cartão recebe o nome da prop `acoes`, então
+   `{@render acoes(item)}` dentro dele seria auto-referência: o conteúdo vem por um apelido
+   `acoesItem = $derived(acoes)`. O `svelte-check` pegou (`does not exist in type 'Props'`).
+4. **Arrasto continua funcionando na grade**: `data-arrasto-lista` fica no `<section>` do grupo e
+   o `ul` dos cartões vem dentro dele — `arrastar.ts` acha a lista com `closest()` e os itens com
+   `querySelectorAll`, então aninhar não muda nada. `e2e/arrastar.spec.ts` ganhou o teste da
+   grade justamente para isso.
+5. **`btn-active` no botão da visão ativa** (além do `aria-pressed`): sem ele o estado não aparece
+   em nenhum tema — os `btn` do `join` não se distinguem visualmente.
+6. **A coluna do `CardConteudo` não tem `data-*` de teste.** O E2E de visão localiza por estrutura
+   real (`main a.card`, `section[data-arrasto-lista] ul > li`) e compara caixas, o que também
+   pega layout quebrado, não só classe trocada.
+7. **O botão à direita se mede contra a borda do conteúdo** (`getBoundingClientRect` do
+   `.container` menos o `padding-right`): comparar com outro elemento da linha seria frágil
+   porque o seletor de visão não existe quando a lista está vazia.
+
+---
+
+## Rodada 08/10/2026 — busca por título nas quatro listagens + cabeçalho sem `flex-wrap`
+
+Pedido pontual com três partes, todas com E2E novo (`e2e/busca.spec.ts`, 3 testes) e o teste
+do botão do `visao.spec.ts` reescrito. `pnpm test` 105/105, E2E 68/68, `pnpm check` 0/0,
+`pnpm build` ok.
+
+- **`CabecalhoPagina` sem `flex-wrap`**: `flex flex-nowrap`, coluna de título `min-w-0 flex-1`
+  (`h1` com `break-words`) e ações `ml-auto flex shrink-0`. Com descrição longa o botão nunca
+  cai para a linha de baixo nem é empurrado à esquerda. O teste do `visao.spec.ts` agora espera
+  `|y(botão) − y(título)| ≤ 8px` junto da borda direita.
+- **Busca por título** nas quatro listagens, `type="search"` na barra de contagem com
+  `aria-label` "Buscar X por título". No `PainelSoltos` o filtro é **interno** (state
+  `$state`/`$derived`); as props `busca`/`aoBuscar` saíram das duas páginas soltas.
+- **Duas contagens** (o P0.2 pendente): o total real decide a mensagem de vazio e o filtrado
+  decide a contagem + o alert "Nada encontrado para X". Antes só havia a lista já filtrada,
+  então o alert **nunca disparava** — e a mensagem de vazio real aparecia com o total cheio.
+- **Rótulo de criação padronizado como `+ Nome`** (texto, não ícone): o `getByRole` do
+  Playwright casa por substring, então rótulos sem `+` nos specs continuam válidos.
+
+Decisões e armadilhas:
+
+1. **No painel da apostila a busca esconde a alça de arrasto** e `moverAula` tem guarda
+   `if (busca.trim()) return` — salvar a ordem por uma lista filtrada mandaria só o pedaço
+   visível e renumeraria o resto. O agrupamento (`agruparPorSecao`) já descarta grupos vazios,
+   então `visiveis` pode alimentá-lo direto.
+2. **O cartão de aula no painel não é link** (as ações levam para a aula), então o E2E checa
+   com `toContainText`, não `toHaveAttribute('href')`.
+3. **Atividade sem bloco de exercício/dissertativa não salva**: a action `?/salvar` devolve
+   `fail(400)` (não redireciona), então o E2E que cria a atividade precisa de uma dissertativa
+   antes de apertar "Salvar atividade" — sem isso o título nunca persiste e a busca falha.
+4. **Contagem absoluta na home é frágil**: as specs dividem o mesmo DB (reset por run), então
+   o teste usa token `Date.now()` na criação em vez de contar cartões globais.
+5. **O `ApostilaComTotal` do load root** precisou de import de tipo na home: sem anotação o
+   `svelte-check` acusava implicit any no `.filter()`.

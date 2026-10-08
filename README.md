@@ -1,6 +1,8 @@
 # mcurso
 
-Aplicação **single-user** para um professor criar e publicar **apostilas de aula online** — material digital com blocos ricos (texto, código, diagramas Mermaid, fórmulas KaTeX, tabelas, exercícios, links) que fica **público para leitura** sem login. Apenas criar/editar exige **senha mestra**.
+Aplicação **single-user** para um professor criar e publicar **apostilas de aula online** — material digital com blocos ricos (texto, código, diagramas Mermaid, fórmulas KaTeX, tabelas, exercícios, links, simulações p5/q5) que fica **público para leitura** sem login. Apenas criar/editar exige **senha mestra**.
+
+O bloco de **simulação** roda código **p5.js** ou **q5.js** dentro de uma `iframe` isolada (`sandbox` sem `allow-same-origin`), com prévia automática enquanto o professor digita e um botão que mostra a **face do aluno** (a mesma da leitura, sem código). O canvas acompanha o tamanho da caixa em qualquer largura, então sai nítido e a prévia no editor mostra o mesmo desenho da tela do aluno; a impressão mostra o código em vez do canvas (canvas não sai no papel).
 
 Fora das apostilas há ainda os **anexos** (materiais de apoio **soltos**, usados em qualquer aula através de um bloco de link) e as **atividades de exercício** (provas curtas, também soltas, que o aluno responde numa página pública e recebe o resultado com chave de verificação).
 
@@ -12,16 +14,17 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 **Criação de conteúdo (área protegida por senha)**
 - Apostilas com título, descrição e timestamps de criação/atualização.
+- **Busca por título** em todas as listagens (apostilas na home, aulas no painel da apostila, anexos e atividades), com alternância entre visão em lista e grade.
 - Aulas/encontros dentro da apostila, ordenadas e agrupadas por **seção** (catálogo por apostila, com CRUD e reordenação).
 - **Anexos soltos** em `/anexos`: lista com busca, indicação de em quais aulas cada anexo é usado (links reversos) e exclusão bloqueada enquanto houver link apontando para ele.
 - **Atividades de exercício** em `/exercicios`: montadas com os mesmos blocos, com lista de uso, aviso quando estão sem perguntas e exclusão bloqueada em uso.
-- Blocos de conteúdo: **texto em markdown** (negrito, itálico, listas, citação, link, código, títulos), **título de H1 a H6** (nasce em H1; nível por botões na camada de configuração do bloco, com tooltip "Título N"), código (com `highlight.js`), **diagrama Mermaid** (com tema por bloco, escolhível no editor), imagem (com upload), **link** (aula/anexo/atividade/arquivo externo), **tabela**, **fórmula KaTeX**, **exercício** (de uma ou várias respostas corretas) e **dissertativa** (resposta aberta).
+- Blocos de conteúdo: **texto em markdown** (negrito, itálico, listas, citação, link, código, títulos), **título de H1 a H6** (nasce em H1; nível por botões na camada de configuração do bloco, com tooltip "Título N"), código (com `highlight.js`), **diagrama Mermaid** (com tema por bloco, escolhível no editor), imagem (com upload), **link** (aula/anexo/atividade/arquivo externo), **tabela**, **fórmula KaTeX**, **exercício** (de uma ou várias respostas corretas), **dissertativa** (resposta aberta) e **simulação** (código p5/q5 rodando no navegador).
 - Editor de blocos com adicionar (grid de botões no fim do canvas), remover, reordenar e mudar tipo, tudo salvo como JSON na coluna `blocos`. No bloco de texto a escrita é markdown direto, com barra de formatação (negrito, itálico, código, lista, lista numerada, citação, linha horizontal e link), atalhos Ctrl+B/I/K e prévia formatada fora da edição (clicar nela volta a editar).
-- **Drag and drop** para ordenar blocos, aulas e seções.
+- **Drag and drop** para ordenar blocos, aulas e seções, na lista ou na grade.
 - Tema `brutalist` por padrão, com seletor de tema persistido (aplicado antes da primeira pintura, sem flash).
 
 **Leitura e apresentação (públicas, sem login)**
-- Listagem pública de apostilas na home.
+- Listagem pública de apostilas na home, com **alternância lista/grade** — a escolha é uma preferência do navegador, a mesma para o aluno e para o professor.
 - Página da aula e do anexo (renders KaTeX, Mermaid, exercício de uma ou várias alternativas e dissertativa) com **PDF/imprimir** — rota própria `imprimir` com `@media print` (Ctrl+P), sem gerar arquivo no servidor.
 - **Atividade respondida sem login**: nome do aluno + todas as questões numa página, envio por POST e resultado com gabarito, explicação e uma **chave de integridade** (resumo assinado) que o aluno pode guardar como **PNG** ou imprimir em PDF. Nada é gravado no banco — o gabarito não chega ao HTML, a correção acontece no servidor.
   - Questões de **uma** (rádio) ou **várias** alternativas corretas (caixas de seleção): no segundo caso é preciso marcar o conjunto exato. **Dissertativas** aparecem no resultado com a resposta do aluno, para avaliação, fora da nota automática.
@@ -38,8 +41,8 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 96/96 (8 arquivos) |
-| E2E (as 6 specs da suíte) | 34/34 |
+| `pnpm test` | 105/105 (9 arquivos) |
+| E2E (as 10 specs da suíte) | 65/65 |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
 
@@ -86,7 +89,7 @@ pnpm dev
 | `pnpm db:migrate` | aplica as migrations no banco (o app também faz isso no boot) |
 
 > **E2E**: cada execução recria `data/e2e.db` e `data/e2e-uploads` (o banco de dev nunca é tocado) e sobe o app na porta 5179. Passe sempre as specs — `playwright test` sem argumento quebra na coleta, porque `e2e/repro-bugs.spec.ts` e `e2e/repro-tabela-exercicio.spec.ts` são arquivos de repro com sintaxe propositalmente inválida e não estão no `testIgnore`:
-> `pnpm exec playwright test e2e/apresentacao.spec.ts e2e/arrastar.spec.ts e2e/fluxo.spec.ts e2e/tema.spec.ts e2e/anexos.spec.ts e2e/exercicios.spec.ts`
+> `pnpm exec playwright test e2e/apresentacao.spec.ts e2e/arrastar.spec.ts e2e/fluxo.spec.ts e2e/tema.spec.ts e2e/anexos.spec.ts e2e/exercicios.spec.ts e2e/inserir-bloco.spec.ts e2e/markdown.spec.ts e2e/simulacao.spec.ts e2e/visao.spec.ts`
 
 ## Estrutura
 
@@ -103,6 +106,7 @@ src/
     arrastar.ts          → drag and drop genérico (blocos, aulas, seções)
     icones.ts            → SVGs inline (a lib de UI não tem set de ícones)
     theme.svelte.ts      → tema persistido sem FOUC
+    visao.svelte.ts      → lista ou grade nas listas de conteúdo (preferência do navegador)
     auth-client.ts       → cliente do Better Auth para o browser
     components/
       EditorConteudo.svelte    → editor compartilhado (aula, anexo e atividade)
@@ -114,6 +118,7 @@ src/
       BlocoRender.svelte       → render de um bloco
       Questao.svelte           → questão pública (nunca recebe o gabarito)
       Dissertativa.svelte      → resposta aberta (rascunho, campo do formulário ou resultado)
+      Simulacao.svelte         → código p5/q5 rodando em iframe isolada (editor e leitura)
       TextoMatematico.svelte  → texto com `$...$` saindo com KaTeX
       Apresentacao.svelte      → modo apresentação (slides)
       Mermaid/Formula/Exercicio/Codigo/TextoEditavel/Icone.svelte
@@ -131,6 +136,7 @@ src/
     (app)/anexos/        → listagem solta e rotas do anexo (ler/editar/imprimir/apresentar)
     (app)/exercicios/    → listagem solta e rotas da atividade (responder/editar)
     login/               → login com a senha mestra
+    lib/[...caminho]/     → serve p5.min.js/q5.js do node_modules (allowlist, sem CDN)
     api/upload/          → upload de imagens
     uploads/             → serve os arquivos enviados (exige sessão)
 e2e/                     → Playwright (ambiente.ts com as credenciais/banco isolados)
@@ -145,13 +151,14 @@ O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Qu
 
 - **As migrations são aplicadas pelo app no boot** (`src/lib/server/db/migrar.ts`, chamado pelo `db/index.ts` antes de qualquer consulta), não por um passo separado de deploy: `drizzle-kit` é `devDependency` e não existe no servidor. O log de boot diz quantas entraram — `[mcurso] 6 migração(ões) aplicada(s) em …` ou `[mcurso] banco em dia em …`. O `pnpm build` copia `drizzle/` para dentro de `build/drizzle`, então só a pasta de build precisa estar no ar (a resolução tenta `drizzle`, `build/drizzle`, `../drizzle` e aceita `MIGRATIONS_DIR`).
 - `better-sqlite3` fica em **`dependencies`**, nunca em `devDependencies` (o adapter-node deixa dependências externas resolvidas do `node_modules` em runtime; bundlado, o addon nativo quebra com "require is not defined"). Ele já vem com binário pronto em `prebuilds/`, sem compilar nada.
+- `p5` e `q5` também ficam em **`dependencies`** pelo mesmo motivo: a rota `lib/[...caminho]` resolve os arquivos no `node_modules` em runtime (a `iframe` do bloco de simulação não pode ir para CDN e o `exports` do p5 bloqueia o caminho normal). No deploy, as duas precisam estar instaladas junto do `node_modules`.
 - Variáveis de ambiente em produção: `DB_PATH` e `UPLOADS_DIR` precisam apontar para caminhos graváveis **e persistentes** (fora da pasta de build, que some a cada novo deploy), mais `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (a URL pública, sem barra final), `APP_MASTER_EMAIL` e `APP_MASTER_PASSWORD` (ver `.env.example`). O servidor escuta em `PORT`/`HOST`, com `ORIGIN` apontando para a URL pública (necessário para os cookies de sessão).
 - A lib de UI entra como `^x.y.z` no `package.json` (versão publicada no registry). O `link:../ahmardesign` só funciona no clone local.
 
 ## Testes
 
-- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/arrastar.test.ts` (ordem no drag and drop) e `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app).
-- **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts` e `e2e/tema.spec.ts`.
+- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app) e `src/lib/visao.test.ts` (preferência lista/grade).
+- **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão) e `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto).
 - `e2e/repro-*.spec.ts` não fazem parte da suíte: são arquivos de repro propositalmente inválidos, usados para demonstrar falha e não coletados (veja a nota dos scripts).
 
 ---

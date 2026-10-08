@@ -6,6 +6,7 @@
 	import 'katex/dist/katex.min.css';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import { iniciarTema } from '$lib/theme.svelte';
+	import { iniciarVisao } from '$lib/visao.svelte';
 
 	let { children, data } = $props();
 
@@ -15,6 +16,9 @@
 		// Antes do init: o initTheme() da lib cairia no 'light' e trocaria o tema
 		// padrão do SSR depois da primeira pintura.
 		iniciarTema();
+		// Lista ou grade nas listas de conteúdo (mesma preferência para aluno e
+		// professor). Sem FOUC: só reposiciona cartões.
+		iniciarVisao();
 		window.AHMAR?.init();
 	});
 </script>

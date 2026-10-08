@@ -8,15 +8,23 @@
 		apostilaId?: number;
 		baseHref?: string;
 		aulaContexto?: number;
+		/** `imprimir` só muda o bloco de simulação (sai o código, não o canvas). */
+		modo?: 'editar' | 'visualizar' | 'imprimir';
 		class?: string;
 	};
 
-	let { blocos, apostilaId, baseHref, aulaContexto, class: className = 'space-y-3' }: Props =
-		$props();
+	let {
+		blocos,
+		apostilaId,
+		baseHref,
+		aulaContexto,
+		modo = 'visualizar',
+		class: className = 'space-y-3'
+	}: Props = $props();
 </script>
 
 <div class={className}>
 	{#each blocos as bloco (bloco.id)}
-		<BlocoRender {bloco} {apostilaId} {baseHref} {aulaContexto} />
+		<BlocoRender {bloco} {apostilaId} {baseHref} {aulaContexto} {modo} />
 	{/each}
 </div>

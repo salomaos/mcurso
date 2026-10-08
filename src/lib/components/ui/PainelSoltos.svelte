@@ -15,7 +15,11 @@
 <script lang="ts" generics="T extends ItemSoltos">
 	import type { Snippet } from 'svelte';
 	import CabecalhoPagina from './CabecalhoPagina.svelte';
+	import CardConteudo from './CardConteudo.svelte';
+	import DataBadge from './DataBadge.svelte';
 	import Pagina from './Pagina.svelte';
+	import SeletorVisao from './SeletorVisao.svelte';
+	import { classeLista, getVisao } from '$lib/visao.svelte';
 
 	type Props = {
 		/** Título da página, rótulo no singular e no plural do contador. */
@@ -33,8 +37,6 @@
 		tituloSemUso: string;
 		tituloEmUso: string;
 		erro?: string | null;
-		busca: string;
-		aoBuscar: (valor: string) => void;
 		itens: T[];
 		/** Badges de contagem/aviso do card. Sai antes das referências. */
 		marcadores?: Snippet<[T]>;
@@ -55,14 +57,26 @@
 		tituloSemUso,
 		tituloEmUso,
 		erro = null,
-		busca,
-		aoBuscar,
 		itens,
 		marcadores,
 		acoes
 	}: Props = $props();
 
 	const total = $derived(itens.length);
+	let busca = $state('');
+	// `total` é o tamanho real da lista; `visiveis` é o que sobra da busca. Os
+	// dois são necessários: com só o filtrado, "Nada encontrado" nunca dispara
+	// e a lista vazia mostra a mensagem de "crie o primeiro".
+	const visiveis = $derived(
+		itens.filter(
+			(item) => !busca.trim() || item.titulo.toLowerCase().includes(busca.trim().toLowerCase())
+		)
+	);
+	// O snippet do card se chama como a prop, então o conteúdo vem por um apelido:
+	// {@render acoes()} dentro de {#snippet acoes()} seria auto-referência.
+	const acoesItem = $derived(acoes);
+	const marcadoresItem = $derived(marcadores);
+	let visao = $derived(getVisao());
 
 	function confirmar(item: T) {
 		return (event: SubmitEvent) => {
@@ -71,7 +85,7 @@
 	}
 
 	function aoDigitar(event: Event) {
-		aoBuscar((event.currentTarget as HTMLInputElement).value);
+		busca = (event.currentTarget as HTMLInputElement).value;
 	}
 </script>
 
@@ -91,69 +105,71 @@
 	{:else}
 		<div class="flex flex-wrap items-center justify-between gap-2">
 			<span class="text-sm opacity-70">
-				{total} {total === 1 ? singular : plural}
+				{visiveis.length} {visiveis.length === 1 ? singular : plural}
 			</span>
-			<input
-				class="input input-sm input-bordered w-64"
-				type="search"
-				placeholder="Buscar por título..."
-				aria-label={rotuloBusca}
-				value={busca}
-				oninput={aoDigitar}
-			/>
+			<div class="flex flex-wrap items-center gap-2">
+				<input
+					class="input input-sm input-bordered w-64"
+					type="search"
+					placeholder="Buscar por título..."
+					aria-label={rotuloBusca}
+					value={busca}
+					oninput={aoDigitar}
+				/>
+				<SeletorVisao />
+			</div>
 		</div>
 	{/if}
 
-	{#if total > 0 && itens.length === 0}
+	{#if total > 0 && visiveis.length === 0}
 		<div class="alert alert-info">Nada encontrado para "{busca}".</div>
 	{/if}
 
-	<ul class="space-y-2">
-		{#each itens as item (item.id)}
-			<li class="card card-bordered p-4 space-y-2">
-				<div class="flex flex-wrap items-start justify-between gap-2">
-					<div class="space-y-1 min-w-0">
-						<a href={item.href} class="card-title link">{item.titulo}</a>
-						{#if item.descricao}
-							<p class="text-sm opacity-80">{item.descricao}</p>
+	<ul class={classeLista(visao)}>
+		{#each visiveis as item (item.id)}
+			<CardConteudo
+				titulo={item.titulo}
+				href={item.href}
+				descricao={item.descricao}
+				modo={visao}
+			>
+				{#snippet meta()}
+					<DataBadge valor={item.updatedAt} />
+				{/snippet}
+
+				{#snippet marcadores()}
+					{#if marcadoresItem}
+						{@render marcadoresItem(item)}
+					{/if}
+				{/snippet}
+
+				{#snippet detalhe()}
+					<div class="flex flex-wrap items-center gap-2">
+						{#if item.referencias.length === 0}
+							<span class="badge badge-warning gap-1" title={tituloSemUso}>Sem uso</span>
+						{:else}
+							<span class="badge badge-ghost">
+								Usado em {item.referencias.length}
+								{item.referencias.length === 1 ? 'aula' : 'aulas'}
+							</span>
+							<ul class="flex flex-wrap items-center gap-1">
+								{#each item.referencias as referencia (referencia.id)}
+									<li>
+										<a
+											href={`/apostilas/${referencia.apostilaId}/aulas/${referencia.id}`}
+											class="link text-xs opacity-70"
+										>
+											{referencia.titulo}
+										</a>
+									</li>
+								{/each}
+							</ul>
 						{/if}
 					</div>
-					<span class="badge badge-ghost text-xs shrink-0">
-						{new Date(item.updatedAt).toLocaleDateString('pt-BR')}
-					</span>
-				</div>
+				{/snippet}
 
-				{#if marcadores}
-					<div class="flex flex-wrap items-center gap-2">
-						{@render marcadores(item)}
-					</div>
-				{/if}
-
-				<div class="flex flex-wrap items-center gap-2">
-					{#if item.referencias.length === 0}
-						<span class="badge badge-warning gap-1" title={tituloSemUso}>Sem uso</span>
-					{:else}
-						<span class="badge badge-ghost">
-							Usado em {item.referencias.length}
-							{item.referencias.length === 1 ? 'aula' : 'aulas'}
-						</span>
-						<ul class="flex flex-wrap items-center gap-1">
-							{#each item.referencias as referencia (referencia.id)}
-								<li>
-									<a
-										href={`/apostilas/${referencia.apostilaId}/aulas/${referencia.id}`}
-										class="link text-xs opacity-70"
-									>
-										{referencia.titulo}
-									</a>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</div>
-
-				<div class="flex flex-wrap items-center gap-1">
-					{@render acoes(item)}
+				{#snippet acoes()}
+					{@render acoesItem(item)}
 					<form method="POST" action="?/excluir" class="ml-auto" onsubmit={confirmar(item)}>
 						<input type="hidden" name={nomeId} value={item.id} />
 						<button
@@ -165,8 +181,8 @@
 							Excluir
 						</button>
 					</form>
-				</div>
-			</li>
+				{/snippet}
+			</CardConteudo>
 		{/each}
 	</ul>
 </Pagina>

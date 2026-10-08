@@ -90,6 +90,118 @@ export type BlocoDissertativa = {
 	orientacao?: string;
 };
 
+// Simulação: código p5/q5 que roda no navegador do aluno, dentro de uma iframe com
+// `sandbox` (o código do professor não alcança a sessão nem o DOM da página).
+export type BlocoSimulacao = {
+	id: string;
+	tipo: 'simulacao';
+	biblioteca: BibliotecaSimulacao;
+	codigo: string;
+	altura: number;
+};
+
+// Bibliotecas aceitas. As duas rodam em modo global (`setup`/`draw` no `window` da
+// iframe), que é o jeito que o professor escreve; a escolha muda o arquivo servido
+// por `/lib` e o código de exemplo do bloco novo.
+//
+// Os dois exemplos são **responsivos** (`window.innerWidth/innerHeight` + `windowResized`)
+// de propósito: o canvas é esticado para ocupar a caixa toda (é o que dá largura para
+// projeto mais complexo), então tamanho fixo apareceria achatado.
+const EXEMPLO_P5 = `function setup() {
+  createCanvas(window.innerWidth, window.innerHeight);
+}
+
+function draw() {
+  background(20, 24, 33);
+  const ang = frameCount * 0.04;
+
+  translate(width / 2, height / 4);
+  stroke(120);
+  line(0, 0, 0, height / 2);
+
+  const raio = height / 2 - 30;
+  const x = raio * sin(ang);
+  const y = raio * cos(ang);
+  line(0, 0, x, y);
+  noStroke();
+  fill(120, 200, 255);
+  circle(x, y, 18);
+}
+
+function windowResized() {
+  resizeCanvas(window.innerWidth, window.innerHeight);
+}`;
+
+const EXEMPLO_Q5 = `function setup() {
+  createCanvas(window.innerWidth, window.innerHeight);
+}
+
+function draw() {
+  background(20, 24, 33);
+  const ang = frameCount * 0.04;
+
+  translate(width / 2, height / 4);
+  stroke(120);
+  line(0, 0, 0, height / 2);
+
+  const raio = height / 2 - 30;
+  const x = raio * sin(ang);
+  const y = raio * cos(ang);
+  line(0, 0, x, y);
+  noStroke();
+  fill(120, 200, 255);
+  ellipse(x, y, 18);
+}
+
+function windowResized() {
+  resizeCanvas(window.innerWidth, window.innerHeight);
+}`;
+
+export const BIBLIOTECAS_SIMULACAO = [
+	{ valor: 'p5', rotulo: 'p5', arquivo: 'p5.min.js', exemplo: EXEMPLO_P5 },
+	{ valor: 'q5', rotulo: 'q5', arquivo: 'q5.js', exemplo: EXEMPLO_Q5 }
+] as const;
+export type BibliotecaSimulacao = (typeof BIBLIOTECAS_SIMULACAO)[number]['valor'];
+
+export const BIBLIOTECA_SIMULACAO_PADRAO: BibliotecaSimulacao = 'p5';
+
+const BIBLIOTECAS_SIMULACAO_VALIDAS = new Set<string>(
+	BIBLIOTECAS_SIMULACAO.map((biblioteca) => biblioteca.valor)
+);
+
+export function ehBibliotecaSimulacao(valor: unknown): valor is BibliotecaSimulacao {
+	return typeof valor === 'string' && BIBLIOTECAS_SIMULACAO_VALIDAS.has(valor);
+}
+
+// Arquivo da lib no browser, para a iframe carregar por `/lib/<arquivo>`, e código de
+// exemplo (entra no bloco novo e troca junto quando o professor troca a biblioteca
+// enquanto o código ainda é o exemplo anterior).
+//
+// O `!` é seguro pelo tipo: `BibliotecaSimulacao` é derivado de `BIBLIOTECAS_SIMULACAO`,
+// então o `find` sempre acha — o `??` que estava aqui antes era caminho morto.
+export function arquivoBibliotecaSimulacao(biblioteca: BibliotecaSimulacao): string {
+	return BIBLIOTECAS_SIMULACAO.find((item) => item.valor === biblioteca)!.arquivo;
+}
+
+export function exemploBibliotecaSimulacao(biblioteca: BibliotecaSimulacao): string {
+	return BIBLIOTECAS_SIMULACAO.find((item) => item.valor === biblioteca)!.exemplo;
+}
+
+const ALTURA_SIMULACAO_PADRAO = 240;
+const ALTURA_SIMULACAO_MINIMA = 120;
+const ALTURA_SIMULACAO_MAXIMA = 900;
+
+export const ALTURAS_SIMULACAO = { minima: ALTURA_SIMULACAO_MINIMA, maxima: ALTURA_SIMULACAO_MAXIMA };
+
+export function ehAlturaSimulacao(valor: unknown): valor is number {
+	return (
+		typeof valor === 'number' &&
+		Number.isFinite(valor) &&
+		valor >= ALTURA_SIMULACAO_MINIMA &&
+		valor <= ALTURA_SIMULACAO_MAXIMA
+	);
+}
+
 export type Bloco =
 	| BlocoTexto
 	| BlocoTitulo
@@ -100,7 +212,8 @@ export type Bloco =
 	| BlocoTabela
 	| BlocoFormula
 	| BlocoExercicio
-	| BlocoDissertativa;
+	| BlocoDissertativa
+	| BlocoSimulacao;
 export type Blocos = Bloco[];
 
 export function ehMultiplaEscolha(bloco: { selecao?: unknown }): boolean {
@@ -151,6 +264,11 @@ export function criarBloco(tipo: Bloco['tipo']): Bloco {
 			return { id, tipo, pergunta: '', alternativas: ['', ''], selecao: 'radio', correta: 0 };
 		case 'dissertativa':
 			return { id, tipo, pergunta: '', orientacao: '' };
+		case 'simulacao': {
+			const biblioteca = BIBLIOTECA_SIMULACAO_PADRAO;
+			const exemplo = BIBLIOTECAS_SIMULACAO.find((item) => item.valor === biblioteca)?.exemplo;
+			return { id, tipo, biblioteca, codigo: exemplo ?? '', altura: ALTURA_SIMULACAO_PADRAO };
+		}
 	}
 }
 
@@ -164,7 +282,8 @@ export const TIPOS_BLOCO = [
 	{ id: 'tabela', rotulo: 'Tabela', icone: 'tabela' },
 	{ id: 'formula', rotulo: 'Fórmula', icone: 'formula' },
 	{ id: 'exercicio', rotulo: 'Exercício', icone: 'exercicio' },
-	{ id: 'dissertativa', rotulo: 'Dissertativa', icone: 'dissertativa' }
+	{ id: 'dissertativa', rotulo: 'Dissertativa', icone: 'dissertativa' },
+	{ id: 'simulacao', rotulo: 'Simulação', icone: 'simulacao' }
 ] as const satisfies readonly { id: Bloco['tipo']; rotulo: string; icone: NomeIcone }[];
 
 // Formato de aula usado nas páginas (id + campos de exibição), independente do row do drizzle.
@@ -225,7 +344,8 @@ const TIPOS_VALIDOS = new Set<Bloco['tipo']>([
 	'tabela',
 	'formula',
 	'exercicio',
-	'dissertativa'
+	'dissertativa',
+	'simulacao'
 ]);
 
 const TIPOS_LINK = new Set<BlocoLink['tipoLink']>(['exercicio', 'anexo', 'aula', 'externo']);
@@ -285,6 +405,15 @@ export function ehBloco(valor: unknown): valor is Bloco {
 			return (
 				typeof b.pergunta === 'string' &&
 				(b.orientacao === undefined || b.orientacao === null || typeof b.orientacao === 'string')
+			);
+		case 'simulacao':
+			// `biblioteca` e `altura` são cosméticas: valor fora da lista é saneado
+			// no `normalizarCamposBloco` e bloco sem os campos vale o padrão, igual ao
+			// tema do Mermaid. Só o código é obrigatório.
+			return (
+				typeof b.codigo === 'string' &&
+				(b.biblioteca === undefined || typeof b.biblioteca === 'string') &&
+				(b.altura === undefined || typeof b.altura === 'number')
 			);
 	}
 	return false;
@@ -367,6 +496,21 @@ function normalizarCamposBloco(bloco: Bloco): Bloco {
 				pergunta: bloco.pergunta,
 				orientacao: typeof bloco.orientacao === 'string' ? bloco.orientacao : undefined
 			};
+		case 'simulacao': {
+			// Biblioteca fora da lista e altura fora da faixa caem no padrão: o código
+			// do professor vale mais que o formato da caixa.
+			const legado = bloco as BlocoSimulacao & { biblioteca?: unknown; altura?: unknown };
+			const biblioteca = ehBibliotecaSimulacao(legado.biblioteca)
+				? legado.biblioteca
+				: BIBLIOTECA_SIMULACAO_PADRAO;
+			return {
+				id: bloco.id,
+				tipo: 'simulacao',
+				biblioteca,
+				codigo: bloco.codigo,
+				altura: ehAlturaSimulacao(legado.altura) ? legado.altura : ALTURA_SIMULACAO_PADRAO
+			};
+		}
 		default:
 			return bloco;
 	}

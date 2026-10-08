@@ -3,8 +3,9 @@
   import CriadorBloco from "./CriadorBloco.svelte";
   import Dissertativa from "./Dissertativa.svelte";
   import EditorBlocoCamada from "./EditorBlocoCamada.svelte";
-  import EditorTextoMarkdown from "./EditorTextoMarkdown.svelte";
-  import Exercicio from "./Exercicio.svelte";
+import EditorTextoMarkdown from "./EditorTextoMarkdown.svelte";
+import Exercicio from "./Exercicio.svelte";
+import Simulacao from "./Simulacao.svelte";
   import Icone from "./Icone.svelte";
   import TextoEditavel from "./TextoEditavel.svelte";
   import {
@@ -96,9 +97,13 @@
     "linhas",
   ] as const;
 
-  // Blocos com edição dentro do próprio card (exercício, dissertativa): não têm
-  // camada de configuração nem botão "Editar".
-  const EM_CARTAO = new Set<Bloco["tipo"]>(["exercicio", "dissertativa"]);
+  // Blocos com edição dentro do próprio card (exercício, dissertativa,
+  // simulação): não têm camada de configuração nem botão "Editar".
+  const EM_CARTAO = new Set<Bloco["tipo"]>([
+    "exercicio",
+    "dissertativa",
+    "simulacao",
+  ]);
 
   function temConteudo(bloco: Bloco): boolean {
     const padrao = criarBloco(bloco.tipo) as unknown as Record<string, unknown>;
@@ -112,6 +117,11 @@
   }
 
   function preservaDado(atual: Bloco, novo: Bloco): boolean {
+    // O `codigo` da simulação é um sketch p5/q5, não um trecho de código qualquer:
+    // puxar o de um bloco "Código" (um script em Python, por exemplo) trocaria o
+    // bloco sem nem avisar e entregaria um desenho quebrado. Na volta
+    // (simulação → Código) o sketch vira snippet normalmente.
+    if (novo.tipo === "simulacao") return false;
     const origem = atual as unknown as Record<string, unknown>;
     const destino = novo as unknown as Record<string, unknown>;
     return CAMPOS_COMPARTILHADOS.some(
@@ -244,9 +254,12 @@
       return false;
     const origem = atual as unknown as Record<string, unknown>;
     const destino = novo as unknown as Record<string, unknown>;
-    for (const campo of CAMPOS_COMPARTILHADOS) {
-      if (campo in origem && campo in destino && origem[campo] !== undefined)
-        destino[campo] = origem[campo];
+    // Ver `preservaDado`: para a simulação nada é herdado.
+    if (novoTipo !== "simulacao") {
+      for (const campo of CAMPOS_COMPARTILHADOS) {
+        if (campo in origem && campo in destino && origem[campo] !== undefined)
+          destino[campo] = origem[campo];
+      }
     }
     novo.id = atual.id;
     atualizarBloco(id, novo);
@@ -384,6 +397,14 @@
               atualizar={(transformar) => atualizarBloco(bloco.id, transformar)}
             />
           {/if}
+        </div>
+      {:else if modo === "editar" && bloco.tipo === "simulacao"}
+        <div class="canvas-conteudo">
+          <Simulacao
+            {bloco}
+            modo="editar"
+            aoAlterar={(parcial) => atualizarBloco(bloco.id, { ...bloco, ...parcial })}
+          />
         </div>
       {:else}
         <div

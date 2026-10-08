@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
 	agruparPorSecao,
+	arquivoBibliotecaSimulacao,
+	BIBLIOTECAS_SIMULACAO,
 	corretasDoExercicio,
+	ehAlturaSimulacao,
+	ehBibliotecaSimulacao,
 	ehBloco,
 	ehNivelTitulo,
+	exemploBibliotecaSimulacao,
 	hrefLinkInterno,
 	linksPara,
 	mesmoNomeSecao,
@@ -327,6 +332,60 @@ describe('linksPara', () => {
 		expect(linksPara(blocos, { tipo: 'anexo', id: 7 }).map((b) => b.id)).toEqual(['a']);
 		expect(linksPara(blocos, { tipo: 'aula', id: 7 }).map((b) => b.id)).toEqual(['d']);
 		expect(linksPara(blocos, { tipo: 'exercicio', id: 7 }).map((b) => b.id)).toEqual(['f']);
+	});
+});
+
+describe('bloco de simulação', () => {
+	it('nasce em p5, com exemplo pronto e altura padrão', () => {
+		const bloco = criarBloco('simulacao');
+		expect(bloco.tipo).toBe('simulacao');
+		expect(bloco).toMatchObject({ biblioteca: 'p5', altura: 240 });
+		expect(bloco).toHaveProperty('codigo', exemploBibliotecaSimulacao('p5'));
+		// O exemplo precisa ser código de verdade, não placeholder.
+		expect(bloco).toHaveProperty('codigo', expect.stringContaining('function setup()'));
+	});
+
+	it('cada biblioteca resolve arquivo e exemplo próprios', () => {
+		expect(BIBLIOTECAS_SIMULACAO.map((item) => item.arquivo)).toEqual([
+			'p5.min.js',
+			'q5.js'
+		]);
+		for (const item of BIBLIOTECAS_SIMULACAO) {
+			expect(arquivoBibliotecaSimulacao(item.valor)).toBe(item.arquivo);
+			expect(exemploBibliotecaSimulacao(item.valor)).toBe(item.exemplo);
+			expect(item.exemplo).toContain('function draw()');
+		}
+	});
+
+	it('aceita o bloco do POST e normaliza biblioteca e altura fora da faixa', () => {
+		const base = { id: 's', tipo: 'simulacao', codigo: 'function draw() {}', altura: 300 };
+		expect(ehBloco(base)).toBe(true);
+		expect(normalizarBlocos([base])).toHaveLength(1);
+
+		// Biblioteca desconhecida cai no default e altura fora da faixa no default:
+		// o código do professor vale mais que o cosmético.
+		const sujo = [{ ...base, biblioteca: 'processing', altura: 4000 }];
+		const limpo = normalizarBlocos(sujo)[0];
+		expect(limpo).toMatchObject({ biblioteca: 'p5', altura: 240, codigo: base.codigo });
+
+		// Bloco antigo, sem os campos, também volta ao default.
+		const legado = normalizarBlocos([{ id: 's', tipo: 'simulacao', codigo: 'x' }])[0];
+		expect(legado).toMatchObject({ biblioteca: 'p5', altura: 240 });
+	});
+
+	it('descarta simulação sem código', () => {
+		expect(ehBloco({ id: 's', tipo: 'simulacao', biblioteca: 'p5', altura: 240 })).toBe(false);
+		expect(normalizarBlocos([{ id: 's', tipo: 'simulacao', altura: 240 }])).toHaveLength(0);
+	});
+
+	it('valida biblioteca e altura', () => {
+		expect(ehBibliotecaSimulacao('p5')).toBe(true);
+		expect(ehBibliotecaSimulacao('q5')).toBe(true);
+		expect(ehBibliotecaSimulacao('processing')).toBe(false);
+		expect(ehAlturaSimulacao(240)).toBe(true);
+		expect(ehAlturaSimulacao(0)).toBe(false);
+		expect(ehAlturaSimulacao(4000)).toBe(false);
+		expect(ehAlturaSimulacao('240')).toBe(false);
 	});
 });
 

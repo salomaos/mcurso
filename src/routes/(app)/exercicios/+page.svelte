@@ -11,18 +11,14 @@
 	type Item = ExercicioUi & { href: string };
 
 	let { data, form } = $props<{ data: PageData; form: unknown }>();
-	let busca = $state('');
 
 	const erro = $derived((form as { erro?: string } | null)?.erro ?? null);
 
-	function filtrar(titulo: string) {
-		return !busca.trim() || titulo.toLowerCase().includes(busca.trim().toLowerCase());
-	}
-
 	const exercicios = $derived(
-		(data.exercicios as ExercicioUi[])
-			.filter((exercicio) => filtrar(exercicio.titulo))
-			.map((exercicio): Item => ({ ...exercicio, href: caminhoExercicio(exercicio.id) }))
+		(data.exercicios as ExercicioUi[]).map((exercicio): Item => ({
+			...exercicio,
+			href: caminhoExercicio(exercicio.id)
+		}))
 	);
 </script>
 
@@ -43,8 +39,6 @@
 	tituloSemUso="Nenhuma aula aponta para esta atividade: o aluno não chega nela por link."
 	tituloEmUso="Remova os links que apontam para esta atividade antes de excluí-la."
 	{erro}
-	{busca}
-	aoBuscar={(valor) => (busca = valor)}
 	itens={exercicios}
 >
 	{#snippet marcadores(exercicio)}

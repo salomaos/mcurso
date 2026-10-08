@@ -57,7 +57,7 @@
 		<hr class="border-base-300 my-2" />
 	</header>
 
-	<ListaBlocos blocos={conteudo.blocos} {apostilaId} {baseHref} />
+	<ListaBlocos blocos={conteudo.blocos} {apostilaId} {baseHref} modo="imprimir" />
 
 	{#if conteudo.blocos.length === 0}
 		<p class="opacity-60 italic">{rotulo} sem conteúdo.</p>

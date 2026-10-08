@@ -192,3 +192,43 @@ test('arrastar aula entre seções muda a seção e a ordem', async ({ page }) =
 	await expect(page.getByRole('heading', { name: 'Parte 1', level: 2 })).toHaveCount(0);
 	await expect(cartoes).toHaveText([/Aula B/, /Aula A/]);
 });
+
+test('arrastar aula continua reordenando na visualização em grade', async ({ page }) => {
+	await entrar(page);
+	const url = await criarApostila(page, `Aulas grade ${Date.now()}`);
+
+	for (const aula of ['Aula A', 'Aula B', 'Aula C']) {
+		await page.goto(url);
+		await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
+		await expect(page).toHaveURL(/\/editar/);
+		await page.getByLabel('Título da aula').fill(aula);
+		await page.getByRole('button', { name: 'Salvar aula' }).click();
+		await expect(page).toHaveURL(/\/aulas\/\d+$/);
+	}
+
+	await page.goto(url);
+	await page.getByRole('button', { name: 'Ver em grade' }).click();
+
+	// Na grade a ordem é lida por linha, então as duas primeiras ficam lado a lado.
+	const cartoes = page.locator('section[data-arrasto-lista] ul > li');
+	await expect(cartoes).toHaveText([/Aula A/, /Aula B/, /Aula C/]);
+	const mesmaLinha = await cartoes.evaluateAll((nos) => {
+		const a = nos[0].getBoundingClientRect();
+		const b = nos[1].getBoundingClientRect();
+		return Math.abs(a.y - b.y) < 4 && b.x > a.x;
+	});
+	expect(mesmaLinha).toBe(true);
+
+	await arrastar(
+		page,
+		page.getByRole('button', { name: 'Mover a aula Aula C' }),
+		cartoes.nth(0),
+		'antes'
+	);
+
+	await expect(cartoes).toHaveText([/Aula C/, /Aula A/, /Aula B/]);
+	await semTransform(page);
+
+	await page.reload();
+	await expect(cartoes).toHaveText([/Aula C/, /Aula A/, /Aula B/]);
+});

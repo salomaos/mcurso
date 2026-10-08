@@ -12,18 +12,14 @@
 	type Item = AnexoUi & { href: string };
 
 	let { data, form } = $props<{ data: PageData; form: unknown }>();
-	let busca = $state('');
 
 	const erro = $derived((form as { erro?: string } | null)?.erro ?? null);
 
-	function filtrar(titulo: string) {
-		return !busca.trim() || titulo.toLowerCase().includes(busca.trim().toLowerCase());
-	}
-
 	const anexos = $derived(
-		(data.anexos as AnexoUi[])
-			.filter((anexo) => filtrar(anexo.titulo))
-			.map((anexo): Item => ({ ...anexo, href: caminhoAnexo(anexo.id) }))
+		(data.anexos as AnexoUi[]).map((anexo): Item => ({
+			...anexo,
+			href: caminhoAnexo(anexo.id)
+		}))
 	);
 </script>
 
@@ -44,8 +40,6 @@
 	tituloSemUso="Nenhuma aula aponta para este anexo: o aluno não consegue chegar nele."
 	tituloEmUso="Remova os links que apontam para este anexo antes de excluí-lo."
 	{erro}
-	{busca}
-	aoBuscar={(valor) => (busca = valor)}
 	itens={anexos}
 >
 	{#snippet acoes(anexo)}
