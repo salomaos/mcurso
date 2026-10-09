@@ -19,6 +19,7 @@
 	import DataBadge from './DataBadge.svelte';
 	import Pagina from './Pagina.svelte';
 	import SeletorVisao from './SeletorVisao.svelte';
+	import { enviando } from '$lib/enviando';
 	import { classeLista, getVisao } from '$lib/visao.svelte';
 
 	type Props = {
@@ -79,9 +80,7 @@
 	let visao = $derived(getVisao());
 
 	function confirmar(item: T) {
-		return (event: SubmitEvent) => {
-			if (!confirm(`Excluir ${singular} "${item.titulo}"?`)) event.preventDefault();
-		};
+		return confirm(`Excluir ${singular} "${item.titulo}"?`);
 	}
 
 	function aoDigitar(event: Event) {
@@ -91,7 +90,7 @@
 
 <Pagina largura="amplo" espaco={4}>
 	<CabecalhoPagina {titulo} subtitulo={descricao}>
-		<form method="POST" action="?/criar">
+		<form method="POST" action="?/criar" use:enviando>
 			<button class="btn btn-primary" type="submit">{rotuloCriar}</button>
 		</form>
 	</CabecalhoPagina>
@@ -170,7 +169,12 @@
 
 				{#snippet acoes()}
 					{@render acoesItem(item)}
-					<form method="POST" action="?/excluir" class="ml-auto" onsubmit={confirmar(item)}>
+					<form
+						method="POST"
+						action="?/excluir"
+						class="ml-auto"
+						use:enviando={{ confirmar: () => confirmar(item) }}
+					>
 						<input type="hidden" name={nomeId} value={item.id} />
 						<button
 							class="btn btn-ghost btn-sm"

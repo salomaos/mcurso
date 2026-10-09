@@ -2,6 +2,7 @@
 	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Campo from '$lib/components/ui/Campo.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
+	import { enviando } from '$lib/enviando';
 	import { TAMANHO_CODIGO } from '$lib/quiz';
 	import type { PageData } from './$types';
 
@@ -23,7 +24,7 @@
 		subtitulo="Digite o código que o professor mostrou na tela."
 	/>
 
-	<form method="POST" action="?/entrar" class="card card-bordered p-6 space-y-4">
+	<form method="POST" action="?/entrar" class="card card-bordered p-6 space-y-4" use:enviando>
 		<Campo rotulo="Código da sala" id="quiz-codigo">
 			<input
 				id="quiz-codigo"

@@ -140,6 +140,7 @@
 			<div>
 				<button
 					class="btn btn-primary btn-lg"
+					class:loading={comandoEmAndamento}
 					type="button"
 					disabled={comandoEmAndamento}
 					onclick={() => comandar('iniciar')}
@@ -207,6 +208,7 @@
 			<div>
 				<button
 					class="btn btn-outline btn-sm"
+					class:loading={comandoEmAndamento}
 					type="button"
 					disabled={comandoEmAndamento}
 					onclick={() => comandar('proxima')}

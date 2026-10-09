@@ -2,6 +2,7 @@
 	import type { ActionData } from './$types';
 	import Campo from '$lib/components/ui/Campo.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
+	import { enviando } from '$lib/enviando';
 
 	let { form } = $props<{ form: ActionData }>();
 </script>
@@ -21,7 +22,7 @@
 		<div class="alert alert-error">{form.erro}</div>
 	{/if}
 
-	<form method="POST" action="?/criar" class="card card-bordered p-4 flex flex-col gap-3">
+	<form method="POST" action="?/criar" class="card card-bordered p-4 flex flex-col gap-3" use:enviando>
 		<Campo rotulo="Título" id="titulo">
 			<input id="titulo" name="titulo" class="input input-bordered" required />
 		</Campo>

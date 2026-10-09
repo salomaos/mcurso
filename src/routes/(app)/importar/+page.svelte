@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import Campo from '$lib/components/ui/Campo.svelte';
 	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
+	import { enviando } from '$lib/enviando';
 	import {
 		EXEMPLO_APOSTILA,
 		EXEMPLOS_IMPORTACAO,
@@ -70,16 +70,14 @@
 	const opcoes = $derived(data.exportaveis[tipoExport]);
 	let idExport = $state<string>('');
 
-	const aoExportar = () => {
-		return ({
-			result
-		}: {
-			result: { type: string; data?: Record<string, unknown> };
-		}) => {
-			if (result.type === 'success' && typeof result.data?.json === 'string') {
-				json = result.data.json;
-			}
-		};
+	const aoResultado = ({
+		result
+	}: {
+		result: { type: string; data?: Record<string, unknown> };
+	}) => {
+		if (result.type === 'success' && typeof result.data?.json === 'string') {
+			json = result.data.json;
+		}
 	};
 
 	function aoTrocarTipo() {
@@ -101,7 +99,7 @@
 		<div class="alert alert-error">{form.erro}</div>
 	{/if}
 
-	<form method="POST" action="?/criar" use:enhance class="space-y-4">
+	<form method="POST" action="?/criar" use:enviando class="space-y-4">
 		<Campo rotulo="JSON do conteúdo" id="json" dica={`Máx. ${LIMITES_IMPORTACAO.maxJsonBytes / 1024} KB`}>
 			<textarea
 				id="json"
@@ -177,7 +175,12 @@
 			para guardar, ajustar ou reimportar.
 		</p>
 
-		<form method="POST" action="?/exportar" use:enhance={aoExportar} class="flex flex-wrap items-end gap-2">
+		<form
+			method="POST"
+			action="?/exportar"
+			use:enviando={{ aoResultado }}
+			class="flex flex-wrap items-end gap-2"
+		>
 			<Campo rotulo="Tipo" id="tipo-exportar">
 				<select
 					id="tipo-exportar"

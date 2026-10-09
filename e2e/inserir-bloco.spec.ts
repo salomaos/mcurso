@@ -177,7 +177,7 @@ test('a faixa do topo cria o primeiro bloco, abaixo do título e da descrição'
 	await page.getByRole('button', { name: 'Salvar aula' }).click();
 	await expect(page).toHaveURL(/\/aulas\/\d+$/);
 	await page.getByRole('link', { name: 'Editar' }).click();
-	await expect(ordem(page)).resolves.toEqual([
+	await expect.poll(() => ordem(page)).toEqual([
 		'Mover bloco 1: Título',
 		'Mover bloco 2: Tabela'
 	]);

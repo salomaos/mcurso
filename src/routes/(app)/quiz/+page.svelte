@@ -4,6 +4,7 @@
 	import DataBadge from '$lib/components/ui/DataBadge.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
 	import SeletorVisao from '$lib/components/ui/SeletorVisao.svelte';
+	import { enviando } from '$lib/enviando';
 	import { caminhoEditarQuiz, type QuizUi } from '$lib/quiz';
 	import { classeLista, getVisao } from '$lib/visao.svelte';
 	import type { PageData } from './$types';
@@ -26,9 +27,7 @@
 	}
 
 	function confirmar(titulo: string) {
-		return (event: SubmitEvent) => {
-			if (!confirm(`Excluir o quiz "${titulo}"?`)) event.preventDefault();
-		};
+		return confirm(`Excluir o quiz "${titulo}"?`);
 	}
 </script>
 
@@ -41,7 +40,7 @@
 		titulo="Quiz"
 		subtitulo="Perguntas de múltipla escolha no estilo Kahoot: abre a sala, o aluno entra com o código e a pontuação aparece ao vivo."
 	>
-		<form method="POST" action="?/criar">
+		<form method="POST" action="?/criar" use:enviando>
 			<button class="btn btn-primary" type="submit">+ Novo quiz</button>
 		</form>
 	</CabecalhoPagina>
@@ -105,7 +104,7 @@
 
 				{#snippet acoes()}
 					<a href={caminhoEditarQuiz(quiz.id)} class="btn btn-outline btn-sm">Editar</a>
-					<form method="POST" action="?/iniciar">
+					<form method="POST" action="?/iniciar" use:enviando>
 						<input type="hidden" name="quizId" value={quiz.id} />
 						<button
 							class="btn btn-primary btn-sm"
@@ -116,7 +115,12 @@
 							Iniciar
 						</button>
 					</form>
-					<form method="POST" action="?/excluir" class="ml-auto" onsubmit={confirmar(quiz.titulo)}>
+					<form
+						method="POST"
+						action="?/excluir"
+						class="ml-auto"
+						use:enviando={{ confirmar: () => confirmar(quiz.titulo) }}
+					>
 						<input type="hidden" name="quizId" value={quiz.id} />
 						<button class="btn btn-ghost btn-sm" type="submit">Excluir</button>
 					</form>

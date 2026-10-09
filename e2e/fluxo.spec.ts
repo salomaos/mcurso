@@ -394,10 +394,12 @@ test('select de seção agrupa a aula e a seção criada no editor é salva', as
 	await page.goto('/login');
 	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
+	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
 	await page.goto('/apostilas/nova');
 	await page.getByLabel('Título').fill(`Agrupamento E2E ${Date.now()}`);
 	await page.getByRole('button', { name: 'Criar' }).click();
+	await expect(page).toHaveURL(/\/apostilas\/\d+/);
 	const apostilaUrl = new URL(page.url()).pathname;
 	await page.getByLabel('Nome da nova seção').fill('Parte 1');
 	await page.getByRole('button', { name: '+ Criar seção' }).click();
@@ -423,6 +425,7 @@ test('trocar tipo de bloco com conteúdo pede confirmação', async ({ page }) =
 	await page.goto('/login');
 	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
+	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
 	await page.goto('/apostilas/nova');
 	await page.getByLabel('Título').fill(`Tipo E2E ${Date.now()}`);
@@ -469,6 +472,7 @@ test('grid de criação adiciona o bloco escolhido logo abaixo do selecionado', 
 	await page.goto('/login');
 	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
+	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 
 	await page.goto('/apostilas/nova');
 	await page.getByLabel('Título').fill(`Grid E2E ${Date.now()}`);

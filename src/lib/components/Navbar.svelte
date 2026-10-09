@@ -23,7 +23,7 @@
 				<a href="/anexos" class="btn btn-ghost btn-sm">Anexos</a>
 				<a href="/exercicios" class="btn btn-ghost btn-sm">Atividades</a>
 				<a href="/quiz" class="btn btn-ghost btn-sm">Quiz</a>
-				<a href="/importar" class="btn btn-ghost btn-sm">Importar</a>
+				<a href="/importar" class="btn btn-secondary btn-sm">Importar</a>
 			</nav>
 		{:else}
 			<!-- Visão do aluno: entra na sala sem decorar a URL. -->

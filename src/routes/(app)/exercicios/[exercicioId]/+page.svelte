@@ -7,6 +7,7 @@
 	import Campo from '$lib/components/ui/Campo.svelte';
 	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
+	import { enviando } from '$lib/enviando';
 	import { guardarNome, lerNome } from '$lib/nome-aluno';
 	import {
 	caminhoExercicio,
@@ -175,7 +176,7 @@
 		{#if !temPerguntas}
 			<div class="alert alert-info">Esta atividade ainda não tem perguntas.</div>
 		{:else}
-			<form method="POST" action="?/responder" class="space-y-4">
+			<form method="POST" action="?/responder" class="space-y-4" use:enviando>
 				<Campo rotulo="Seu nome" id="nome-aluno" dica="fica só neste navegador, até fechar">
 					<input
 						id="nome-aluno"

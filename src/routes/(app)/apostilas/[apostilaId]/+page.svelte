@@ -7,6 +7,7 @@ import { invalidateAll } from '$app/navigation';
 	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
 	import SeletorVisao from '$lib/components/ui/SeletorVisao.svelte';
+	import { enviando } from '$lib/enviando';
 	import { classeLista, getVisao } from '$lib/visao.svelte';
 	import type { PageData } from './$types';
 
@@ -78,22 +79,28 @@ import { invalidateAll } from '$app/navigation';
 		nomeSecao = '';
 	}
 
-	let erroOrdem = $state('');
+let erroOrdem = $state('');
+	let salvandoOrdem = $state(false);
 
 	async function salvarOrdem(acao: string, dados: unknown) {
-		const resposta = await fetch(acao, {
-			method: 'POST',
-			headers: { 'content-type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({ dados: JSON.stringify(dados) })
-		});
+		salvandoOrdem = true;
+		try {
+			const resposta = await fetch(acao, {
+				method: 'POST',
+				headers: { 'content-type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams({ dados: JSON.stringify(dados) })
+			});
 
-		if (!resposta.ok) {
-			const retorno = (await resposta.json().catch(() => null)) as {
-				data?: { erro?: string };
-			} | null;
-			erroOrdem = retorno?.data?.erro ?? 'Não foi possível salvar a nova ordem.';
-		} else {
-			erroOrdem = '';
+			if (!resposta.ok) {
+				const retorno = (await resposta.json().catch(() => null)) as {
+					data?: { erro?: string };
+				} | null;
+				erroOrdem = retorno?.data?.erro ?? 'Não foi possível salvar a nova ordem.';
+			} else {
+				erroOrdem = '';
+			}
+		} finally {
+			salvandoOrdem = false;
 		}
 
 		await invalidateAll();
@@ -141,7 +148,12 @@ import { invalidateAll } from '$app/navigation';
 		<span class="badge badge-outline">Apostila #{data.apostila.id}</span>
 
 		{#if data.user}
-			<form method="POST" action="?/excluir" class="ml-auto" onsubmit={confirmarApostila}>
+			<form
+				method="POST"
+				action="?/excluir"
+				class="ml-auto"
+				use:enviando={{ confirmar: confirmarApostila }}
+			>
 				<button class="btn btn-error btn-ghost btn-sm" type="submit">Excluir apostila</button>
 			</form>
 		{/if}
@@ -151,13 +163,17 @@ import { invalidateAll } from '$app/navigation';
 		<div class="alert alert-error">{form.erro}</div>
 	{/if}
 
-	{#if erroOrdem}
-		<div class="alert alert-error">{erroOrdem}</div>
-	{/if}
+{#if erroOrdem}
+			<div class="alert alert-error">{erroOrdem}</div>
+		{/if}
+
+		{#if salvandoOrdem}
+			<div class="alert alert-info py-1 text-sm">Salvando a nova ordem...</div>
+		{/if}
 
 
 	{#if data.user}
-		<form method="POST" action="?/renomear" class="space-y-2">
+		<form method="POST" action="?/renomear" class="space-y-2" use:enviando>
 			<header class="space-y-1">
 				<TextoEditavel
 					texto={titulo}
@@ -219,10 +235,11 @@ import { invalidateAll } from '$app/navigation';
 						data-arrasto-item={secao.id}
 					>
 						{#if editandoSecao === secao.id}
-							<form
+<form
 								method="POST"
 								action="?/renomearSecao"
 								class="flex flex-1 items-center gap-2"
+								use:enviando={{ sucesso: cancelarRenomear }}
 							>
 								<input type="hidden" name="secaoId" value={secao.id} />
 								<!-- svelte-ignore a11y_autofocus -->
@@ -271,10 +288,10 @@ import { invalidateAll } from '$app/navigation';
 							>
 								✎
 							</button>
-							<form
+<form
 								method="POST"
 								action="?/excluirSecao"
-								onsubmit={() => confirmarSecao(secao.nome, total)}
+								use:enviando={{ confirmar: () => confirmarSecao(secao.nome, total) }}
 							>
 								<input type="hidden" name="secaoId" value={secao.id} />
 								<button
@@ -291,7 +308,12 @@ import { invalidateAll } from '$app/navigation';
 				{/each}
 			</ul>
 
-			<form method="POST" action="?/criarSecao" class="flex flex-wrap items-center gap-2">
+			<form
+				method="POST"
+				action="?/criarSecao"
+				class="flex flex-wrap items-center gap-2"
+				use:enviando
+			>
 				<input
 					class="input input-sm input-bordered flex-1"
 					type="text"
@@ -392,7 +414,7 @@ import { invalidateAll } from '$app/navigation';
 									<form
 										method="POST"
 										action="?/excluirAula"
-										onsubmit={() => confirmar(aula.titulo)}
+										use:enviando={{ confirmar: () => confirmar(aula.titulo) }}
 									>
 										<input type="hidden" name="aulaId" value={aula.id} />
 										<button class="btn btn-error btn-ghost btn-xs">Excluir</button>
@@ -416,7 +438,7 @@ import { invalidateAll } from '$app/navigation';
 		{/if}
 
 		{#if data.user}
-			<form method="POST" action="?/criarAula">
+			<form method="POST" action="?/criarAula" use:enviando>
 				<button class="btn btn-outline w-full border-dashed" type="submit">
 					+ Nova aula/encontro
 				</button>

@@ -11,6 +11,7 @@
 	let agora = $state(Date.now());
 	let erro = $state<string | null>(null);
 	let enviando = $state(false);
+	let alternativaEnviada = $state<number | null>(null);
 	let encerrada = $state(false);
 
 	const LETRAS = ['A', 'B', 'C', 'D'];
@@ -42,6 +43,7 @@
 	async function responder(indice: number) {
 		if (enviando || estado.status !== 'pergunta' || estado.jogador.respondeu) return;
 		enviando = true;
+		alternativaEnviada = indice;
 		try {
 			await enviarAcao(estado.codigo, { acao: 'responder', jogadorId: data.jogadorId, indice });
 			await atualizar();
@@ -49,6 +51,7 @@
 			erro = (causa as Error).message;
 		} finally {
 			enviando = false;
+			alternativaEnviada = null;
 		}
 	}
 
@@ -116,6 +119,7 @@
 						} ${
 							estado.jogador.escolhida === indice ? 'ring-4 ring-base-content/40' : ''
 						}`}
+						class:loading={alternativaEnviada === indice}
 						type="button"
 						disabled={estado.status !== 'pergunta' || estado.jogador.respondeu || enviando}
 						onclick={() => responder(indice)}

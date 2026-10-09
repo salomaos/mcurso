@@ -3,6 +3,7 @@
 	import BarraAcoes from './ui/BarraAcoes.svelte';
 	import Campo from './ui/Campo.svelte';
 	import Pagina from './ui/Pagina.svelte';
+	import { enviando } from '$lib/enviando';
 	import {
 		criarPergunta,
 		EXEMPLO_IMPORTACAO,
@@ -137,7 +138,7 @@
 		<div class="alert alert-error" role="alert">{erro}</div>
 	{/if}
 
-	<form method="POST" action="?/salvar" class="space-y-4">
+	<form method="POST" action="?/salvar" class="space-y-4" use:enviando>
 		<header class="card card-bordered p-4 space-y-3">
 			<p class="text-sm opacity-60">
 				Monte as perguntas abaixo ou cole um JSON pronto (a estrutura que a IA costuma devolver) e o

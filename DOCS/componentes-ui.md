@@ -796,3 +796,41 @@ Quarto conteúdo solto (`/quiz`, estilo Kahoot) com sala ao vivo por polling. `p
 - **Nenhuma classe local de CSS**: a sala, o placar e o ranking usam só classes da lib
   (`card`, `btn`, `badge`, `alert`, `progress`) e utilitários.
 
+---
+
+## Rodada 09/10/2026 — feedback de envio padronizado (`use:enviando`)
+
+Pedido pontual ("padronizar tudo"): toda ação de escrita dá sinal visual de que está rodando,
+sem reload. `pnpm test` 144/144, `pnpm check` 0/0, E2E 79/79, `pnpm build` ok.
+
+- **`src/lib/enviando.ts` (novo)**: Svelte action `use:enviando`. **Não é componente** — é uma
+  action, então fica em `src/lib/`, não em `components/ui/`. Embute o `enhance` e, enquanto a
+  action roda, marca todos os `button[type="submit"]` do form com `disabled` + `btn loading`
+  (classe da lib) + `aria-busy`. Ao voltar o resultado, solta os botões e trata o `ActionResult`.
+- **Opções**: `confirmar?: () => boolean` (devolve `false` para cancelar o envio),
+  `sucesso?: (resultado) => void` e `aoResultado?: (ctx) => void`.
+- **20 usos, 0 `use:enhance` e 0 `onsubmit` no app inteiro**: login, criar apostila, salvar
+  conteúdo/quiz, os 7 forms do painel da apostila, `PainelSoltos` (criar + excluir), quiz
+  (criar/iniciar/excluir), jogar, responder atividade e importar (criar + exportar).
+
+Decisões e armadilhas:
+
+1. **O `confirm()` de exclusão passa por `confirmar`, não por `onsubmit`.** O `handle_submit`
+   do `enhance` sempre chama `event.preventDefault()` e não olha `event.defaultPrevented`; como
+   o listener direto dele roda **antes** do `onsubmit` delegado do Svelte, um confirm ali rodaria
+   com o fetch já em voo. `confirmar` devolvendo `false` chama `cancel()` (sem fetch, sem `ligar`).
+2. **`invalidateAll()` antes do `applyAction` no sucesso.** É o que o `fallback_callback` do
+   `enhance` faz (reseta o form + invalida os loads). Esquecer isso foi o bug que derrubou 8 E2E:
+   o POST voltava **200**, o botão saía do `loading`, mas as listas de `data` (anexos, seções,
+   aulas) nunca recarregavam e a tela ficava velha.
+3. **O `enhance` torna o envio assíncrono — E2E de navegação precisa esperar.** Quem clicava
+   "Entrar"/"Criar" e já fazia `page.goto` corria antes do `Set-Cookie`/redirect (caía no
+   `/login`) ou lia a URL antiga (`apostilaUrl` = `/apostilas/nova`). Corrigido em
+   `e2e/fluxo.spec.ts` (espera pelo heading "Apostilas" e pela URL `\/apostilas\/\d+`) e em
+   `e2e/inserir-bloco.spec.ts` (`expect.poll` no lugar de `evaluateAll`, que não auto-espera,
+   logo depois da navegação para `/editar`).
+4. **`aoResultado` trata o resultado sem `applyAction`**, e só existe no exportar do `/importar`
+   — preserva o comportamento antigo de não mexer nos selects. Feedback de fetch fora de form
+   (salvar a ordem, host e jogador do quiz) usa estados locais: `salvandoOrdem`,
+   `comandoEmAndamento` e `alternativaEnviada`.
+

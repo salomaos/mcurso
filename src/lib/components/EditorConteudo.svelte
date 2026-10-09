@@ -6,6 +6,7 @@
 	import Campo from './ui/Campo.svelte';
 	import Pagina from './ui/Pagina.svelte';
 	import { blocosPendentes } from '$lib/blocos-pendentes';
+	import { enviando } from '$lib/enviando';
 	import type { Snippet } from 'svelte';
 	import type { Blocos, SecaoUi } from '$lib/blocks';
 	import { mesmoNomeSecao } from '$lib/blocks';
@@ -158,7 +159,7 @@
 		</div>
 	{/if}
 
-	<form method="POST" action="?/salvar" class="space-y-4">
+	<form method="POST" action="?/salvar" class="space-y-4" use:enviando>
 		<header class="card card-bordered p-4 space-y-2">
 			{#if modo === 'editar'}
 				<p class="text-sm opacity-60">
