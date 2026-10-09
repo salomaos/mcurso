@@ -5,6 +5,7 @@
 	import CabecalhoPagina from './ui/CabecalhoPagina.svelte';
 	import Campo from './ui/Campo.svelte';
 	import Pagina from './ui/Pagina.svelte';
+	import { blocosPendentes } from '$lib/blocos-pendentes';
 	import type { Snippet } from 'svelte';
 	import type { Blocos, SecaoUi } from '$lib/blocks';
 	import { mesmoNomeSecao } from '$lib/blocks';
@@ -76,6 +77,10 @@
 	let criandoSecao = $state(false);
 	let blocos = $state<Blocos>(inicial.blocos);
 
+	// Blocos tecnicamente válidos mas sem cumprir o papel (vazios/sem alvo):
+	// aviso só para o professor, e o aluno nunca vê (o aviso some em leitura).
+	const pendentes = $derived(blocosPendentes(blocos));
+
 	const nomeSecaoAtual = $derived(
 		novaSecao.trim()
 			? `${novaSecao.trim()} (nova)`
@@ -139,6 +144,18 @@
 
 	{#if erro}
 		<div class="alert alert-error">{erro}</div>
+	{/if}
+
+	{#if modo === 'editar' && pendentes.length > 0}
+		<div class="alert alert-warning py-2 text-sm">
+			<ul class="list-disc ml-4 space-y-1">
+				{#each pendentes as pendencia, i (i)}
+					<li>
+						Bloco {pendencia.indice} ({pendencia.rotulo}): {pendencia.motivo}
+					</li>
+				{/each}
+			</ul>
+		</div>
 	{/if}
 
 	<form method="POST" action="?/salvar" class="space-y-4">

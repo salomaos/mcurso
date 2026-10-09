@@ -19,6 +19,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 - **Anexos soltos** em `/anexos`: lista com busca, indicação de em quais aulas cada anexo é usado (links reversos) e exclusão bloqueada enquanto houver link apontando para ele.
 - **Atividades de exercício** em `/exercicios`: montadas com os mesmos blocos, com lista de uso, aviso quando estão sem perguntas e exclusão bloqueada em uso.
 - **Quiz estilo Kahoot** em `/quiz`: livro de perguntas de múltipla escolha com **sala ao vivo** (polling ~1s). O professor abre a sala, projeta o código de 6 caracteres e controla as fases; o aluno entra pelo código numa página pública e responde; o ranking aparece ao vivo e no fim. Só o quiz (título + perguntas) é persistido — partida, jogadores e ranking são efêmeros, guardados em memória.
+- **Importação por JSON colado de IA** em `/importar`: cola o JSON (ou clica em **"Ver exemplos completos"** e copia um exemplo pronto por tipo — apostila/anexo/atividade/quiz, com os blocos de exemplo possíveis) e o app cria o conteúdo (apostila **sempre cria nova**; bloco vazio é mantido e avisado). O mesmo JSON vira **export round-trip**: pega o conteúdo existente, devolve no formato do importar e dá para guardar, ajustar e reimportar. O contrato está em `DOCS/importacao-ia.md`.
 - Blocos de conteúdo: **texto em markdown** (negrito, itálico, listas, citação, link, código, títulos), **título de H1 a H6** (nasce em H1; nível por botões na camada de configuração do bloco, com tooltip "Título N"), código (com `highlight.js`), **diagrama Mermaid** (com tema por bloco, escolhível no editor), imagem (com upload), **link** (aula/anexo/atividade/arquivo externo), **tabela**, **fórmula KaTeX**, **exercício** (de uma ou várias respostas corretas), **dissertativa** (resposta aberta) e **simulação** (código p5/q5 rodando no navegador).
 - Editor de blocos com adicionar (grid de botões no fim do canvas), remover, reordenar e mudar tipo, tudo salvo como JSON na coluna `blocos`. No bloco de texto a escrita é markdown direto, com barra de formatação (negrito, itálico, código, lista, lista numerada, citação, linha horizontal e link), atalhos Ctrl+B/I/K e prévia formatada fora da edição (clicar nela volta a editar).
 - **Drag and drop** para ordenar blocos, aulas e seções, na lista ou na grade.
@@ -42,8 +43,8 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 121/121 (10 arquivos) |
-| E2E (as 12 specs da suíte) | 75/75 |
+| `pnpm test` | 144/144 (12 arquivos) |
+| E2E (as 13 specs da suíte) | 79/79 |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
 
@@ -90,7 +91,7 @@ pnpm dev
 | `pnpm db:migrate` | aplica as migrations no banco (o app também faz isso no boot) |
 
 > **E2E**: cada execução recria `data/e2e.db` e `data/e2e-uploads` (o banco de dev nunca é tocado) e sobe o app na porta 5179. Passe sempre as specs — `playwright test` sem argumento quebra na coleta, porque `e2e/repro-bugs.spec.ts` e `e2e/repro-tabela-exercicio.spec.ts` são arquivos de repro com sintaxe propositalmente inválida e não estão no `testIgnore`:
-> `pnpm exec playwright test e2e/apresentacao.spec.ts e2e/arrastar.spec.ts e2e/fluxo.spec.ts e2e/tema.spec.ts e2e/anexos.spec.ts e2e/exercicios.spec.ts e2e/inserir-bloco.spec.ts e2e/markdown.spec.ts e2e/simulacao.spec.ts e2e/visao.spec.ts`
+> `pnpm exec playwright test e2e/apresentacao.spec.ts e2e/arrastar.spec.ts e2e/busca.spec.ts e2e/fluxo.spec.ts e2e/tema.spec.ts e2e/anexos.spec.ts e2e/exercicios.spec.ts e2e/inserir-bloco.spec.ts e2e/markdown.spec.ts e2e/simulacao.spec.ts e2e/visao.spec.ts e2e/quiz.spec.ts e2e/importacao.spec.ts`
 
 ## Estrutura
 
@@ -158,8 +159,8 @@ O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Qu
 
 ## Testes
 
-- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app) e `src/lib/visao.test.ts` (preferência lista/grade).
-- **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão) e `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto).
+- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app), `src/lib/visao.test.ts` (preferência lista/grade), `src/lib/quiz.test.ts` (código do quiz, pontuação e importação) e `src/lib/importar.test.ts` + `src/lib/blocos-pendentes.test.ts` (importação por JSON e pendências mantidas).
+- **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão), `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto), `e2e/busca.spec.ts` (busca por título nas listagens), `e2e/quiz.spec.ts` (sala ao vivo: professor + aluno, encerrar/sair e exportar perguntas) e `e2e/importacao.spec.ts` (importar por JSON, pendência de bloco vazio, export round-trip e popup de exemplo por tipo).
 - `e2e/repro-*.spec.ts` não fazem parte da suíte: são arquivos de repro propositalmente inválidos, usados para demonstrar falha e não coletados (veja a nota dos scripts).
 
 ---
