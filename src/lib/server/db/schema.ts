@@ -82,3 +82,21 @@ export const exercicios = sqliteTable('exercicios', {
 		.notNull()
 		.$defaultFn(() => new Date())
 });
+
+// Quiz estilo Kahoot: as perguntas vivem em JSON na coluna `perguntas`. As
+// partidas (sala, jogadores, respostas e ranking) **não** são gravadas: só
+// existem em memória enquanto a sala dura (ver `$lib/server/quiz-sala`).
+export const quizzes = sqliteTable('quizzes', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	titulo: text('titulo').notNull(),
+	descricao: text('descricao'),
+	perguntas: text('perguntas', { mode: 'json' })
+		.notNull()
+		.$defaultFn(() => []),
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});

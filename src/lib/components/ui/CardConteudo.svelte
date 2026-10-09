@@ -70,7 +70,7 @@
 		<div class={lista ? 'contents' : 'flex items-center gap-2'}>{@render alca()}</div>
 	{/if}
 
-	<div class={`min-w-0 flex-1 ${lista ? 'space-y-2' : 'flex flex-col gap-2'}`}>
+	<div class={`min-w-0 w-full flex-1 ${lista ? 'space-y-2' : 'flex flex-col gap-2'}`}>
 		<div class="flex flex-wrap items-start justify-between gap-2">
 			<div class="min-w-0 space-y-1">
 				{#if linkInteiro}

@@ -778,3 +778,21 @@ Decisões e armadilhas:
    o teste usa token `Date.now()` na criação em vez de contar cartões globais.
 5. **O `ApostilaComTotal` do load root** precisou de import de tipo na home: sem anotação o
    `svelte-check` acusava implicit any no `.filter()`.
+
+---
+
+## Rodada 08/10/2026 — Quiz (novo conteúdo solto)
+
+Quarto conteúdo solto (`/quiz`, estilo Kahoot) com sala ao vivo por polling. `pnpm test`
+121/121, E2E 75/75, `pnpm check` 0/0, `pnpm build` ok, `pnpm db:generate` sem mudança.
+
+- **Componente de domínio novo: `src/lib/components/EditorQuiz.svelte`** (fica plano, ao lado de
+  `EditorConteudo`/`VisualizarConteudo`). Reaproveita `Pagina`, `BarraAcoes` e `Campo`; não é
+  wrapper de design system. Usa a cópia inicial por `valorInicial()` (mesmo padrão do
+  `EditorConteudo`) para silenciar o `state_referenced_locally` do Svelte 5.
+- **Sem componente novo para alternativas**: host e aluno são só 2 ocorrências (o limiar do
+  plano é 3+), então o markup fica inline nas páginas, com as cores por `btn-error/info/warning/success`
+  (classes da lib, não hex) e o gabarito destacado só na revelação.
+- **Nenhuma classe local de CSS**: a sala, o placar e o ranking usam só classes da lib
+  (`card`, `btn`, `badge`, `alert`, `progress`) e utilitários.
+

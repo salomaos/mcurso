@@ -22,7 +22,12 @@
 				<a href="/" class="btn btn-ghost btn-sm">Apostilas</a>
 				<a href="/anexos" class="btn btn-ghost btn-sm">Anexos</a>
 				<a href="/exercicios" class="btn btn-ghost btn-sm">Atividades</a>
-				<a href="/apostilas/nova" class="btn btn-ghost btn-sm">+ Nova apostila</a>
+				<a href="/quiz" class="btn btn-ghost btn-sm">Quiz</a>
+			</nav>
+		{:else}
+			<!-- Visão do aluno: entra na sala sem decorar a URL. -->
+			<nav class="flex items-center gap-1">
+				<a href="/quiz/jogar" class="btn btn-ghost btn-sm">Entrar no quiz</a>
 			</nav>
 		{/if}
 	</div>

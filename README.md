@@ -18,6 +18,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 - Aulas/encontros dentro da apostila, ordenadas e agrupadas por **seção** (catálogo por apostila, com CRUD e reordenação).
 - **Anexos soltos** em `/anexos`: lista com busca, indicação de em quais aulas cada anexo é usado (links reversos) e exclusão bloqueada enquanto houver link apontando para ele.
 - **Atividades de exercício** em `/exercicios`: montadas com os mesmos blocos, com lista de uso, aviso quando estão sem perguntas e exclusão bloqueada em uso.
+- **Quiz estilo Kahoot** em `/quiz`: livro de perguntas de múltipla escolha com **sala ao vivo** (polling ~1s). O professor abre a sala, projeta o código de 6 caracteres e controla as fases; o aluno entra pelo código numa página pública e responde; o ranking aparece ao vivo e no fim. Só o quiz (título + perguntas) é persistido — partida, jogadores e ranking são efêmeros, guardados em memória.
 - Blocos de conteúdo: **texto em markdown** (negrito, itálico, listas, citação, link, código, títulos), **título de H1 a H6** (nasce em H1; nível por botões na camada de configuração do bloco, com tooltip "Título N"), código (com `highlight.js`), **diagrama Mermaid** (com tema por bloco, escolhível no editor), imagem (com upload), **link** (aula/anexo/atividade/arquivo externo), **tabela**, **fórmula KaTeX**, **exercício** (de uma ou várias respostas corretas), **dissertativa** (resposta aberta) e **simulação** (código p5/q5 rodando no navegador).
 - Editor de blocos com adicionar (grid de botões no fim do canvas), remover, reordenar e mudar tipo, tudo salvo como JSON na coluna `blocos`. No bloco de texto a escrita é markdown direto, com barra de formatação (negrito, itálico, código, lista, lista numerada, citação, linha horizontal e link), atalhos Ctrl+B/I/K e prévia formatada fora da edição (clicar nela volta a editar).
 - **Drag and drop** para ordenar blocos, aulas e seções, na lista ou na grade.
@@ -41,8 +42,8 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 105/105 (9 arquivos) |
-| E2E (as 10 specs da suíte) | 65/65 |
+| `pnpm test` | 121/121 (10 arquivos) |
+| E2E (as 12 specs da suíte) | 75/75 |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
 
