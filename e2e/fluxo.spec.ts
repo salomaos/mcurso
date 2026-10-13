@@ -481,7 +481,7 @@ test('grid de criação adiciona o bloco escolhido logo abaixo do selecionado', 
 	await expect(page).toHaveURL(/\/editar/);
 
 	const grade = page.getByRole('group', { name: 'Adicionar bloco' });
-	await expect(grade.getByRole('button')).toHaveCount(11);
+	await expect(grade.getByRole('button')).toHaveCount(12);
 	await expect(page.getByLabel('Tipo do novo bloco')).toHaveCount(0);
 
 	const posicoes = async () =>

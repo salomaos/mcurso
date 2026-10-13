@@ -43,8 +43,8 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 144/144 (12 arquivos) |
-| E2E (as 13 specs da suíte) | 79/79 |
+| `pnpm test` | 148/148 (12 arquivos) |
+| E2E (as 14 specs da suíte) | 85/85 |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
 

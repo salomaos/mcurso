@@ -59,6 +59,10 @@ function motivoDoBloco(bloco: Bloco): string | null {
 			return bloco.rotulo.trim() ? null : 'sem rótulo';
 		case 'simulacao':
 			return bloco.codigo.trim() ? null : 'código vazio';
+		case 'html':
+			// Só é pendência se os três painéis estiverem vazios: um bloco de CSS
+			// puro (ou só de marcação) cumpre o papel.
+			return bloco.html.trim() || bloco.css.trim() || bloco.js.trim() ? null : 'código vazio';
 	}
 }
 
@@ -135,6 +139,11 @@ export function pendenciasDeImportacao(blocos: ImportacaoBloco[]): Pendencia[] {
 				break;
 			case 'simulacao':
 				if (!ehTexto(bloco.codigo)) acrescentar(posicao, tipo, 'código vazio');
+				break;
+			case 'html':
+				if (!ehTexto(bloco.html) && !ehTexto(bloco.css) && !ehTexto(bloco.js)) {
+					acrescentar(posicao, tipo, 'código vazio');
+				}
 				break;
 		}
 	});

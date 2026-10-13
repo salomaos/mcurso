@@ -111,7 +111,7 @@ describe('resumoImportacao', () => {
 			rotuloTipo: 'Apostila',
 			secoes: 2,
 			aulas: 3,
-			blocos: 16,
+			blocos: 17,
 			desconhecidos: 0,
 			pendencias: []
 		});

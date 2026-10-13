@@ -100,6 +100,42 @@ export type BlocoSimulacao = {
 	altura: number;
 };
 
+// Bloco HTML: o professor passa markup, estilo e script, e o conjunto roda no
+// navegador do aluno dentro da mesma iframe sandboxed da simulação (mesma origem
+// opaca, mesmo dublê de armazenamento — ver `$lib/casca-sandbox.ts`). Separa os
+// três painéis como no CodePen; `<script>` (inline ou via `src`/CDN) no painel
+// HTML roda de verdade — a casca recria os nós depois do `innerHTML`.
+export type BlocoHtml = {
+	id: string;
+	tipo: 'html';
+	html: string;
+	css: string;
+	js: string;
+	altura: number;
+};
+
+// Exemplo do bloco novo: HTML + CSS + JS de verdade, não placeholder. O layout
+// não fixa tamanho (a caixa é do professor) e o clique prova que os três painéis
+// conversam.
+const EXEMPLO_HTML_MARKUP = `<div class="cartao">
+  <h2>Olá, HTML!</h2>
+  <p>Aperte o botão.</p>
+  <button id="botao">Clique aqui</button>
+  <p id="saida"></p>
+</div>`;
+
+const EXEMPLO_HTML_CSS = `body { font-family: system-ui, sans-serif; display: grid; place-items: center; }
+.cartao { text-align: center; padding: 1.5rem; border: 1px solid #d4d4d4; border-radius: 12px; }
+button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }`;
+
+const EXEMPLO_HTML_JS = `const botao = document.getElementById('botao');
+const saida = document.getElementById('saida');
+botao.addEventListener('click', () => {
+  saida.textContent = 'Você clicou!';
+});`;
+
+export const EXEMPLOS_HTML = { html: EXEMPLO_HTML_MARKUP, css: EXEMPLO_HTML_CSS, js: EXEMPLO_HTML_JS };
+
 // Bibliotecas aceitas. As duas rodam em modo global (`setup`/`draw` no `window` da
 // iframe), que é o jeito que o professor escreve; a escolha muda o arquivo servido
 // por `/lib` e o código de exemplo do bloco novo.
@@ -202,6 +238,23 @@ export function ehAlturaSimulacao(valor: unknown): valor is number {
 	);
 }
 
+// Caixa do bloco HTML: mesma faixa da simulação, mas com padrão próprio (o de lá
+// foi escolhido para o canvas do p5 e é baixo demais para mostrar markup).
+const ALTURA_HTML_PADRAO = 300;
+const ALTURA_HTML_MINIMA = 120;
+const ALTURA_HTML_MAXIMA = 900;
+
+export const ALTURAS_HTML = { minima: ALTURA_HTML_MINIMA, maxima: ALTURA_HTML_MAXIMA };
+
+export function ehAlturaHtml(valor: unknown): valor is number {
+	return (
+		typeof valor === 'number' &&
+		Number.isFinite(valor) &&
+		valor >= ALTURA_HTML_MINIMA &&
+		valor <= ALTURA_HTML_MAXIMA
+	);
+}
+
 export type Bloco =
 	| BlocoTexto
 	| BlocoTitulo
@@ -213,7 +266,8 @@ export type Bloco =
 	| BlocoFormula
 	| BlocoExercicio
 	| BlocoDissertativa
-	| BlocoSimulacao;
+	| BlocoSimulacao
+	| BlocoHtml;
 export type Blocos = Bloco[];
 
 export function ehMultiplaEscolha(bloco: { selecao?: unknown }): boolean {
@@ -269,6 +323,15 @@ export function criarBloco(tipo: Bloco['tipo']): Bloco {
 			const exemplo = BIBLIOTECAS_SIMULACAO.find((item) => item.valor === biblioteca)?.exemplo;
 			return { id, tipo, biblioteca, codigo: exemplo ?? '', altura: ALTURA_SIMULACAO_PADRAO };
 		}
+		case 'html':
+			return {
+				id,
+				tipo,
+				html: EXEMPLO_HTML_MARKUP,
+				css: EXEMPLO_HTML_CSS,
+				js: EXEMPLO_HTML_JS,
+				altura: ALTURA_HTML_PADRAO
+			};
 	}
 }
 
@@ -283,7 +346,8 @@ export const TIPOS_BLOCO = [
 	{ id: 'formula', rotulo: 'Fórmula', icone: 'formula' },
 	{ id: 'exercicio', rotulo: 'Exercício', icone: 'exercicio' },
 	{ id: 'dissertativa', rotulo: 'Dissertativa', icone: 'dissertativa' },
-	{ id: 'simulacao', rotulo: 'Simulação', icone: 'simulacao' }
+	{ id: 'simulacao', rotulo: 'Simulação', icone: 'simulacao' },
+	{ id: 'html', rotulo: 'HTML', icone: 'html' }
 ] as const satisfies readonly { id: Bloco['tipo']; rotulo: string; icone: NomeIcone }[];
 
 // Formato de aula usado nas páginas (id + campos de exibição), independente do row do drizzle.
@@ -345,7 +409,8 @@ const TIPOS_VALIDOS = new Set<Bloco['tipo']>([
 	'formula',
 	'exercicio',
 	'dissertativa',
-	'simulacao'
+	'simulacao',
+	'html'
 ]);
 
 const TIPOS_LINK = new Set<BlocoLink['tipoLink']>(['exercicio', 'anexo', 'aula', 'externo']);
@@ -413,6 +478,15 @@ export function ehBloco(valor: unknown): valor is Bloco {
 			return (
 				typeof b.codigo === 'string' &&
 				(b.biblioteca === undefined || typeof b.biblioteca === 'string') &&
+				(b.altura === undefined || typeof b.altura === 'number')
+			);
+		case 'html':
+			// Os três painéis são o conteúdo do bloco, então todos são exigidos
+			// (vazios valem). `altura` é cosmética, saneada como a da simulação.
+			return (
+				typeof b.html === 'string' &&
+				typeof b.css === 'string' &&
+				typeof b.js === 'string' &&
 				(b.altura === undefined || typeof b.altura === 'number')
 			);
 	}
@@ -509,6 +583,19 @@ function normalizarCamposBloco(bloco: Bloco): Bloco {
 				biblioteca,
 				codigo: bloco.codigo,
 				altura: ehAlturaSimulacao(legado.altura) ? legado.altura : ALTURA_SIMULACAO_PADRAO
+			};
+		}
+		case 'html': {
+			// Altura fora da faixa cai no padrão: o conteúdo do professor vale mais
+			// que o formato da caixa.
+			const legado = bloco as BlocoHtml & { altura?: unknown };
+			return {
+				id: bloco.id,
+				tipo: 'html',
+				html: bloco.html,
+				css: bloco.css,
+				js: bloco.js,
+				altura: ehAlturaHtml(legado.altura) ? legado.altura : ALTURA_HTML_PADRAO
 			};
 		}
 		default:

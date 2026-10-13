@@ -79,7 +79,7 @@ test('o grid do vão cria o bloco naquela posição, ignorando a seleção', asy
 	await vaoDepoisDe(page, 1).click();
 	const grade = page.getByRole('group', { name: 'Tipos de bloco' });
 	await expect(grade).toBeVisible();
-	await expect(grade.getByRole('button')).toHaveCount(11);
+	await expect(grade.getByRole('button')).toHaveCount(12);
 
 	await grade.getByRole('button', { name: 'Código' }).click();
 	await expect(ordem(page)).resolves.toEqual([

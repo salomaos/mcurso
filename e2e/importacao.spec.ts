@@ -13,7 +13,7 @@ async function entrar(page: Page) {
 async function importarExemplo(page: Page) {
 	await page.goto('/importar');
 	// A aba já nasce com o exemplo no textarea e a prévia no ar.
-	await expect(page.getByText('2 seção(ões) · 3 aula(s) · 16 bloco(s)')).toBeVisible();
+	await expect(page.getByText('2 seção(ões) · 3 aula(s) · 17 bloco(s)')).toBeVisible();
 	await page.getByRole('button', { name: 'Criar conteúdo' }).click();
 	await expect(page).toHaveURL(/\/apostilas\/\d+$/);
 	return page.url();
@@ -35,7 +35,7 @@ test('a prévia valida o exemplo e a importação cria a apostila com as aulas e
 	const preview = page.locator('section.card').filter({ has: page.getByRole('heading', { name: 'Matemática — Revisão' }) });
 	await expect(page.getByRole('heading', { name: 'Matemática — Revisão' })).toBeVisible();
 	await expect(preview.locator('span.badge')).toHaveText('Apostila');
-	await expect(page.getByText('2 seção(ões) · 3 aula(s) · 16 bloco(s)')).toBeVisible();
+	await expect(page.getByText('2 seção(ões) · 3 aula(s) · 17 bloco(s)')).toBeVisible();
 
 	// Cria a apostila importada.
 	await page.getByRole('button', { name: 'Criar conteúdo' }).click();
@@ -114,7 +114,7 @@ test('exporta o que já existe de volta para o editor (round-trip)', async ({ pa
 
 	// E a prévia confirma: dá para reimportar o que foi exportado.
 	await expect(page.getByRole('heading', { name: 'Matemática — Revisão' })).toBeVisible();
-	await expect(page.getByText('2 seção(ões) · 3 aula(s) · 16 bloco(s)')).toBeVisible();
+	await expect(page.getByText('2 seção(ões) · 3 aula(s) · 17 bloco(s)')).toBeVisible();
 
 	// Reimportar volta a criar (sempre nova) e recai no painel da nova.
 	await page.getByRole('button', { name: 'Criar conteúdo' }).click();

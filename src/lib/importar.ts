@@ -289,9 +289,9 @@ export function resumoImportacao(dados: Importacao): ResumoImportacao {
 
 // Exemplos de conteúdo, um por tipo, para quem começa do zero: abrir na página,
 // copiar e colar no prompt da IA para ela gerar o JSON no mesmo formato. A
-// apostila é o exemplo-mestre: cobre os 11 tipos de bloco (titulo, texto,
+// apostila é o exemplo-mestre: cobre os 12 tipos de bloco (titulo, texto,
 // codigo, mermaid, imagem, link, tabela, formula, exercicio, dissertativa,
-// simulacao). Os demais mostram o formato próprio do tipo.
+// simulacao, html). Os demais mostram o formato próprio do tipo.
 export const EXEMPLO_APOSTILA = `{
   "conteudo": "apostila",
   "titulo": "Matemática — Revisão",
@@ -336,6 +336,13 @@ export const EXEMPLO_APOSTILA = `{
               "biblioteca": "p5",
               "altura": 300,
               "codigo": "function setup() {\\n  createCanvas(window.innerWidth, window.innerHeight);\\n}\\n\\nfunction draw() {\\n  background(20, 24, 33);\\n  fill(120, 200, 255);\\n  noStroke();\\n  circle(width / 2, height / 2, 40);\\n}"
+            },
+            {
+              "tipo": "html",
+              "altura": 280,
+              "html": "<div class='cartao'>\\n  <h2>Função afim interativa</h2>\\n  <input id='x' type='range' min='-5' max='5' value='1'>\\n  <p id='saida'>f(1) = 3</p>\\n</div>",
+              "css": ".cartao { text-align: center; padding: 1rem; border: 1px solid #ddd; border-radius: 12px; } input { width: 80%; }",
+              "js": "const campo = document.getElementById('x');\\nconst saida = document.getElementById('saida');\\nfunction atualizar() {\\n  const x = Number(campo.value);\\n  saida.textContent = 'f(' + x + ') = ' + (2 * x + 1);\\n}\\ncampo.addEventListener('input', atualizar);"
             }
           ]
         }
@@ -442,7 +449,7 @@ export const EXEMPLOS_IMPORTACAO: ExemploImportacao[] = (
 		{
 			conteudo: 'apostila',
 			descricao:
-				'Estrutura completa: seções, aulas e todos os 11 tipos de bloco (título, texto, código, diagrama, imagem, link, tabela, fórmula, exercício, dissertativa e simulação).'
+				'Estrutura completa: seções, aulas e todos os 12 tipos de bloco (título, texto, código, diagrama, imagem, link, tabela, fórmula, exercício, dissertativa, simulação e HTML).'
 		},
 		{
 			conteudo: 'anexo',

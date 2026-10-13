@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest';
 import {
 	agruparPorSecao,
 	arquivoBibliotecaSimulacao,
+	ALTURAS_HTML,
+	ehAlturaHtml,
 	BIBLIOTECAS_SIMULACAO,
 	corretasDoExercicio,
 	ehAlturaSimulacao,
 	ehBibliotecaSimulacao,
 	ehBloco,
 	ehNivelTitulo,
+	EXEMPLOS_HTML,
 	exemploBibliotecaSimulacao,
 	hrefLinkInterno,
 	linksPara,
@@ -386,6 +389,49 @@ describe('bloco de simulação', () => {
 		expect(ehAlturaSimulacao(0)).toBe(false);
 		expect(ehAlturaSimulacao(4000)).toBe(false);
 		expect(ehAlturaSimulacao('240')).toBe(false);
+	});
+});
+
+describe('bloco HTML', () => {
+	it('nasce com exemplo nos três painéis e altura padrão', () => {
+		const bloco = criarBloco('html');
+		expect(bloco.tipo).toBe('html');
+		if (bloco.tipo !== 'html') throw new Error('esperava html');
+		expect(bloco).toMatchObject({
+			altura: 300,
+			html: EXEMPLOS_HTML.html,
+			css: EXEMPLOS_HTML.css,
+			js: EXEMPLOS_HTML.js
+		});
+		// O exemplo precisa ser código de verdade, não placeholder: os três painéis
+		// conversam no bloco novo.
+		expect(bloco.html).toContain('<button');
+		expect(bloco.js).toContain("getElementById('botao')");
+	});
+
+	it('aceita o bloco do POST e normaliza altura fora da faixa', () => {
+		const base = { id: 'h', tipo: 'html', html: '<p>x</p>', css: '', js: '', altura: 280 };
+		expect(ehBloco(base)).toBe(true);
+		expect(normalizarBlocos([base])).toHaveLength(1);
+		expect(normalizarBlocos([{ ...base, altura: 4000 }])[0]).toMatchObject({ altura: 300 });
+		// Bloco antigo, sem o campo, também volta ao padrão.
+		const legado = normalizarBlocos([{ id: 'h', tipo: 'html', html: 'x', css: 'y', js: 'z' }])[0];
+		expect(legado).toMatchObject({ altura: 300 });
+	});
+
+	it('descarta bloco sem os três painéis (são o conteúdo, não cosmética)', () => {
+		expect(ehBloco({ id: 'h', tipo: 'html', html: '<p>x</p>', css: '', js: '' })).toBe(true);
+		expect(ehBloco({ id: 'h', tipo: 'html', html: '<p>x</p>', css: '' })).toBe(false);
+		expect(normalizarBlocos([{ id: 'h', tipo: 'html', html: '<p>x</p>' }])).toHaveLength(0);
+	});
+
+	it('valida a altura', () => {
+		expect(ehAlturaHtml(300)).toBe(true);
+		expect(ehAlturaHtml(0)).toBe(false);
+		expect(ehAlturaHtml(4000)).toBe(false);
+		expect(ehAlturaHtml('300')).toBe(false);
+		expect(ALTURAS_HTML.minima).toBe(120);
+		expect(ALTURAS_HTML.maxima).toBe(900);
 	});
 });
 

@@ -6,6 +6,7 @@
 import EditorTextoMarkdown from "./EditorTextoMarkdown.svelte";
 import Exercicio from "./Exercicio.svelte";
 import Simulacao from "./Simulacao.svelte";
+import Html from "./Html.svelte";
   import Icone from "./Icone.svelte";
   import TextoEditavel from "./TextoEditavel.svelte";
   import {
@@ -95,6 +96,9 @@ import Simulacao from "./Simulacao.svelte";
     "orientacao",
     "cabecalho",
     "linhas",
+    "html",
+    "css",
+    "js",
   ] as const;
 
   // Blocos com edição dentro do próprio card (exercício, dissertativa,
@@ -103,6 +107,7 @@ import Simulacao from "./Simulacao.svelte";
     "exercicio",
     "dissertativa",
     "simulacao",
+    "html",
   ]);
 
   function temConteudo(bloco: Bloco): boolean {
@@ -401,6 +406,14 @@ import Simulacao from "./Simulacao.svelte";
       {:else if modo === "editar" && bloco.tipo === "simulacao"}
         <div class="canvas-conteudo">
           <Simulacao
+            {bloco}
+            modo="editar"
+            aoAlterar={(parcial) => atualizarBloco(bloco.id, { ...bloco, ...parcial })}
+          />
+        </div>
+      {:else if modo === "editar" && bloco.tipo === "html"}
+        <div class="canvas-conteudo">
+          <Html
             {bloco}
             modo="editar"
             aoAlterar={(parcial) => atualizarBloco(bloco.id, { ...bloco, ...parcial })}

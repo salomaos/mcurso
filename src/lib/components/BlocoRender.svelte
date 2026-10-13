@@ -6,13 +6,15 @@
 	import Exercicio from './Exercicio.svelte';
 	import Dissertativa from './Dissertativa.svelte';
 	import Simulacao from './Simulacao.svelte';
+	import Html from './Html.svelte';
 	import TextoMarkdown from './TextoMarkdown.svelte';
 
-	// `imprimir` só muda o bloco de simulação (canvas não sai no papel, o código sai);
-	// para o resto é o mesmo que `visualizar`.
+	// `imprimir` só muda os blocos com iframe (simulação e HTML renderizam o
+	// código no papel, já que o `srcdoc` não roda na impressão); para o resto é o
+	// mesmo que `visualizar`.
 	type Modo = 'editar' | 'visualizar' | 'imprimir';
-	// `Exercicio`/`Dissertativa`/`Simulacao` só conhecem os dois primeiros, então a
-	// impressão cai em `visualizar` para elas (só a simulação distingue a impressão).
+	// `Exercicio`/`Dissertativa`/`Simulacao`/`Html` só conhecem os dois primeiros,
+	// então a impressão cai em `visualizar` para elas.
 	type ModoConteudo = 'editar' | 'visualizar';
 	type Props = {
 		bloco: Bloco;
@@ -126,6 +128,29 @@
 	{:else}
 		<div class="my-3">
 			<Simulacao bloco={bloco} modo={modoConteudo} />
+		</div>
+	{/if}
+{:else if bloco.tipo === 'html'}
+	{#if modo === 'imprimir'}
+		<!-- A iframe não roda no papel: sai o código, que é o que o aluno precisa
+		     para reproduzir o bloco (mesma escolha da simulação). -->
+		<div class="my-3 space-y-2">
+			<div class="text-xs uppercase tracking-wide opacity-60 font-semibold">
+				Bloco HTML — código
+			</div>
+			{#if bloco.html.trim()}
+				<Codigo codigo={bloco.html} linguagem="html" />
+			{/if}
+			{#if bloco.css.trim()}
+				<Codigo codigo={bloco.css} linguagem="css" />
+			{/if}
+			{#if bloco.js.trim()}
+				<Codigo codigo={bloco.js} linguagem="js" />
+			{/if}
+		</div>
+	{:else}
+		<div class="my-3">
+			<Html bloco={bloco} modo={modoConteudo} />
 		</div>
 	{/if}
 {/if}

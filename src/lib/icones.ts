@@ -10,6 +10,7 @@ export type NomeIcone =
 	| 'exercicio'
 	| 'dissertativa'
 	| 'simulacao'
+	| 'html'
 	| 'mais'
 	| 'negrito'
 	| 'italico'
@@ -73,6 +74,14 @@ export const FORMAS_ICONE: Record<NomeIcone, Forma[]> = {
 	simulacao: [
 		{ tipo: 'retangulo', x: 3, y: 4.5, largura: 18, altura: 15, raio: 2 },
 		{ tipo: 'caminho', d: 'm10.5 9 5 3-5 3z' }
+	],
+	// HTML: folha com `</>` (inclina a barra) — distingue do `codigo`, que é só as
+	// duas setas.
+	html: [
+		{ tipo: 'retangulo', x: 4, y: 3, largura: 16, altura: 18, raio: 1.5 },
+		{ tipo: 'caminho', d: 'm9 9-3 3 3 3' },
+		{ tipo: 'caminho', d: 'm15 9 3 3-3 3' },
+		{ tipo: 'caminho', d: 'M11 8l2 8' }
 	],
 	// Fora da lista de blocos: é a ação "adicionar bloco" entre dois blocos do editor.
 	mais: [{ tipo: 'caminho', d: 'M12 5v14M5 12h14' }],

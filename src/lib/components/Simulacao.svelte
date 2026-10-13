@@ -10,6 +10,7 @@
 	} from '$lib/blocks';
 	import Campo from './ui/Campo.svelte';
 	import { ROTULO_EDITAR, ROTULO_VISUALIZAR } from '$lib/conteudo';
+	import { cascaSandbox } from '$lib/casca-sandbox';
 
 	type Modo = 'editar' | 'visualizar';
 
@@ -122,82 +123,19 @@
 	// O `srcdoc` monta o documento da iframe. O código do professor chega por
 	// `postMessage` (nunca embutido aqui): assim a tag de script do professor nunca
 	// precisa ser escapada dentro deste arquivo, e o bootstrap é o mesmo string para
-	// todo bloco.
-	const CASCA = `<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<style>
-  html, body { margin: 0; height: 100%; overflow: hidden; }
+	// todo bloco. O que é comum entre os blocos sandboxed (dublê de armazenamento e
+	// aviso de erro) mora em `cascaSandbox`; aqui fica só o que é da simulação.
+	const CASCA = cascaSandbox({
+		origem: 'simulacao',
+		estilos: `
   /* Rede de segurança do tamanho: o \`resizeCanvas\` do bootstrap já deixa o buffer do
      canvas do tamanho da caixa (é o que mantém o desenho nítido), e isto cobre o
      instante entre a moldura aparecer e a primeira instância existir. Os !important
      são obrigatórios: p5 e q5 escrevem style.width/style.height inline no
      createCanvas, e inline normal ganha da regra do author. */
-  canvas { display: block !important; width: 100% !important; height: 100% !important; }
-</style>
-</head>
-<body>
-<script>
-(function () {
-  // p5 e q5 tocam o armazenamento no start-up — o q5 monta \`storeItem\`/\`getItem\` no
-  // construtor e o p5 sonda o \`localStorage\` para o i18next — e o **getter** de
-  // \`localStorage\` LANÇA em documento sandboxed sem \`allow-same-origin\`. Sem isto a
-  // simulação morre no primeiro frame com "Window.localStorage getter: Forbidden…".
-  // A origem opaca é de propósito (o código do aluno não alcança a sessão nem o storage
-  // do app), então a resposta é um dublê em memória: a moldura é recriada a cada
-  // execução e não há nada a persistir.
-  function dubleDeArmazenamento(nome) {
-    var itens = {};
-    var metodos = {
-      getItem: function (chave) {
-        return Object.prototype.hasOwnProperty.call(itens, chave) ? itens[chave] : null;
-      },
-      setItem: function (chave, valor) {
-        itens[chave] = String(valor);
-      },
-      removeItem: function (chave) {
-        delete itens[chave];
-      },
-      clear: function () {
-        itens = {};
-      },
-      key: function (indice) {
-        var chaves = Object.keys(itens);
-        return chaves[indice] === undefined ? null : chaves[indice];
-      }
-    };
-    var duble = {};
-    Object.keys(metodos).forEach(function (nomeMetodo) {
-      // Não enumeráveis de propósito: o \`clearStorage\` do p5 percorre
-      // \`Object.keys(localStorage)\` e não deve encontrar os próprios métodos.
-      Object.defineProperty(duble, nomeMetodo, { value: metodos[nomeMetodo] });
-    });
-    Object.defineProperty(duble, 'length', {
-      get: function () {
-        return Object.keys(itens).length;
-      }
-    });
-    Object.defineProperty(window, nome, {
-      configurable: true,
-      get: function () {
-        return duble;
-      }
-    });
-  }
-  dubleDeArmazenamento('localStorage');
-  dubleDeArmazenamento('sessionStorage');
-
-  function avisar(mensagem) {
-    parent.postMessage({ origem: 'simulacao', tipo: 'erro', mensagem: String(mensagem) }, '*');
-  }
-  window.addEventListener('error', function (evento) {
-    avisar(evento.message || evento.error || 'Erro na simulação.');
-  });
-  window.addEventListener('unhandledrejection', function (evento) {
-    avisar(evento.reason && evento.reason.message ? evento.reason.message : evento.reason);
-  });
-
+  html, body { overflow: hidden; }
+  canvas { display: block !important; width: 100% !important; height: 100% !important; }`,
+		corpo: `
   window.addEventListener('message', function (evento) {
     var dados = evento.data;
     if (!dados || dados.origem !== 'simulacao' || dados.tipo !== 'rodar') return;
@@ -280,11 +218,8 @@
       // bloco com alerta, só para de tentar.
       return true;
     }
-  }
-})();
-<\/script>
-</body>
-</html>`;
+  }`
+	});
 </script>
 
 <svelte:window onmessage={aoMensagem} />
