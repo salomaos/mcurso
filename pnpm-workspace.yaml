@@ -1,4 +1,19 @@
+# Scripts de build por pacote. `allowBuilds` é o formato da pnpm ≥10.26/v11+: a
+# v11 tornou o `strictDepBuilds` padrão (`true`) e removeu `onlyBuiltDependencies`/
+# `ignoredBuiltDependencies`, então sem `allowBuilds` o install do deploy morre com
+# ERR_PNPM_IGNORED_BUILDS. As chaves antigas ficam para a pnpm <10.26 (a local,
+# 10.12.4, que ainda não conhece `allowBuilds`). better-sqlite3 é negado de
+# propósito: o pacote traz prebuilds (linux-x64 e linuxmusl-x64 inclusive), então
+# não precisa compilar — ver AGENTS.md.
 onlyBuiltDependencies:
   - esbuild
 ignoredBuiltDependencies:
   - better-sqlite3
+allowBuilds:
+  esbuild: true
+  better-sqlite3: false
+
+# Overrides vêm daqui, não do campo `pnpm` do package.json: a pnpm 11+ não lê mais
+# aquele campo (só avisa) e o override do cookie voltaria a não valer no deploy.
+overrides:
+  cookie: ^0.7.2
