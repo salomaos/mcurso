@@ -1,0 +1,6 @@
+{
+	"name": "better-sqlite3",
+	"version": "7.99.0",
+	"private": true,
+	"main": "index.js"
+}

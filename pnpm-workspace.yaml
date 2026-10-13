@@ -2,13 +2,15 @@
 # v11 tornou o `strictDepBuilds` padrão (`true`) e removeu `onlyBuiltDependencies`/
 # `ignoredBuiltDependencies`, então sem `allowBuilds` o install do deploy morre com
 # ERR_PNPM_IGNORED_BUILDS. As chaves antigas ficam para a pnpm <10.26 (a local,
-# 10.12.4, que ainda não conhece `allowBuilds`). better-sqlite3 está em 12.x de
-# propósito (a 13.x exige GLIBC_2.29 e quebra no build da Hostinger) e o install
-# script dele PRECISA rodar: a 12.x não traz prebuild no tarball — quem baixa o
-# binário é o `prebuild-install` (com fallback de compilação) — ver AGENTS.md.
+# 10.12.4, que ainda não conhece `allowBuilds`).
+#
+# better-sqlite3 SAIU do projeto (ver AGENTS.md): nenhum prebuild 12.x/13.x carrega
+# na glibc < 2.29 do host e o fallback de compilação morre no Python 3.6.8. O app
+# usa o SQLite embutido do Node (`node:sqlite`, `DatabaseSync`) com um shim de
+# `transaction` por cima do driver better-sqlite3 do drizzle, e o pacote
+# `better-sqlite3` virou um stub local (`file:vendor/better-sqlite3-stub`) que só
+# existe para o import do driver resolver — de propósito, sem script de build.
 onlyBuiltDependencies:
   - esbuild
-  - better-sqlite3
 allowBuilds:
   esbuild: true
-  better-sqlite3: true
