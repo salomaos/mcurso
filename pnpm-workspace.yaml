@@ -2,18 +2,13 @@
 # v11 tornou o `strictDepBuilds` padrão (`true`) e removeu `onlyBuiltDependencies`/
 # `ignoredBuiltDependencies`, então sem `allowBuilds` o install do deploy morre com
 # ERR_PNPM_IGNORED_BUILDS. As chaves antigas ficam para a pnpm <10.26 (a local,
-# 10.12.4, que ainda não conhece `allowBuilds`). better-sqlite3 é negado de
-# propósito: o pacote traz prebuilds (linux-x64 e linuxmusl-x64 inclusive), então
-# não precisa compilar — ver AGENTS.md.
+# 10.12.4, que ainda não conhece `allowBuilds`). better-sqlite3 está em 12.x de
+# propósito (a 13.x exige GLIBC_2.29 e quebra no build da Hostinger) e o install
+# script dele PRECISA rodar: a 12.x não traz prebuild no tarball — quem baixa o
+# binário é o `prebuild-install` (com fallback de compilação) — ver AGENTS.md.
 onlyBuiltDependencies:
   - esbuild
-ignoredBuiltDependencies:
   - better-sqlite3
 allowBuilds:
   esbuild: true
-  better-sqlite3: false
-
-# Overrides vêm daqui, não do campo `pnpm` do package.json: a pnpm 11+ não lê mais
-# aquele campo (só avisa) e o override do cookie voltaria a não valer no deploy.
-overrides:
-  cookie: ^0.7.2
+  better-sqlite3: true
