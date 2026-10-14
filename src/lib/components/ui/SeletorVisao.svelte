@@ -19,7 +19,7 @@
 <div class="join" role="group" aria-label="Modo de visualização">
 	{#each OPCOES as opcao (opcao.valor)}
 		<button
-			class="btn btn-xs join-item tooltip tooltip-top"
+			class="btn btn-sm join-item tooltip tooltip-top"
 			class:btn-active={visao === opcao.valor}
 			type="button"
 			data-tip={opcao.rotulo}

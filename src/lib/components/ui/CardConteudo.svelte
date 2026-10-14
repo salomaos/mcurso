@@ -9,7 +9,7 @@
 		descricao?: string | null;
 		/** `lista` = linha com ações à direita · `grade` = cartão empilhado. */
 		modo: Visao;
-		/** Alça de arrasto, à esquerda do cartão (só no editor). */
+		/** Alça de arrasto, no rodapé à esquerda das ações (só no editor). */
 		alca?: Snippet;
 		/** Slot à direita do título: data, contagens. */
 		meta?: Snippet;
@@ -60,16 +60,6 @@
 		lista ? 'flex items-start gap-2' : 'flex h-full flex-col gap-2'
 	} ${linkInteiro ? 'hover:border-primary' : ''}`}
 >
-	<!--
-		`contents` na lista: o wrapper some da caixa, então (a) a alça é item de
-		flex do próprio cartão, como era antes, e (b) quando o chamador não tem
-		alça (aula do aluno) o wrapper vazio não abre um `gap` fantasma à esquerda
-		— o cartão encosta na borda do conteúdo dos dois jeitos.
-	-->
-	{#if alca}
-		<div class={lista ? 'contents' : 'flex items-center gap-2'}>{@render alca()}</div>
-	{/if}
-
 	<div class={`min-w-0 w-full flex-1 ${lista ? 'space-y-2' : 'flex flex-col gap-2'}`}>
 		<div class="flex flex-wrap items-start justify-between gap-2">
 			<div class="min-w-0 space-y-1">
@@ -98,10 +88,18 @@
 			<div>{@render detalhe()}</div>
 		{/if}
 
-		{#if acoes}
-			<!-- `mt-auto` na grade cola as ações no rodapé do cartão. -->
+		<!--
+			Alça e ações no mesmo rodapé: a alça fica à esquerda dos botões, não
+			mais sobre o título. `mt-auto` na grade cola o rodapé no fim do cartão.
+		-->
+		{#if alca || acoes}
 			<div class={`flex flex-wrap items-center gap-1 ${lista ? '' : 'mt-auto pt-2'}`}>
-				{@render acoes()}
+				{#if alca}
+					{@render alca()}
+				{/if}
+				{#if acoes}
+					{@render acoes()}
+				{/if}
 			</div>
 		{/if}
 	</div>

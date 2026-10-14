@@ -53,7 +53,7 @@ test('a prévia valida o exemplo e a importação cria a apostila com as aulas e
 
 	// O link "Ir para a função afim" (alvoTitulo no JSON) virou uma rota real de aula.
 	const cardArea = page.locator(CARTOES_AULAS).filter({ hasText: 'Área do triângulo' });
-	await cardArea.getByRole('link', { name: 'Ver' }).click();
+	await cardArea.getByRole('link', { name: 'Abrir' }).click();
 	await expect(page).toHaveURL(new RegExp(`/apostilas/${apostilaId}/aulas/\\d+$`));
 	const href = await page.getByRole('link', { name: 'Ir para a função afim' }).getAttribute('href');
 	expect(href).toMatch(new RegExp(`^/apostilas/${apostilaId}/aulas/\\d+$`));

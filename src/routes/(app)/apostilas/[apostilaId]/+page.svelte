@@ -359,9 +359,9 @@ let erroOrdem = $state('');
 				{@attach anexarAulas}
 			>
 				{#if grupo.secao}
-					<h2 class="text-xl font-bold border-b-2 border-base-300 pb-1">{grupo.secao.nome}</h2>
+					<h2 class="text-3xl font-bold border-b-2 border-base-300 pb-1">{grupo.secao.nome}</h2>
 				{:else if data.user}
-					<h2 class="border-b-2 border-dashed border-base-300 pb-1 text-xl font-bold opacity-60">
+					<h2 class="border-b-2 border-dashed border-base-300 pb-1 text-3xl font-bold opacity-60">
 						Sem seção
 					</h2>
 				{/if}
@@ -393,7 +393,7 @@ let erroOrdem = $state('');
 									href={`/apostilas/${data.apostila.id}/aulas/${aula.id}`}
 									class="btn btn-ghost btn-xs"
 								>
-									Ver
+									Abrir
 								</a>
 								<a
 									href={`/apostilas/${data.apostila.id}/aulas/${aula.id}/imprimir`}

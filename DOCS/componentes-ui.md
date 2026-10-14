@@ -303,6 +303,8 @@ passaram a usar o mesmo cartão (apostilas na home, aulas no painel, anexos e at
 `PainelSoltos`). Props reais: `titulo`, `href?`, `descricao?`, `modo` (`lista`/`grade`),
 `alca?` (arrasto), `meta?`, `marcadores?`, `detalhe?` (links reversos), `acoes?`, `class?` e
 `rest?` (atributos repassados, é por ele que entra o `data-arrasto-item` do painel).
+A alça e as ações dividem o **mesmo rodapé** do cartão, com a alça à esquerda dos botões
+(14/10/2026): antes a alça era item de flex solto no topo e ficava sobre o título.
 
 ### ⬜ P2.5 `SecaoBloco` — `src/lib/components/SecaoBloco.svelte`
 

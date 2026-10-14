@@ -164,6 +164,37 @@ test('o cartão do aluno não abre espaço da alça que ele não tem', async ({ 
 	expect(Math.abs(desvio)).toBeLessThanOrEqual(1);
 });
 
+test('a alça de arrasto fica no rodapé, à esquerda das ações', async ({ page }) => {
+	await entrar(page);
+	const painel = await criarApostila(page, `Alça rodapé ${Date.now()}`);
+
+	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
+	await expect(page).toHaveURL(/\/editar/);
+	await page.getByLabel('Título da aula').fill('Aula com alça');
+	await page
+		.getByLabel('Descrição da aula')
+		.fill('Descrição longa o bastante para empurrar a alça para baixo do título.');
+	await page.getByRole('button', { name: 'Salvar aula' }).click();
+	await expect(page).toHaveURL(/\/aulas\/\d+$/);
+
+	await page.goto(painel);
+	const cartao = page.locator(CARTOES_AULAS).first();
+	const alca = page.getByRole('button', { name: 'Mover a aula Aula com alça' });
+	const titulo = cartao.locator('.card-title');
+	const acao = cartao.getByRole('link', { name: 'PDF' });
+
+	const caixaAlca = (await alca.boundingBox())!;
+	const caixaTitulo = (await titulo.boundingBox())!;
+	const caixaAcao = (await acao.boundingBox())!;
+
+	// Abaixo do título: a alça não fica mais sobre ele.
+	expect(caixaAlca.y).toBeGreaterThan(caixaTitulo.y + caixaTitulo.height - 4);
+	// Na mesma linha das ações, à esquerda delas.
+	const centro = (caixa: { y: number; height: number }) => caixa.y + caixa.height / 2;
+	expect(Math.abs(centro(caixaAlca) - centro(caixaAcao))).toBeLessThanOrEqual(8);
+	expect(caixaAlca.x + caixaAlca.width).toBeLessThanOrEqual(caixaAcao.x + 1);
+});
+
 test('o cartão solto continua um item de lista com as ações dentro', async ({ page }) => {
 	await entrar(page);
 	const titulo = `Anexo lista ${Date.now()}`;
