@@ -8,26 +8,31 @@ async function entrar(page: Page) {
 	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
 }
 
+const PERGUNTAS_PADRAO = [
+	{ pergunta: 'Quanto é 2+2?', alternativas: ['3', '4'], correta: 1, tempo: 15 },
+	{ pergunta: 'Quanto é 3+3?', alternativas: ['6', '7'], correta: 0, tempo: 15 }
+];
+
 /** Cria um quiz pelo editor, importando o JSON (o caminho mais rápido). */
-async function criarQuizImportado(page: Page, titulo: string) {
+async function criarQuizImportado(page: Page, titulo: string, perguntas = PERGUNTAS_PADRAO) {
 	await page.goto('/quiz');
 	await page.getByRole('button', { name: '+ Novo quiz' }).click();
 	await expect(page).toHaveURL(/\/quiz\/\d+\/editar/);
 
 	await page.locator('summary', { hasText: 'Colar um JSON pronto' }).click();
-	await page.getByLabel('JSON do quiz').fill(
-		JSON.stringify({
-			titulo,
-			perguntas: [
-				{ pergunta: 'Quanto é 2+2?', alternativas: ['3', '4'], correta: 1, tempo: 15 },
-				{ pergunta: 'Quanto é 3+3?', alternativas: ['6', '7'], correta: 0, tempo: 15 }
-			]
-		})
-	);
+	await page.getByLabel('JSON do quiz').fill(JSON.stringify({ titulo, perguntas }));
 	await page.getByRole('button', { name: 'Importar perguntas' }).click();
-	await expect(page.getByText('2 perguntas importadas')).toBeVisible();
+	const plural = perguntas.length === 1 ? '' : 's';
+	await expect(page.getByText(`${perguntas.length} pergunta${plural} importada${plural}`)).toBeVisible();
 	await page.getByRole('button', { name: 'Salvar quiz' }).click();
 	await expect(page).toHaveURL(/\/quiz$/);
+}
+
+/** Quantas linhas de texto o elemento ocupa (1 = o texto não quebrou dentro dele). */
+function linhasDeTexto(elemento: Element) {
+	const range = document.createRange();
+	range.selectNodeContents(elemento);
+	return range.getClientRects().length;
 }
 
 test('rota do quiz exige sessão', async ({ page }) => {
@@ -207,6 +212,53 @@ test('fluxo completo: professor abre a sala e o aluno responde', async ({ page, 
 	await expect(jogador.getByText('1º', { exact: true })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Ranking final' })).toBeVisible({ timeout: 15000 });
 	await expect(page.getByText('Aluno Teste').first()).toBeVisible();
+
+	await contexto.close();
+});
+
+test('alternativa longa não quebra o badge da resposta em duas linhas', async ({ page, browser }) => {
+	await entrar(page);
+	const token = `Longa ${Date.now()}`;
+	const longa =
+		'Alternativa com um texto bem comprido, do tamanho que aparece numa questão de verdade, ' +
+		'para o badge da resposta não ter espaço nenhum sobrando na mesma linha.';
+	await criarQuizImportado(page, token, [
+		{ pergunta: 'Qual é a alternativa longa?', alternativas: [longa, 'Curta'], correta: 0, tempo: 60 }
+	]);
+
+	// Tela estreita (celular do aluno): é onde falta espaço para o badge.
+	await page.setViewportSize({ width: 390, height: 844 });
+
+	await page.goto('/quiz');
+	const cartao = page.locator('main ul > li', { hasText: token });
+	await cartao.getByRole('button', { name: 'Iniciar' }).click();
+	await expect(page).toHaveURL(/\/quiz\/host\/[A-Z0-9]+/);
+	const codigo = page.url().split('/').pop()!;
+
+	const contexto = await browser.newContext({ viewport: { width: 390, height: 844 } });
+	const jogador = await contexto.newPage();
+	await jogador.goto('/quiz/jogar');
+	await jogador.getByLabel('Código da sala').fill(codigo);
+	await jogador.getByLabel('Seu nome').fill('Aluno Longo');
+	await jogador.getByRole('button', { name: 'Entrar' }).click();
+	await expect(jogador).toHaveURL(new RegExp(`/quiz/jogar/${codigo}`));
+	await expect(page.getByText('Aluno Longo').first()).toBeVisible({ timeout: 10000 });
+
+	await page.getByRole('button', { name: 'Iniciar quiz' }).click();
+	const alternativa = jogador.getByRole('button', { name: /espaço nenhum sobrando/ });
+	await expect(alternativa).toBeVisible({ timeout: 10000 });
+	await alternativa.click();
+
+	// O badge fica com o tamanho do texto dele: quem quebra é o texto da alternativa.
+	const resposta = jogador.locator('.badge', { hasText: 'sua resposta' });
+	const correta = jogador.locator('.badge', { hasText: 'correta' });
+	await expect(resposta).toBeVisible({ timeout: 10000 });
+	expect(await resposta.evaluate(linhasDeTexto)).toBe(1);
+	await expect(correta).toBeVisible({ timeout: 10000 });
+	expect(await correta.evaluate(linhasDeTexto)).toBe(1);
+
+	await expect(page.locator('.badge', { hasText: 'correta' })).toBeVisible({ timeout: 10000 });
+	expect(await page.locator('.badge', { hasText: 'correta' }).evaluate(linhasDeTexto)).toBe(1);
 
 	await contexto.close();
 });

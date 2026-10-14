@@ -177,10 +177,15 @@
 							estado.status === 'revelacao' && indice !== estado.pergunta.correta ? 'opacity-40' : ''
 						}`}
 					>
-						<span class="badge badge-neutral">{LETRAS[indice]}</span>
+						<!--
+							`shrink-0` nos badges: sem ele o badge encolhe até o min-content e o
+							texto dele quebra em duas linhas quando a alternativa é longa (quem
+							cede espaço é o texto da alternativa, que já é `whitespace-normal`).
+						-->
+						<span class="badge badge-neutral shrink-0">{LETRAS[indice]}</span>
 						<span class="whitespace-normal">{alternativa}</span>
 						{#if estado.status === 'revelacao' && indice === estado.pergunta.correta}
-							<span class="ml-auto badge badge-neutral">correta</span>
+							<span class="ml-auto badge badge-neutral shrink-0">correta</span>
 						{/if}
 					</div>
 				{/each}

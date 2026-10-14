@@ -191,6 +191,45 @@ test('altura do bloco governa a caixa da simulação', async ({ page }) => {
 	await expect(caixa).toHaveCSS('height', '420px');
 });
 
+test('altura só entra na faixa ao sair do campo', async ({ page }) => {
+	await editorComSimulacao(page);
+	const caixa = page.locator('[data-simulacao-preview]');
+	const altura = page.getByLabel('Altura');
+	await expect(caixa).toHaveCSS('height', '240px');
+
+	// Digitando, a caixa acompanha o número — limitar a cada tecla trocava o "5"
+	// por 120 antes do segundo dígito e não dava para chegar em 500.
+	await altura.fill('500');
+	await expect(caixa).toHaveCSS('height', '500px');
+
+	await altura.fill('50');
+	await expect(caixa).toHaveCSS('height', '50px');
+	await altura.blur();
+	await expect(caixa).toHaveCSS('height', '120px');
+	await expect(altura).toHaveValue('120');
+
+	await altura.fill('1200');
+	await altura.blur();
+	await expect(caixa).toHaveCSS('height', '900px');
+	await expect(altura).toHaveValue('900');
+
+	// Campo vazio volta com a altura que o bloco já tinha (nada foi digitado).
+	await altura.fill('');
+	await altura.blur();
+	await expect(altura).toHaveValue('900');
+	await expect(caixa).toHaveCSS('height', '900px');
+
+	// Qualquer inteiro da faixa é válido: com o `step="20"` antigo o 250 dava step
+	// mismatch e a validação nativa (o form não tem `novalidate`) travava o Salvar.
+	await altura.fill('250');
+	await altura.blur();
+	await expect(altura).toHaveValue('250');
+	await expect(caixa).toHaveCSS('height', '250px');
+
+	await page.getByRole('button', { name: 'Salvar aula' }).click();
+	await expect(page).toHaveURL(/\/aulas\/\d+$/);
+});
+
 test('aluno recebe a simulação rodando e a impressão mostra o código', async ({ page }) => {
 	await editorComSimulacao(page);
 	const codigo = 'function setup() { createCanvas(420, 260); }\nfunction draw() { background(0, 90, 160); }';

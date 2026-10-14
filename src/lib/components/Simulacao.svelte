@@ -108,16 +108,25 @@
 		aoAlterar?.({ biblioteca: valor, codigo });
 	}
 
+	// Digitando, o número entra como veio: limitar a cada tecla travava em 120 já no
+	// primeiro caractere (não dava para chegar em 500) e arredondar reescrevia o
+	// campo no meio da digitação. As duas regras entram na saída do campo.
 	function mudarAltura(valor: string) {
 		const digitado = Number(valor);
 		if (valor.trim() === '' || !Number.isFinite(digitado)) return;
-		// Limita em vez de recusar: com 1200 digitado o campo volta para 900, em vez
-		// de deixar o número na tela e o bloco com a altura antiga.
+		aoAlterar?.({ altura: digitado });
+	}
+
+	// Fora do foco: arredonda para inteiro e põe na faixa 120–900. O campo recebe o
+	// número de volta porque campo vazio não muda o bloco (sem valor novo) e ficaria
+	// em branco na tela.
+	function limitarAltura(campo: HTMLInputElement) {
 		const altura = Math.min(
 			ALTURAS_SIMULACAO.maxima,
-			Math.max(ALTURAS_SIMULACAO.minima, Math.round(digitado))
+			Math.max(ALTURAS_SIMULACAO.minima, Math.round(bloco.altura))
 		);
-		aoAlterar?.({ altura });
+		if (altura !== bloco.altura) aoAlterar?.({ altura });
+		campo.value = String(altura);
 	}
 
 	// O `srcdoc` monta o documento da iframe. O código do professor chega por
@@ -315,15 +324,21 @@
 				</select>
 			</Campo>
 			<Campo rotulo="Altura" id={`altura-${bloco.id}`} class="w-28">
+				<!--
+					`step="1"`: qualquer inteiro da faixa é válido. Com `step="20"` o
+					navegador marcava 250/421 como fora da grade (step mismatch) e o form
+					(não tem `novalidate`) travava o "Salvar aula" com aviso nativo.
+				-->
 				<input
 					id={`altura-${bloco.id}`}
 					type="number"
 					class="input input-bordered input-sm w-full"
 					min={ALTURAS_SIMULACAO.minima}
 					max={ALTURAS_SIMULACAO.maxima}
-					step="20"
+					step="1"
 					value={bloco.altura}
 					oninput={(event) => mudarAltura(event.currentTarget.value)}
+					onblur={(event) => limitarAltura(event.currentTarget)}
 				/>
 			</Campo>
 			<div class="flex items-end">
