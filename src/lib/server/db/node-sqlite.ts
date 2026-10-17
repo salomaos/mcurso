@@ -46,20 +46,47 @@ function instalarTransacao(banco: DatabaseSync): void {
 
 		const executar = (inicio: '' | ' IMMEDIATE' | ' EXCLUSIVE') => (arg: unknown) => {
 			banco.exec(`BEGIN${inicio}`);
-			try {
-				const resultado = callback(arg);
-				// better-sqlite3 recusa callback async com esta mesma mensagem. Sem a
-				// guarda o COMMIT sairia antes de o promise resolver e o efeito ficaria
-				// fora da transação — e o `node:sqlite` é síncrono, então não dá para
-				// esperar aqui sem deixar a transação aberta para outra requisição.
-				if (resultado && typeof (resultado as { then?: unknown }).then === 'function') {
-					throw new Error('Transaction function cannot return a promise');
+
+			// O ROLLBACK de um erro não pode mascarar o erro original: quando o SQLite
+			// já desfez a transação sozinho (erro grave dentro do corpo), o `ROLLBACK`
+			// aqui lança "no transaction is active" em cima do erro que importa.
+			const desfazer = (erro: unknown): never => {
+				try {
+					banco.exec('ROLLBACK');
+				} catch {
+					// A transação já não existia.
 				}
+				throw erro;
+			};
+
+			let resultado: unknown;
+			try {
+				resultado = callback(arg);
+			} catch (erro) {
+				return desfazer(erro);
+			}
+
+			// Callback `async`: quem fecha a transação é o `then`/`catch` abaixo, com o
+			// corpo ainda em andamento. Isso só é seguro porque todo `await` do corpo
+			// resolve em microtask (a consulta do SQLite executa na hora): o corpo
+			// inteiro termina antes de o event loop girar, então nenhuma outra
+			// requisição chega a entrar na transação. Esperar I/O de verdade dentro do
+			// corpo quebra essa garantia — ver o aviso em `transacao.ts`.
+			if (resultado && typeof (resultado as { then?: unknown }).then === 'function') {
+				return (resultado as Promise<unknown>).then(
+					(valor) => {
+						banco.exec('COMMIT');
+						return valor;
+					},
+					(erro: unknown) => desfazer(erro)
+				);
+			}
+
+			try {
 				banco.exec('COMMIT');
 				return resultado;
 			} catch (erro) {
-				banco.exec('ROLLBACK');
-				throw erro;
+				return desfazer(erro);
 			}
 		};
 

@@ -1,7 +1,8 @@
 // Guarda o shim de transação do `node:sqlite` (ver `node-sqlite.ts`): a session
 // do drizzle só usa `transaction(fn)[modo](tx)`. O ponto crítico é o callback
-// NÃO poder ser `async` — sem a guarda, o COMMIT sairia antes de o promise
-// resolver e o efeito ficaria fora da transação.
+// `async`: quem fecha a transação é o promise do corpo, não o retorno imediato
+// do callback. Se o COMMIT saísse antes de o corpo terminar, o efeito ficaria
+// fora da transação — e é esse caminho que o dual-dialect usa.
 
 import { describe, expect, it } from 'vitest';
 import { abrirBanco } from './node-sqlite';
@@ -34,11 +35,15 @@ function contar(banco: BancoFalso): unknown {
 	return banco.prepare('SELECT count(*) AS n FROM t').get();
 }
 
+function inserir(banco: BancoFalso, nome: string): void {
+	banco.prepare('INSERT INTO t (nome) VALUES (?)').run(nome);
+}
+
 describe('shim de transação do node:sqlite', () => {
 	it('commita quando o callback é síncrono', () => {
 		const banco = novoBanco();
 		const tx = banco.transaction(() => {
-			banco.prepare('INSERT INTO t (nome) VALUES (?)').run('a');
+			inserir(banco, 'a');
 		});
 
 		tx.deferred();
@@ -46,25 +51,41 @@ describe('shim de transação do node:sqlite', () => {
 		expect(contar(banco)).toEqual({ n: 1 });
 	});
 
-	it('lança quando o callback devolve um promise e desfaz o que já rodou', () => {
+	it('desfaz tudo quando o callback síncrono lança', () => {
 		const banco = novoBanco();
 		const tx = banco.transaction(() => {
-			banco.prepare('INSERT INTO t (nome) VALUES (?)').run('a');
-			return Promise.resolve();
-		});
-
-		expect(() => tx.deferred()).toThrow('Transaction function cannot return a promise');
-		expect(contar(banco)).toEqual({ n: 0 });
-	});
-
-	it('desfaz tudo quando o callback lança', () => {
-		const banco = novoBanco();
-		const tx = banco.transaction(() => {
-			banco.prepare('INSERT INTO t (nome) VALUES (?)').run('a');
+			inserir(banco, 'a');
 			throw new Error('falhou no meio');
 		});
 
 		expect(() => tx.deferred()).toThrow('falhou no meio');
+		expect(contar(banco)).toEqual({ n: 0 });
+	});
+
+	it('só commita depois que o callback async resolve', async () => {
+		const banco = novoBanco();
+		const tx = banco.transaction(async () => {
+			inserir(banco, 'a');
+			await Promise.resolve();
+			inserir(banco, 'b');
+		});
+
+		// O promise resolve depois do COMMIT: quem espera, espera a transação
+		// inteira — não um COMMIT que saiu antes do segundo insert.
+		await tx.deferred();
+
+		expect(contar(banco)).toEqual({ n: 2 });
+	});
+
+	it('desfaz tudo quando o callback async rejeita', async () => {
+		const banco = novoBanco();
+		const tx = banco.transaction(async () => {
+			inserir(banco, 'a');
+			await Promise.resolve();
+			throw new Error('falhou no meio');
+		});
+
+		await expect(tx.deferred()).rejects.toThrow('falhou no meio');
 		expect(contar(banco)).toEqual({ n: 0 });
 	});
 });

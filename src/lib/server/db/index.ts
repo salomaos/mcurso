@@ -21,8 +21,9 @@ export const dialeto: DialetoBanco = process.env.DB_DIALECT === 'mysql' ? 'mysql
 // pequenas diferenças) nos dois dialetos, e trocar `db` por uma união quebraria
 // todo o encadeamento do drizzle. Então a instância MySQL entra por cast e o que
 // sustenta a escolha não é o tipo, e sim a suíte E2E rodando a **mesma** suíte
-// contra os dois dialetos (ver AGENTS.md). Dentro de transação o corpo tem duas
-// versões — `.run()` no SQLite, `await` no MySQL —, ver `transacao.ts`.
+// contra os dois dialetos (ver AGENTS.md). As consultas são neutras (sempre
+// `await`, nunca `.run()`/`.all()`, que só existem no SQLite) e o corpo da
+// transação é um só — ver `transacao.ts`.
 type Banco = BetterSQLite3Database<typeof schemaSqlite>;
 
 function logarBanco(onde: string, pasta: string, aplicadas: number): void {

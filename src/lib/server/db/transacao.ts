@@ -1,21 +1,25 @@
-// Ponto único das transações do app.
+// Ponto único das transações do app. Todo corpo de transação do projeto passa
+// por aqui — e as duas versões (SQLite e MySQL) recebem o MESMO corpo, escrito
+// com `await`.
 //
-// Hoje só existe o dialeto SQLite: a transação é síncrona (o `node:sqlite` é
-// síncrono e o shim em `./node-sqlite` roda BEGIN/COMMIT na hora). O callback
-// NÃO pode ser `async` — o shim lança `Transaction function cannot return a
-// promise` —, porque um `await` no meio deixaria a transação aberta e outra
-// requisição entraria nela.
+// Em SQLite quem fecha a transação é o shim de `./node-sqlite`: o corpo é async,
+// as consultas executam na hora (o `node:sqlite` é síncrono) e o shim faz
+// COMMIT/ROLLBACK quando o promise do corpo assenta. Isso mantém a transação
+// atômica porque **todo `await` do corpo resolve em microtask** — o corpo inteiro
+// termina dentro do mesmo giro do event loop, e outra requisição só seria
+// atendida num giro seguinte. No MySQL o `db.transaction` do drizzle já é async
+// e faz o mesmo papel.
 //
-// No dual-dialect este módulo passa a escolher a implementação por `DB_DIALECT`
-// (build por dialeto): a versão MySQL recebe callback `async` e faz
-// `await db.transaction(...)`, e os corpos nas chamadas trocam `.run()` por
-// `await`. Por isso a assinatura já devolve `Promise` e as chamadas já usam
-// `await` — elas não mudam quando o MySQL chegar.
+// REGRA DO CORPO: nada de I/O (fetch, `fs/promises`, `setTimeout`, consulta de
+// outro serviço) enquanto a transação está aberta. Só consulta do próprio `db` e
+// código puro. Um `await` que dependa de I/O gira o event loop, outra requisição
+// entra na transação e o COMMIT/ROLLBACK passa a valer para ela também. Se um dia
+// um corpo precisar de I/O, faça o I/O antes de abrir a transação.
 
 import { db } from '$lib/server/db';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export async function transacao<T>(fn: (tx: Tx) => T): Promise<T> {
-	return db.transaction(fn);
+export async function transacao<T>(corpo: (tx: Tx) => Promise<T>): Promise<T> {
+	return db.transaction(corpo);
 }

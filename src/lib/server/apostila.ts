@@ -107,9 +107,9 @@ export async function excluirSecao(
 
 	// SQLite não liga `PRAGMA foreign_keys` (ver `node-sqlite.ts`): solta as aulas
 	// da seção na mão em vez de contar com o cascade.
-	await transacao((tx) => {
-		tx.update(aulas).set({ secaoId: null }).where(eq(aulas.secaoId, secaoId)).run();
-		tx.delete(secoes).where(eq(secoes.id, secaoId)).run();
+	await transacao(async (tx) => {
+		await tx.update(aulas).set({ secaoId: null }).where(eq(aulas.secaoId, secaoId));
+		await tx.delete(secoes).where(eq(secoes.id, secaoId));
 	});
 
 	return null;
@@ -166,10 +166,12 @@ export async function reordenarSecoes(
 	if (ids.length !== existentes.length || ids.some((id) => !validas.has(id)))
 		return { erro: 'Ordem inválida.', status: 400 };
 
-	await transacao((tx) => {
-		ids.forEach((id, indice) => {
-			tx.update(secoes).set({ ordem: indice }).where(eq(secoes.id, id)).run();
-		});
+	// `for...of` com `await` (não `forEach`: o callback async do `forEach` corre
+	// solto até a primeira espera, e um erro no meio não abortaria a transação).
+	await transacao(async (tx) => {
+		for (const [indice, id] of ids.entries()) {
+			await tx.update(secoes).set({ ordem: indice }).where(eq(secoes.id, id));
+		}
 	});
 
 	return null;
@@ -198,13 +200,12 @@ export async function reordenarAulas(
 	)
 		return { erro: 'Ordem inválida.', status: 400 };
 
-	await transacao((tx) => {
-		ordens.forEach((ordem, indice) => {
-			tx.update(aulas)
+	await transacao(async (tx) => {
+		for (const [indice, ordem] of ordens.entries()) {
+			await tx.update(aulas)
 				.set({ ordem: indice, secaoId: ordem.secaoId })
-				.where(eq(aulas.id, ordem.id))
-				.run();
-		});
+				.where(eq(aulas.id, ordem.id));
+		}
 	});
 
 	return null;
@@ -243,9 +244,9 @@ export async function excluirAula(
 export async function excluirApostila(apostilaId: number): Promise<void> {
 	// Ordem importa: aula e seção primeiro, apostila por último (nada de cascade
 	// no SQLite; ver `excluirSecao`).
-	await transacao((tx) => {
-		tx.delete(aulas).where(eq(aulas.apostilaId, apostilaId)).run();
-		tx.delete(secoes).where(eq(secoes.apostilaId, apostilaId)).run();
-		tx.delete(apostilas).where(eq(apostilas.id, apostilaId)).run();
+	await transacao(async (tx) => {
+		await tx.delete(aulas).where(eq(aulas.apostilaId, apostilaId));
+		await tx.delete(secoes).where(eq(secoes.apostilaId, apostilaId));
+		await tx.delete(apostilas).where(eq(apostilas.id, apostilaId));
 	});
 }

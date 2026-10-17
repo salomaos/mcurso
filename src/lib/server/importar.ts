@@ -269,33 +269,36 @@ export async function importarApostila(dados: ImportacaoApostila): Promise<{ id:
 
 	let criada: { id: number } | null = null;
 	try {
-		await transacao((tx): void => {
+		await transacao(async (tx) => {
 			// Apostila e, depois, seções únicas na ordem de primeira aparição.
-			const [apostila] = tx
+			const [apostila] = await tx
 				.insert(apostilas)
 				.values({ titulo, descricao })
-				.returning()
-				.all();
+				.returning();
 			const secaoIdPorChave = new Map<string, number>();
 			let ordemSecao = 0;
 			for (const secao of dados.secoes) {
 				const chave = chaveTitulo(secao.nome);
 				if (secaoIdPorChave.has(chave)) continue;
-				const [linha] = tx
+				const [linha] = await tx
 					.insert(secoes)
 					.values({ apostilaId: apostila.id, nome: secao.nome, ordem: ordemSecao })
-					.returning()
-					.all();
+					.returning();
 				secaoIdPorChave.set(chave, linha.id);
 				ordemSecao += 1;
 			}
 
 			// Passo 1: aulas com blocos vazios — os ids de hoje são os alvos dos
 			// links de `alvoOrdem` do JSON, então a ordem da lista é sagrada.
+			// `for` com `await` (não `forEach`: o callback async corre solto até a
+			// primeira espera e o insert seguinte não esperaria o de cima).
 			const ids = new Array<number>(aulasPlanas.length);
-			aulasPlanas.forEach((entrada, pos) => {
-				const secaoId = entrada.secao ? (secaoIdPorChave.get(chaveTitulo(entrada.secao)) ?? null) : null;
-				const [linha] = tx
+			for (let pos = 0; pos < aulasPlanas.length; pos += 1) {
+				const entrada = aulasPlanas[pos];
+				const secaoId = entrada.secao
+					? (secaoIdPorChave.get(chaveTitulo(entrada.secao)) ?? null)
+					: null;
+				const [linha] = await tx
 					.insert(aulas)
 					.values({
 						apostilaId: apostila.id,
@@ -305,22 +308,22 @@ export async function importarApostila(dados: ImportacaoApostila): Promise<{ id:
 						ordem: pos,
 						blocos: []
 					})
-					.returning()
-					.all();
+					.returning();
 				ids[pos] = linha.id;
-			});
+			}
 
 			// Passo 2: resolve os links (aula → id já conhecido) e grava blocos.
 			const rotulosAulas = aulasPlanas.map((entrada) => ({ titulo: entrada.aula.titulo }));
-			aulasPlanas.forEach((entrada, pos) => {
+			for (let pos = 0; pos < aulasPlanas.length; pos += 1) {
+				const entrada = aulasPlanas[pos];
 				const resultado = resolverLinks(entrada.aula.blocos, {
 					aulas: rotulosAulas,
 					idAulaPorPos: (p) => ids[p],
 					soltos
 				});
 				if ('erro' in resultado) throw new ErroImport(resultado.erro);
-				tx.update(aulas).set({ blocos: resultado.blocos }).where(eq(aulas.id, ids[pos])).run();
-			});
+				await tx.update(aulas).set({ blocos: resultado.blocos }).where(eq(aulas.id, ids[pos]));
+			}
 
 			criada = { id: apostila.id };
 		});
