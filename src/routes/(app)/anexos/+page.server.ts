@@ -12,8 +12,8 @@ export const load: PageServerLoad<{ anexos: AnexoUi[] }> = async (event) => {
 export const actions: Actions = {
 	criar: async (event) => {
 		requerSessao(event);
-		const anexo = await criarAnexo();
-		throw redirect(303, `${caminhoAnexo(anexo.id)}/editar?novo=1`);
+		const anexoId = await criarAnexo();
+		throw redirect(303, `${caminhoAnexo(anexoId)}/editar?novo=1`);
 	},
 
 	excluir: async (event) => {

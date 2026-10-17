@@ -1,6 +1,14 @@
 import 'dotenv/config';
 import { defineConfig, devices } from '@playwright/test';
-import { DB_E2E, EMAIL_E2E, SEGREDO_E2E, SENHA_E2E, UPLOADS_E2E } from './e2e/ambiente';
+import {
+	DB_E2E,
+	DB_URL_E2E,
+	DIALETO_E2E,
+	EMAIL_E2E,
+	SEGREDO_E2E,
+	SENHA_E2E,
+	UPLOADS_E2E
+} from './e2e/ambiente';
 
 const PORT = Number(process.env.E2E_PORT ?? 5179);
 const baseURL = `http://localhost:${PORT}`;
@@ -34,7 +42,11 @@ export default defineConfig({
 			BETTER_AUTH_SECRET: SEGREDO_E2E,
 			APP_MASTER_PASSWORD: SENHA_E2E,
 			APP_MASTER_EMAIL: EMAIL_E2E,
+			// `DB_DIALECT=mysql` (E2E_DIALECT) roda a mesma suíte contra MySQL/MariaDB;
+			// `DB_PATH` continua no env porque o dialeto é escolha de runtime.
+			DB_DIALECT: DIALETO_E2E,
 			DB_PATH: DB_E2E,
+			DB_URL: DB_URL_E2E,
 			UPLOADS_DIR: UPLOADS_E2E
 		}
 	}

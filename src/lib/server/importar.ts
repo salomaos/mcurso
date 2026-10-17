@@ -28,6 +28,7 @@ import {
 	type ImportacaoQuiz
 } from '$lib/quiz';
 import { db } from '$lib/server/db';
+import { inserirId } from '$lib/server/db/inserir';
 import {
 	anexos,
 	apostilas,
@@ -35,7 +36,7 @@ import {
 	exercicios,
 	quizzes,
 	secoes
-} from '$lib/server/db/schema';
+} from '$lib/server/db/tabelas';
 import { transacao } from '$lib/server/db/transacao';
 import type { Falha } from '$lib/server/conteudo';
 
@@ -271,20 +272,20 @@ export async function importarApostila(dados: ImportacaoApostila): Promise<{ id:
 	try {
 		await transacao(async (tx) => {
 			// Apostila e, depois, seções únicas na ordem de primeira aparição.
-			const [apostila] = await tx
-				.insert(apostilas)
-				.values({ titulo, descricao })
-				.returning();
+			const apostilaId = await inserirId(
+				tx.insert(apostilas).values({ titulo, descricao })
+			);
 			const secaoIdPorChave = new Map<string, number>();
 			let ordemSecao = 0;
 			for (const secao of dados.secoes) {
 				const chave = chaveTitulo(secao.nome);
 				if (secaoIdPorChave.has(chave)) continue;
-				const [linha] = await tx
-					.insert(secoes)
-					.values({ apostilaId: apostila.id, nome: secao.nome, ordem: ordemSecao })
-					.returning();
-				secaoIdPorChave.set(chave, linha.id);
+				const secaoId = await inserirId(
+					tx
+						.insert(secoes)
+						.values({ apostilaId, nome: secao.nome, ordem: ordemSecao })
+				);
+				secaoIdPorChave.set(chave, secaoId);
 				ordemSecao += 1;
 			}
 
@@ -298,18 +299,17 @@ export async function importarApostila(dados: ImportacaoApostila): Promise<{ id:
 				const secaoId = entrada.secao
 					? (secaoIdPorChave.get(chaveTitulo(entrada.secao)) ?? null)
 					: null;
-				const [linha] = await tx
-					.insert(aulas)
-					.values({
-						apostilaId: apostila.id,
+				const aulaId = await inserirId(
+					tx.insert(aulas).values({
+						apostilaId,
 						secaoId,
 						titulo: entrada.aula.titulo,
 						descricao: entrada.aula.descricao,
 						ordem: pos,
 						blocos: []
 					})
-					.returning();
-				ids[pos] = linha.id;
+				);
+				ids[pos] = aulaId;
 			}
 
 			// Passo 2: resolve os links (aula → id já conhecido) e grava blocos.
@@ -325,7 +325,7 @@ export async function importarApostila(dados: ImportacaoApostila): Promise<{ id:
 				await tx.update(aulas).set({ blocos: resultado.blocos }).where(eq(aulas.id, ids[pos]));
 			}
 
-			criada = { id: apostila.id };
+			criada = { id: apostilaId };
 		});
 	} catch (erro) {
 		if (erro instanceof ErroImport) return { erro: erro.message, status: 400 };
@@ -347,11 +347,10 @@ async function importarSolto(
 	if ('erro' in resultado) return resultado;
 
 	const tabela = tipo === 'anexo' ? anexos : exercicios;
-	const [linha] = await db
-		.insert(tabela)
-		.values({ titulo, descricao: dados.descricao.trim(), blocos: resultado.blocos })
-		.returning();
-	return { id: linha.id };
+	const linhaId = await inserirId(
+		db.insert(tabela).values({ titulo, descricao: dados.descricao.trim(), blocos: resultado.blocos })
+	);
+	return { id: linhaId };
 }
 
 export function importarAnexo(dados: ImportacaoSolto) {
@@ -370,11 +369,12 @@ export async function importarQuiz(quiz: ImportacaoQuiz): Promise<{ id: number }
 	const pendencia = validarPerguntas(perguntas);
 	if (pendencia) return { erro: pendencia, status: 400 };
 
-	const [linha] = await db
-		.insert(quizzes)
-		.values({ titulo, descricao: (quiz.descricao ?? '').trim(), perguntas })
-		.returning();
-	return { id: linha.id };
+	const linhaId = await inserirId(
+		db
+			.insert(quizzes)
+			.values({ titulo, descricao: (quiz.descricao ?? '').trim(), perguntas })
+	);
+	return { id: linhaId };
 }
 
 // Guarda de tipo: `Bloco` aqui é só para documentar o retorno do `normalizarBlocos`.

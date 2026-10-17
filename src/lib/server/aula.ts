@@ -6,7 +6,8 @@ import { and, asc, eq, max } from 'drizzle-orm';
 import { normalizarBlocos, normalizarNomeSecao, mesmoNomeSecao, type Blocos } from '$lib/blocks';
 import type { AlvoLink } from '$lib/conteudo';
 import { db } from '$lib/server/db';
-import { apostilas, anexos, aulas, secoes } from '$lib/server/db/schema';
+import { inserirId } from '$lib/server/db/inserir';
+import { apostilas, anexos, aulas, secoes } from '$lib/server/db/tabelas';
 import {
 	erroNaoEncontrado,
 	lerConteudo,
@@ -105,11 +106,12 @@ async function resolverSecao(
 			.select({ max: max(secoes.ordem) })
 			.from(secoes)
 			.where(eq(secoes.apostilaId, apostilaId));
-		const [criada] = await db
-			.insert(secoes)
-			.values({ apostilaId, nome: nomeSecao, ordem: (linha?.max ?? -1) + 1 })
-			.returning();
-		return { secaoId: criada.id };
+		const secaoId = await inserirId(
+			db
+				.insert(secoes)
+				.values({ apostilaId, nome: nomeSecao, ordem: (linha?.max ?? -1) + 1 })
+		);
+		return { secaoId };
 	}
 
 	if (!secaoIdBruto) return { secaoId: null };

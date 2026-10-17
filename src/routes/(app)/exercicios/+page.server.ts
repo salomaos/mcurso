@@ -12,8 +12,8 @@ export const load: PageServerLoad = async (event) => {
 export const actions: Actions = {
 	criar: async (event) => {
 		requerSessao(event);
-		const exercicio = await criarExercicio();
-		throw redirect(303, `${caminhoExercicio(exercicio.id)}/editar?novo=1`);
+		const exercicioId = await criarExercicio();
+		throw redirect(303, `${caminhoExercicio(exercicioId)}/editar?novo=1`);
 	},
 
 	excluir: async (event) => {

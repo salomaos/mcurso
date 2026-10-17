@@ -4,7 +4,7 @@ import { caminhoAnexo, caminhoExercicio } from '$lib/conteudo';
 import { interpretarImportacao } from '$lib/importar';
 import { caminhoEditarQuiz } from '$lib/quiz';
 import { db } from '$lib/server/db';
-import { anexos, apostilas, aulas, exercicios, quizzes } from '$lib/server/db/schema';
+import { anexos, apostilas, aulas, exercicios, quizzes } from '$lib/server/db/tabelas';
 import { requerSessao } from '$lib/server/guard';
 import {
 	exportarApostilaJson,

@@ -5,7 +5,8 @@ import { asc, eq } from 'drizzle-orm';
 import { linksPara, normalizarBlocos, type Blocos } from '$lib/blocks';
 import type { AnexoUi, AlvoLink, ReferenciaAnexo } from '$lib/conteudo';
 import { db } from '$lib/server/db';
-import { anexos, aulas } from '$lib/server/db/schema';
+import { inserirId } from '$lib/server/db/inserir';
+import { anexos, aulas } from '$lib/server/db/tabelas';
 import { erroNaoEncontrado, lerConteudo, validarLinksInternos, type Falha } from '$lib/server/conteudo';
 
 export type { AnexoUi, ReferenciaAnexo };
@@ -73,9 +74,10 @@ export async function alvosAnexos(): Promise<AlvoLink[]> {
 	return lista.map((anexo) => ({ id: anexo.id, titulo: anexo.titulo, detalhe: anexo.descricao }));
 }
 
-export async function criarAnexo() {
-	const [anexo] = await db.insert(anexos).values({ titulo: 'Novo anexo' }).returning();
-	return anexo;
+// Cria o anexo vazio e devolve o id: é o que a action precisa para redirecionar
+// para o editor. (O insert devolve só o id nos dois dialetos — ver `inserirId`.)
+export async function criarAnexo(): Promise<number> {
+	return inserirId(db.insert(anexos).values({ titulo: 'Novo anexo' }));
 }
 
 export async function salvarAnexo(anexoId: number, dados: FormData): Promise<Falha | null> {

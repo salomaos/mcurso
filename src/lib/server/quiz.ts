@@ -11,7 +11,8 @@ import {
 	type QuizUi
 } from '$lib/quiz';
 import { db } from '$lib/server/db';
-import { quizzes } from '$lib/server/db/schema';
+import { inserirId } from '$lib/server/db/inserir';
+import { quizzes } from '$lib/server/db/tabelas';
 import type { Falha } from '$lib/server/conteudo';
 
 function comPerguntas(linha: typeof quizzes.$inferSelect): Quiz {
@@ -36,12 +37,9 @@ export async function listarQuizzes(): Promise<QuizUi[]> {
 	}));
 }
 
-export async function criarQuiz() {
-	const [quiz] = await db
-		.insert(quizzes)
-		.values({ titulo: 'Novo quiz', perguntas: [] })
-		.returning();
-	return quiz;
+// Cria o quiz vazio e devolve o id (é o que a action usa para redirecionar).
+export async function criarQuiz(): Promise<number> {
+	return inserirId(db.insert(quizzes).values({ titulo: 'Novo quiz', perguntas: [] }));
 }
 
 export async function salvarQuiz(quizId: number, dados: FormData): Promise<Falha | null> {

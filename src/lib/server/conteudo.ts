@@ -6,7 +6,7 @@ import { inArray } from 'drizzle-orm';
 import { normalizarBlocos, type Bloco, type BlocoLink, type Blocos } from '$lib/blocks';
 import { ROTULO_TIPO, type TipoConteudo } from '$lib/conteudo';
 import { db } from '$lib/server/db';
-import { anexos, aulas, exercicios } from '$lib/server/db/schema';
+import { anexos, aulas, exercicios } from '$lib/server/db/tabelas';
 
 export type Falha = { erro: string; status: number };
 

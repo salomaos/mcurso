@@ -1,6 +1,6 @@
 import { count, desc, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { apostilas, aulas } from '$lib/server/db/schema';
+import { apostilas, aulas } from '$lib/server/db/tabelas';
 import type { PageServerLoad } from './$types';
 
 export type ApostilaComTotal = typeof apostilas.$inferSelect & { totalAulas: number };

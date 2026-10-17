@@ -19,7 +19,8 @@ import type {
 	ReferenciaAnexo
 } from '$lib/conteudo';
 import { db } from '$lib/server/db';
-import { apostilas, aulas, exercicios } from '$lib/server/db/schema';
+import { inserirId } from '$lib/server/db/inserir';
+import { apostilas, aulas, exercicios } from '$lib/server/db/tabelas';
 import { erroNaoEncontrado, lerConteudo, validarLinksInternos, type Falha } from '$lib/server/conteudo';
 
 export type { DissertativaPublica, ExercicioUi, QuestaoPublica, ReferenciaAnexo };
@@ -103,9 +104,9 @@ export async function alvosExercicios(): Promise<AlvoLink[]> {
 	return lista.map((exercicio) => ({ id: exercicio.id, titulo: exercicio.titulo, detalhe: exercicio.descricao }));
 }
 
-export async function criarExercicio() {
-	const [exercicio] = await db.insert(exercicios).values({ titulo: 'Nova atividade' }).returning();
-	return exercicio;
+// Cria a atividade vazia e devolve o id (é o que a action usa para redirecionar).
+export async function criarExercicio(): Promise<number> {
+	return inserirId(db.insert(exercicios).values({ titulo: 'Nova atividade' }));
 }
 
 export async function salvarExercicio(exercicioId: number, dados: FormData): Promise<Falha | null> {

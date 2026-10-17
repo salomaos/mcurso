@@ -7,7 +7,8 @@ import { error } from '@sveltejs/kit';
 import { and, asc, eq, max } from 'drizzle-orm';
 import { mesmoNomeSecao, normalizarNomeSecao } from '$lib/blocks';
 import { db } from '$lib/server/db';
-import { apostilas, aulas, secoes } from '$lib/server/db/schema';
+import { inserirId } from '$lib/server/db/inserir';
+import { apostilas, aulas, secoes } from '$lib/server/db/tabelas';
 import { transacao } from '$lib/server/db/transacao';
 import type { Falha } from '$lib/server/conteudo';
 
@@ -217,12 +218,11 @@ export async function criarAula(apostilaId: number): Promise<number> {
 		.from(aulas)
 		.where(eq(aulas.apostilaId, apostilaId));
 
-	const [nova] = await db
-		.insert(aulas)
-		.values({ apostilaId, titulo: 'Nova aula', ordem: (linha?.max ?? 0) + 1 })
-		.returning();
+	const aulaId = await inserirId(
+		db.insert(aulas).values({ apostilaId, titulo: 'Nova aula', ordem: (linha?.max ?? 0) + 1 })
+	);
 
-	return nova.id;
+	return aulaId;
 }
 
 export async function excluirAula(

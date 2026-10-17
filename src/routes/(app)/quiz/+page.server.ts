@@ -18,8 +18,8 @@ export const load: PageServerLoad = async (event) => {
 export const actions: Actions = {
 	criar: async (event) => {
 		requerSessao(event);
-		const quiz = await criarQuiz();
-		throw redirect(303, `${caminhoEditarQuiz(quiz.id)}?novo=1`);
+		const quizId = await criarQuiz();
+		throw redirect(303, `${caminhoEditarQuiz(quizId)}?novo=1`);
 	},
 
 	excluir: async (event) => {
