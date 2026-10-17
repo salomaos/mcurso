@@ -36,6 +36,7 @@ import {
 	quizzes,
 	secoes
 } from '$lib/server/db/schema';
+import { transacao } from '$lib/server/db/transacao';
 import type { Falha } from '$lib/server/conteudo';
 
 class ErroImport extends Error {}
@@ -268,7 +269,7 @@ export async function importarApostila(dados: ImportacaoApostila): Promise<{ id:
 
 	let criada: { id: number } | null = null;
 	try {
-		db.transaction((tx): void => {
+		await transacao((tx): void => {
 			// Apostila e, depois, seções únicas na ordem de primeira aparição.
 			const [apostila] = tx
 				.insert(apostilas)

@@ -43,7 +43,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 148/148 (12 arquivos) |
+| `pnpm test` | 151/151 (13 arquivos) |
 | E2E (as 15 specs da suíte) | 90/90 |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
@@ -174,7 +174,7 @@ O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Qu
 
 ## Testes
 
-- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/markdown.test.ts` (markdown do bloco de texto, com escape de HTML), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app), `src/lib/visao.test.ts` (preferência lista/grade), `src/lib/quiz.test.ts` (código do quiz, pontuação e importação) e `src/lib/importar.test.ts` + `src/lib/blocos-pendentes.test.ts` (importação por JSON e pendências mantidas).
+- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/markdown.test.ts` (markdown do bloco de texto, com escape de HTML), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/server/db/node-sqlite.test.ts` (shim de transação do `node:sqlite`: commit, rollback e a recusa de callback async), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app), `src/lib/visao.test.ts` (preferência lista/grade), `src/lib/quiz.test.ts` (código do quiz, pontuação e importação) e `src/lib/importar.test.ts` + `src/lib/blocos-pendentes.test.ts` (importação por JSON e pendências mantidas).
 - **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão), `e2e/html.spec.ts` (bloco HTML: script que roda, `<script src>` de lib, erro e correção, toggle e impressão), `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto), `e2e/busca.spec.ts` (busca por título nas listagens), `e2e/quiz.spec.ts` (sala ao vivo: professor + aluno, encerrar/sair e exportar perguntas) e `e2e/importacao.spec.ts` (importar por JSON, pendência de bloco vazio, export round-trip e popup de exemplo por tipo).
 
 ---

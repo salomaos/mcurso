@@ -48,6 +48,13 @@ function instalarTransacao(banco: DatabaseSync): void {
 			banco.exec(`BEGIN${inicio}`);
 			try {
 				const resultado = callback(arg);
+				// better-sqlite3 recusa callback async com esta mesma mensagem. Sem a
+				// guarda o COMMIT sairia antes de o promise resolver e o efeito ficaria
+				// fora da transação — e o `node:sqlite` é síncrono, então não dá para
+				// esperar aqui sem deixar a transação aberta para outra requisição.
+				if (resultado && typeof (resultado as { then?: unknown }).then === 'function') {
+					throw new Error('Transaction function cannot return a promise');
+				}
 				banco.exec('COMMIT');
 				return resultado;
 			} catch (erro) {

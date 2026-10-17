@@ -8,6 +8,7 @@ import { and, asc, eq, max } from 'drizzle-orm';
 import { mesmoNomeSecao, normalizarNomeSecao } from '$lib/blocks';
 import { db } from '$lib/server/db';
 import { apostilas, aulas, secoes } from '$lib/server/db/schema';
+import { transacao } from '$lib/server/db/transacao';
 import type { Falha } from '$lib/server/conteudo';
 
 // `alvo: 'secao'` diz à página para mostrar o aviso dentro da caixa de seções em
@@ -106,7 +107,7 @@ export async function excluirSecao(
 
 	// SQLite não liga `PRAGMA foreign_keys` (ver `node-sqlite.ts`): solta as aulas
 	// da seção na mão em vez de contar com o cascade.
-	await db.transaction((tx) => {
+	await transacao((tx) => {
 		tx.update(aulas).set({ secaoId: null }).where(eq(aulas.secaoId, secaoId)).run();
 		tx.delete(secoes).where(eq(secoes.id, secaoId)).run();
 	});
@@ -165,7 +166,7 @@ export async function reordenarSecoes(
 	if (ids.length !== existentes.length || ids.some((id) => !validas.has(id)))
 		return { erro: 'Ordem inválida.', status: 400 };
 
-	db.transaction((tx) => {
+	await transacao((tx) => {
 		ids.forEach((id, indice) => {
 			tx.update(secoes).set({ ordem: indice }).where(eq(secoes.id, id)).run();
 		});
@@ -197,7 +198,7 @@ export async function reordenarAulas(
 	)
 		return { erro: 'Ordem inválida.', status: 400 };
 
-	db.transaction((tx) => {
+	await transacao((tx) => {
 		ordens.forEach((ordem, indice) => {
 			tx.update(aulas)
 				.set({ ordem: indice, secaoId: ordem.secaoId })
@@ -242,7 +243,7 @@ export async function excluirAula(
 export async function excluirApostila(apostilaId: number): Promise<void> {
 	// Ordem importa: aula e seção primeiro, apostila por último (nada de cascade
 	// no SQLite; ver `excluirSecao`).
-	await db.transaction((tx) => {
+	await transacao((tx) => {
 		tx.delete(aulas).where(eq(aulas.apostilaId, apostilaId)).run();
 		tx.delete(secoes).where(eq(secoes.apostilaId, apostilaId)).run();
 		tx.delete(apostilas).where(eq(apostilas.id, apostilaId)).run();
