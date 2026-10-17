@@ -6,7 +6,7 @@ O bloco de **simulação** roda código **p5.js** ou **q5.js** dentro de uma `if
 
 Fora das apostilas há ainda os **anexos** (materiais de apoio **soltos**, usados em qualquer aula através de um bloco de link) e as **atividades de exercício** (provas curtas, também soltas, que o aluno responde numa página pública e recebe o resultado com chave de verificação).
 
-Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (login por senha), **Drizzle ORM** + **SQLite**, a biblioteca de UI **ahmardesign** e **KaTeX/Mermaid** no cliente.
+Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (login por senha), **Drizzle ORM** + **SQLite** (o `node:sqlite` embutido do Node, sem binário nativo a compilar), a biblioteca de UI **ahmardesign** e **KaTeX/Mermaid** no cliente.
 
 ---
 
@@ -44,7 +44,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 | Checagem | Resultado da última execução local |
 | --- | --- |
 | `pnpm test` | 148/148 (12 arquivos) |
-| E2E (as 14 specs da suíte) | 85/85 |
+| E2E (as 15 specs da suíte) | 90/90 |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
 
@@ -52,7 +52,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 - **Tela de validação da chave de integridade**: a chave é gerada e assinada, mas não há página que confira a assinatura. É o lugar natural para exigir a chave antes de dar a nota.
 - A chave **não cobre** as respostas discursivas (só a nota automática e o hash do gabarito objetivo).
 - Sem histórico nem rascunho: a edição é direta, com versão única.
-- Sem multiusuário (por design) e sem PostgreSQL (hoje é SQLite em arquivo; a troca é futura).
+- Sem multiusuário (por design) e sem PostgreSQL. Hoje o banco é SQLite em arquivo; o plano é um **dual-dialect por deploy** (SQLite no dev, MySQL/MariaDB na hospedagem) — ainda não implementado.
 
 ## Como começar
 
@@ -86,12 +86,11 @@ pnpm dev
 | `pnpm check:watch` | o mesmo, em watch |
 | `pnpm test` | unit com Vitest (`src/**`, exclui `e2e/**`) |
 | `pnpm test:watch` | unit em watch |
-| `pnpm test:e2e` | Playwright — **precisa das specs no argumento** (ver nota abaixo) |
+| `pnpm test:e2e` | Playwright — roda a suíte inteira (ver nota abaixo) |
 | `pnpm db:generate` | gera a migration a partir do schema Drizzle |
 | `pnpm db:migrate` | aplica as migrations no banco (o app também faz isso no boot) |
 
-> **E2E**: cada execução recria `data/e2e.db` e `data/e2e-uploads` (o banco de dev nunca é tocado) e sobe o app na porta 5179. Passe sempre as specs — `playwright test` sem argumento quebra na coleta, porque `e2e/repro-bugs.spec.ts` e `e2e/repro-tabela-exercicio.spec.ts` são arquivos de repro com sintaxe propositalmente inválida e não estão no `testIgnore`:
-> `pnpm exec playwright test e2e/apresentacao.spec.ts e2e/arrastar.spec.ts e2e/busca.spec.ts e2e/fluxo.spec.ts e2e/tema.spec.ts e2e/anexos.spec.ts e2e/exercicios.spec.ts e2e/inserir-bloco.spec.ts e2e/markdown.spec.ts e2e/simulacao.spec.ts e2e/visao.spec.ts e2e/quiz.spec.ts e2e/importacao.spec.ts`
+> **E2E**: cada execução recria `data/e2e.db` e `data/e2e-uploads` (o banco de dev nunca é tocado) e sobe o app na porta 5179 (build + `node build`, sem `drizzle-kit`: o app migra sozinho no boot, igual ao deploy). `pnpm test:e2e` roda tudo; para rodar um subconjunto, passe as specs: `pnpm exec playwright test e2e/fluxo.spec.ts e2e/quiz.spec.ts`.
 
 ## Estrutura
 
@@ -110,6 +109,13 @@ src/
     theme.svelte.ts      → tema persistido sem FOUC
     visao.svelte.ts      → lista ou grade nas listas de conteúdo (preferência do navegador)
     auth-client.ts       → cliente do Better Auth para o browser
+    markdown.ts          → markdown do bloco de texto (marked + sanitize)
+    importar.ts          → parser do JSON colado de IA (client-safe)
+    blocos-pendentes.ts  → blocos vazios que o editor avisa depois de importar
+    quiz.ts              → tipos, normalização, pontuação e ranking do quiz
+    quiz-cliente.ts      → busca de estado / envio de ação da sala (fetch)
+    casca-sandbox.ts     → documento da iframe isolada (simulação e bloco HTML)
+    enviando.ts          → action `use:enviando` (feedback padrão de todo form POST)
     components/
       EditorConteudo.svelte    → editor compartilhado (aula, anexo e atividade)
       VisualizarConteudo.svelte→ leitura pública
@@ -123,13 +129,19 @@ src/
       Simulacao.svelte         → código p5/q5 rodando em iframe isolada (editor e leitura)
       TextoMatematico.svelte  → texto com `$...$` saindo com KaTeX
       Apresentacao.svelte      → modo apresentação (slides)
-      Mermaid/Formula/Exercicio/Codigo/TextoEditavel/Icone.svelte
+      Mermaid/Formula/Exercicio/Dissertativa/Codigo/TextoEditavel/TextoMarkdown/Html/Icone.svelte
+      ListaBlocos.svelte       → lista de blocos (leitura, sem edição)
+      ui/                      → primitivas (Pagina, CabecalhoPagina, Campo, CardConteudo, …)
       Navbar.svelte, ThemeSelector.svelte
     server/
       conteudo.ts        → parsing/validação comum de aula, anexo e atividade
+      apostila.ts        → painel da apostila: seções, ordem de aulas e exclusão (transações)
       aula.ts            → regras de aula (seção, ordem, alvos de link)
       anexo.ts           → regras de anexo (CRUD, links reversos, exclusão)
       exercicio.ts       → atividade: página pública sem gabarito, CRUD, contexto `?aula=`
+      quiz.ts            → CRUD do quiz (só o livro de perguntas vai ao banco)
+      quiz-sala.ts       → sala ao vivo do quiz em memória (polling, fases, ranking)
+      importar.ts        → importação/exportação transacional do JSON de IA
       chave.ts           → chave de integridade do resultado (HMAC)
       guard.ts           → requerSessao() (protege load/action, não só o markup)
       auth.ts, auth-cli.ts, db/ (schema Drizzle)
@@ -137,9 +149,12 @@ src/
     (app)/apostilas/     → painel da apostila, aulas e edição
     (app)/anexos/        → listagem solta e rotas do anexo (ler/editar/imprimir/apresentar)
     (app)/exercicios/    → listagem solta e rotas da atividade (responder/editar)
+    (app)/quiz/          → lista e editor, host (professor) e jogar (aluno)
+    (app)/importar/      → cola JSON de IA e exporta de volta
     login/               → login com a senha mestra
     lib/[...caminho]/     → serve p5.min.js/q5.js do node_modules (allowlist, sem CDN)
     api/upload/          → upload de imagens
+    api/quiz/sala/       → polling da sala do quiz (estado e ações do host/jogador)
     uploads/             → serve os arquivos enviados (exige sessão)
 e2e/                     → Playwright (ambiente.ts com as credenciais/banco isolados)
 scripts/e2e-reset.mjs    → recria o banco de E2E antes de cada execução
@@ -152,16 +167,15 @@ drizzle/                 → migrations e snapshots
 O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Quatro pontos que já custaram tempo:
 
 - **As migrations são aplicadas pelo app no boot** (`src/lib/server/db/migrar.ts`, chamado pelo `db/index.ts` antes de qualquer consulta), não por um passo separado de deploy: `drizzle-kit` é `devDependency` e não existe no servidor. O log de boot diz quantas entraram — `[mcurso] 6 migração(ões) aplicada(s) em …` ou `[mcurso] banco em dia em …`. O `pnpm build` copia `drizzle/` para dentro de `build/drizzle`, então só a pasta de build precisa estar no ar (a resolução tenta `drizzle`, `build/drizzle`, `../drizzle` e aceita `MIGRATIONS_DIR`).
-- `better-sqlite3` fica em **`dependencies`**, nunca em `devDependencies` (o adapter-node deixa dependências externas resolvidas do `node_modules` em runtime; bundlado, o addon nativo quebra com "require is not defined"). Ele já vem com binário pronto em `prebuilds/`, sem compilar nada.
+- **O app não tem nenhuma dependência nativa**: o SQLite é o `node:sqlite` embutido no Node ≥ 22.13 (`DatabaseSync`), então não há binário para baixar nem compilar no servidor (o que já quebrou o deploy duas vezes com o glibc antigo da hospedagem). O import do driver `better-sqlite3` do drizzle é satisfeito por um stub em `vendor/better-sqlite3-stub` — nunca instanciado, porque o app sempre passa a instância do `node:sqlite`. O `engines.node` exige `>=22.13`.
 - `p5` e `q5` também ficam em **`dependencies`** pelo mesmo motivo: a rota `lib/[...caminho]` resolve os arquivos no `node_modules` em runtime (a `iframe` do bloco de simulação não pode ir para CDN e o `exports` do p5 bloqueia o caminho normal). No deploy, as duas precisam estar instaladas junto do `node_modules`.
 - Variáveis de ambiente em produção: `DB_PATH` e `UPLOADS_DIR` precisam apontar para caminhos graváveis **e persistentes** (fora da pasta de build, que some a cada novo deploy), mais `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (a URL pública, sem barra final), `APP_MASTER_EMAIL` e `APP_MASTER_PASSWORD` (ver `.env.example`). O servidor escuta em `PORT`/`HOST`, com `ORIGIN` apontando para a URL pública (necessário para os cookies de sessão).
 - A lib de UI entra como `^x.y.z` no `package.json` (versão publicada no registry). O `link:../ahmardesign` só funciona no clone local.
 
 ## Testes
 
-- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app), `src/lib/visao.test.ts` (preferência lista/grade), `src/lib/quiz.test.ts` (código do quiz, pontuação e importação) e `src/lib/importar.test.ts` + `src/lib/blocos-pendentes.test.ts` (importação por JSON e pendências mantidas).
-- **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão), `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto), `e2e/busca.spec.ts` (busca por título nas listagens), `e2e/quiz.spec.ts` (sala ao vivo: professor + aluno, encerrar/sair e exportar perguntas) e `e2e/importacao.spec.ts` (importar por JSON, pendência de bloco vazio, export round-trip e popup de exemplo por tipo).
-- `e2e/repro-*.spec.ts` não fazem parte da suíte: são arquivos de repro propositalmente inválidos, usados para demonstrar falha e não coletados (veja a nota dos scripts).
+- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/markdown.test.ts` (markdown do bloco de texto, com escape de HTML), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app), `src/lib/visao.test.ts` (preferência lista/grade), `src/lib/quiz.test.ts` (código do quiz, pontuação e importação) e `src/lib/importar.test.ts` + `src/lib/blocos-pendentes.test.ts` (importação por JSON e pendências mantidas).
+- **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão), `e2e/html.spec.ts` (bloco HTML: script que roda, `<script src>` de lib, erro e correção, toggle e impressão), `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto), `e2e/busca.spec.ts` (busca por título nas listagens), `e2e/quiz.spec.ts` (sala ao vivo: professor + aluno, encerrar/sair e exportar perguntas) e `e2e/importacao.spec.ts` (importar por JSON, pendência de bloco vazio, export round-trip e popup de exemplo por tipo).
 
 ---
 
