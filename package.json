@@ -17,7 +17,9 @@
 		"test:watch": "vitest",
 		"test:e2e": "playwright test",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "drizzle-kit migrate"
+		"db:migrate": "drizzle-kit migrate",
+		"db:generate:mysql": "drizzle-kit generate --config drizzle.mysql.config.ts",
+		"db:migrate:mysql": "drizzle-kit migrate --config drizzle.mysql.config.ts"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.63.0",
@@ -42,6 +44,7 @@
 		"katex": "^0.18.10",
 		"marked": "^18.0.14",
 		"mermaid": "^12.1.0",
+		"mysql2": "^3.24.6",
 		"p5": "^2.3.4",
 		"q5": "^4.8.3"
 	}

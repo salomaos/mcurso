@@ -43,7 +43,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 151/151 (13 arquivos) |
+| `pnpm test` | 155/155 (14 arquivos) |
 | E2E (as 15 specs da suíte) | 90/90 |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
@@ -52,7 +52,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 - **Tela de validação da chave de integridade**: a chave é gerada e assinada, mas não há página que confira a assinatura. É o lugar natural para exigir a chave antes de dar a nota.
 - A chave **não cobre** as respostas discursivas (só a nota automática e o hash do gabarito objetivo).
 - Sem histórico nem rascunho: a edição é direta, com versão única.
-- Sem multiusuário (por design) e sem PostgreSQL. Hoje o banco é SQLite em arquivo; o plano é um **dual-dialect por deploy** (SQLite no dev, MySQL/MariaDB na hospedagem) — ainda não implementado.
+- Sem multiusuário (por design) e sem PostgreSQL. Hoje o banco é SQLite em arquivo; o **dual-dialect por deploy** (SQLite no dev, MySQL/MariaDB na hospedagem) está em andamento: o schema MySQL, a config do `drizzle-kit` e o teste de paridade já existem, mas a escolha do dialeto em runtime ainda não está ligada.
 
 ## Como começar
 
@@ -87,8 +87,10 @@ pnpm dev
 | `pnpm test` | unit com Vitest (`src/**`, exclui `e2e/**`) |
 | `pnpm test:watch` | unit em watch |
 | `pnpm test:e2e` | Playwright — roda a suíte inteira (ver nota abaixo) |
-| `pnpm db:generate` | gera a migration a partir do schema Drizzle |
+| `pnpm db:generate` | gera a migration a partir do schema Drizzle (SQLite, `drizzle/`) |
 | `pnpm db:migrate` | aplica as migrations no banco (o app também faz isso no boot) |
+| `pnpm db:generate:mysql` | gera a migration do dialeto MySQL (`drizzle-mysql/`) |
+| `pnpm db:migrate:mysql` | aplica as migrations no MySQL/MariaDB (a partir de `DB_URL`) |
 
 > **E2E**: cada execução recria `data/e2e.db` e `data/e2e-uploads` (o banco de dev nunca é tocado) e sobe o app na porta 5179 (build + `node build`, sem `drizzle-kit`: o app migra sozinho no boot, igual ao deploy). `pnpm test:e2e` roda tudo; para rodar um subconjunto, passe as specs: `pnpm exec playwright test e2e/fluxo.spec.ts e2e/quiz.spec.ts`.
 
@@ -144,7 +146,7 @@ src/
       importar.ts        → importação/exportação transacional do JSON de IA
       chave.ts           → chave de integridade do resultado (HMAC)
       guard.ts           → requerSessao() (protege load/action, não só o markup)
-      auth.ts, auth-cli.ts, db/ (schema Drizzle)
+      auth.ts, auth-cli.ts, auth-cli-mysql.ts, db/ (schema Drizzle: SQLite + gêmeo MySQL)
   routes/
     (app)/apostilas/     → painel da apostila, aulas e edição
     (app)/anexos/        → listagem solta e rotas do anexo (ler/editar/imprimir/apresentar)
@@ -159,7 +161,8 @@ src/
 e2e/                     → Playwright (ambiente.ts com as credenciais/banco isolados)
 scripts/e2e-reset.mjs    → recria o banco de E2E antes de cada execução
 scripts/copiar-migracoes.mjs → copia drizzle/ para dentro de build/ no build
-drizzle/                 → migrations e snapshots
+drizzle/                 → migrations e snapshots (SQLite)
+drizzle-mysql/           → migrations e snapshots (MySQL/MariaDB)
 ```
 
 ## Deploy (adapter-node)
