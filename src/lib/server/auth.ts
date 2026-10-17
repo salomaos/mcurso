@@ -3,8 +3,9 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
-import { db } from './db';
-import * as authSchema from './db/auth-schema';
+import { db, dialeto } from './db';
+import * as authSchemaSqlite from './db/auth-schema';
+import * as authSchemaMysql from './db/auth-schema.mysql';
 
 const baseURL = process.env.BETTER_AUTH_URL ?? 'http://localhost:5173';
 
@@ -20,7 +21,12 @@ export const auth = betterAuth({
 	basePath: '/api/auth',
 	baseURL,
 	secret: process.env.BETTER_AUTH_SECRET ?? 'mcurso-dev-secret-troque-no-env',
-	database: drizzleAdapter(db, { provider: 'sqlite', schema: authSchema }),
+	// O adapter segue o dialeto: as tabelas do Better Auth têm tipos diferentes
+	// no SQLite e no MySQL (o gêmeo MySQL é gerado pelo CLI — ver auth-cli-mysql.ts).
+	database: drizzleAdapter(db, {
+		provider: dialeto,
+		schema: dialeto === 'mysql' ? authSchemaMysql : authSchemaSqlite
+	}),
 	emailAndPassword: {
 		enabled: true,
 		minPasswordLength: 6
