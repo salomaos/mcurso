@@ -6,7 +6,7 @@ O bloco de **simulação** roda código **p5.js** ou **q5.js** dentro de uma `if
 
 Fora das apostilas há ainda os **anexos** (materiais de apoio **soltos**, usados em qualquer aula através de um bloco de link) e as **atividades de exercício** (provas curtas, também soltas, que o aluno responde numa página pública e recebe o resultado com chave de verificação).
 
-Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (login por senha), **Drizzle ORM** + **SQLite** (o `node:sqlite` embutido do Node, sem binário nativo a compilar), a biblioteca de UI **ahmardesign** e **KaTeX/Mermaid** no cliente.
+Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (login por senha), **Drizzle ORM** com **SQLite ou MySQL/MariaDB escolhido por deploy** (`DB_DIALECT`; no SQLite o driver é o `node:sqlite` embutido no Node, sem binário nativo a compilar), a biblioteca de UI **ahmardesign** e **KaTeX/Mermaid** no cliente.
 
 ---
 
@@ -43,8 +43,8 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 155/155 (14 arquivos) |
-| E2E (as 15 specs da suíte) | 90/90 |
+| `pnpm test` | 156/156 (14 arquivos) |
+| E2E (as 15 specs da suíte) | 90/90 no SQLite **e** 90/90 no MariaDB 10.11 |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
 
@@ -52,7 +52,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 - **Tela de validação da chave de integridade**: a chave é gerada e assinada, mas não há página que confira a assinatura. É o lugar natural para exigir a chave antes de dar a nota.
 - A chave **não cobre** as respostas discursivas (só a nota automática e o hash do gabarito objetivo).
 - Sem histórico nem rascunho: a edição é direta, com versão única.
-- Sem multiusuário (por design) e sem PostgreSQL. Hoje o banco é SQLite em arquivo; o **dual-dialect por deploy** (SQLite no dev, MySQL/MariaDB na hospedagem) está em andamento: o schema MySQL, a config do `drizzle-kit` e o teste de paridade já existem, mas a escolha do dialeto em runtime ainda não está ligada.
+- Sem multiusuário (por design) e sem PostgreSQL. O banco é **SQLite (dev) ou MySQL/MariaDB (hospedagem), escolhido por deploy** com `DB_DIALECT=sqlite|mysql`: os dois schemas vivem lado a lado (SQLite + gêmeo MySQL, com um teste de paridade) e a **mesma suíte E2E roda nos dois** (`E2E_DIALECT=mysql`). A migração dos dados que já estão no SQLite para o MySQL ainda não existe.
 
 ## Como começar
 
@@ -73,6 +73,8 @@ pnpm db:migrate
 pnpm dev
 ```
 
+> **Banco**: por padrão o app usa **SQLite** em `DB_PATH`. Para rodar contra **MySQL/MariaDB**, preencha `DB_URL` e suba com `DB_DIALECT=mysql` — o app cria as tabelas no boot, pelo mesmo caminho do deploy (`pnpm db:generate:mysql`/`db:migrate:mysql` só servem para gerar/aplicar a migration na mão).
+
 > **Login**: acesse `/login` e use a senha mestra (campo vazio no `.env` é aviso no dev).
 
 ## Scripts
@@ -80,7 +82,7 @@ pnpm dev
 | Comando | O que faz |
 | --- | --- |
 | `pnpm dev` | servidor de desenvolvimento (HMR) |
-| `pnpm build` | build de produção (`vite build` + cópia de `drizzle/` para dentro de `build/`) |
+| `pnpm build` | build de produção (`vite build` + cópia das pastas de migration para dentro de `build/`) |
 | `pnpm preview` | serve o build localmente |
 | `pnpm check` | tipos com `svelte-check` (ver baseline acima) |
 | `pnpm check:watch` | o mesmo, em watch |
@@ -92,7 +94,9 @@ pnpm dev
 | `pnpm db:generate:mysql` | gera a migration do dialeto MySQL (`drizzle-mysql/`) |
 | `pnpm db:migrate:mysql` | aplica as migrations no MySQL/MariaDB (a partir de `DB_URL`) |
 
-> **E2E**: cada execução recria `data/e2e.db` e `data/e2e-uploads` (o banco de dev nunca é tocado) e sobe o app na porta 5179 (build + `node build`, sem `drizzle-kit`: o app migra sozinho no boot, igual ao deploy). `pnpm test:e2e` roda tudo; para rodar um subconjunto, passe as specs: `pnpm exec playwright test e2e/fluxo.spec.ts e2e/quiz.spec.ts`.
+> **E2E**: cada execução recria o banco de E2E (`data/e2e.db` e `data/e2e-uploads` no SQLite; `drop`/`create` no MySQL — o banco de dev nunca é tocado) e sobe o app na porta 5179 (build + `node build`, sem `drizzle-kit`: o app migra sozinho no boot, igual ao deploy). `pnpm test:e2e` roda tudo; para rodar um subconjunto, passe as specs: `pnpm exec playwright test e2e/fluxo.spec.ts e2e/quiz.spec.ts`.
+>
+> A **mesma suíte** roda contra MySQL/MariaDB: `E2E_DIALECT=mysql` + `E2E_DB_URL=mysql://user:senha@host:3306/mcurso_e2e` (o nome precisa terminar em `_e2e`, que é a trava contra apagar um banco de verdade) — é essa execução que valida o dialeto de ponta a ponta.
 
 ## Estrutura
 
@@ -146,7 +150,12 @@ src/
       importar.ts        → importação/exportação transacional do JSON de IA
       chave.ts           → chave de integridade do resultado (HMAC)
       guard.ts           → requerSessao() (protege load/action, não só o markup)
-      auth.ts, auth-cli.ts, auth-cli-mysql.ts, db/ (schema Drizzle: SQLite + gêmeo MySQL)
+      auth.ts, auth-cli.ts, auth-cli-mysql.ts
+      db/index.ts        → dialeto (DB_DIALECT), conexão e migração no boot
+      db/tabelas.ts      → objetos de tabela do dialeto em uso (é daqui que as consultas importam)
+      db/inserir.ts      → insert que devolve o id nos dois dialetos (returning / $returningId)
+      db/schema.ts + schema.mysql.ts, auth-schema.ts + auth-schema.mysql.ts → os pares de schema
+      db/migrar.ts, db/transacao.ts, db/node-sqlite.ts → migração por dialeto, transação e shim do node:sqlite
   routes/
     (app)/apostilas/     → painel da apostila, aulas e edição
     (app)/anexos/        → listagem solta e rotas do anexo (ler/editar/imprimir/apresentar)
@@ -159,8 +168,8 @@ src/
     api/quiz/sala/       → polling da sala do quiz (estado e ações do host/jogador)
     uploads/             → serve os arquivos enviados (exige sessão)
 e2e/                     → Playwright (ambiente.ts com as credenciais/banco isolados)
-scripts/e2e-reset.mjs    → recria o banco de E2E antes de cada execução
-scripts/copiar-migracoes.mjs → copia drizzle/ para dentro de build/ no build
+scripts/e2e-reset.mjs    → recria o banco de E2E antes de cada execução (arquivos no SQLite, drop/create no MySQL)
+scripts/copiar-migracoes.mjs → copia `drizzle/` e `drizzle-mysql/` para dentro de `build/`
 drizzle/                 → migrations e snapshots (SQLite)
 drizzle-mysql/           → migrations e snapshots (MySQL/MariaDB)
 ```
@@ -169,15 +178,15 @@ drizzle-mysql/           → migrations e snapshots (MySQL/MariaDB)
 
 O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Quatro pontos que já custaram tempo:
 
-- **As migrations são aplicadas pelo app no boot** (`src/lib/server/db/migrar.ts`, chamado pelo `db/index.ts` antes de qualquer consulta), não por um passo separado de deploy: `drizzle-kit` é `devDependency` e não existe no servidor. O log de boot diz quantas entraram — `[mcurso] 6 migração(ões) aplicada(s) em …` ou `[mcurso] banco em dia em …`. O `pnpm build` copia `drizzle/` para dentro de `build/drizzle`, então só a pasta de build precisa estar no ar (a resolução tenta `drizzle`, `build/drizzle`, `../drizzle` e aceita `MIGRATIONS_DIR`).
-- **O app não tem nenhuma dependência nativa**: o SQLite é o `node:sqlite` embutido no Node ≥ 22.13 (`DatabaseSync`), então não há binário para baixar nem compilar no servidor (o que já quebrou o deploy duas vezes com o glibc antigo da hospedagem). O import do driver `better-sqlite3` do drizzle é satisfeito por um stub em `vendor/better-sqlite3-stub` — nunca instanciado, porque o app sempre passa a instância do `node:sqlite`. O `engines.node` exige `>=22.13`.
+- **As migrations são aplicadas pelo app no boot** (`src/lib/server/db/migrar.ts`, chamado pelo `db/index.ts` antes de qualquer consulta), não por um passo separado de deploy: `drizzle-kit` é `devDependency` e não existe no servidor. A pasta é escolhida pelo dialeto (`drizzle/` no SQLite, `drizzle-mysql/` no MySQL, com `MIGRATIONS_DIR` como escape) e o log de boot diz quantas entraram — `[mcurso] 6 migração(ões) aplicada(s) em mysql://***@host/mcurso` ou `[mcurso] banco em dia em …`. O `pnpm build` copia **as duas** pastas para dentro de `build/`, então só a pasta de build precisa estar no ar.
+- **O app não tem nenhuma dependência nativa**: no SQLite o driver é o `node:sqlite` embutido no Node ≥ 22.13 (`DatabaseSync`) — o que já quebrou o deploy duas vezes com o glibc antigo da hospedagem — e no MySQL é o `mysql2`, JavaScript puro. O import do driver `better-sqlite3` do drizzle é satisfeito por um stub em `vendor/better-sqlite3-stub` — nunca instanciado, porque o app sempre passa a instância do `node:sqlite`. O `engines.node` exige `>=22.13`.
 - `p5` e `q5` também ficam em **`dependencies`** pelo mesmo motivo: a rota `lib/[...caminho]` resolve os arquivos no `node_modules` em runtime (a `iframe` do bloco de simulação não pode ir para CDN e o `exports` do p5 bloqueia o caminho normal). No deploy, as duas precisam estar instaladas junto do `node_modules`.
-- Variáveis de ambiente em produção: `DB_PATH` e `UPLOADS_DIR` precisam apontar para caminhos graváveis **e persistentes** (fora da pasta de build, que some a cada novo deploy), mais `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (a URL pública, sem barra final), `APP_MASTER_EMAIL` e `APP_MASTER_PASSWORD` (ver `.env.example`). O servidor escuta em `PORT`/`HOST`, com `ORIGIN` apontando para a URL pública (necessário para os cookies de sessão).
+- Variáveis de ambiente em produção: `DB_DIALECT` (`sqlite` ou `mysql`) e, conforme o dialeto, `DB_PATH` ou `DB_URL` (e `UPLOADS_DIR`), com caminhos graváveis **e persistentes** (fora da pasta de build, que some a cada novo deploy) — mais `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (a URL pública, sem barra final), `APP_MASTER_EMAIL` e `APP_MASTER_PASSWORD` (ver `.env.example`). O servidor escuta em `PORT`/`HOST`, com `ORIGIN` apontando para a URL pública (necessário para os cookies de sessão).
 - A lib de UI entra como `^x.y.z` no `package.json` (versão publicada no registry). O `link:../ahmardesign` só funciona no clone local.
 
 ## Testes
 
-- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/markdown.test.ts` (markdown do bloco de texto, com escape de HTML), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/server/db/node-sqlite.test.ts` (shim de transação do `node:sqlite`: commit, rollback e a recusa de callback async), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app), `src/lib/visao.test.ts` (preferência lista/grade), `src/lib/quiz.test.ts` (código do quiz, pontuação e importação) e `src/lib/importar.test.ts` + `src/lib/blocos-pendentes.test.ts` (importação por JSON e pendências mantidas).
+- **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/markdown.test.ts` (markdown do bloco de texto, com escape de HTML), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/server/db/node-sqlite.test.ts` (shim de transação do `node:sqlite`: commit síncrono, rollback e o corpo async fechando a transação no promise), `src/lib/server/db/schema-paridade.test.ts` (contrato dos schemas SQLite/MySQL em sincronia: tabelas e colunas), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app), `src/lib/visao.test.ts` (preferência lista/grade), `src/lib/quiz.test.ts` (código do quiz, pontuação e importação) e `src/lib/importar.test.ts` + `src/lib/blocos-pendentes.test.ts` (importação por JSON e pendências mantidas).
 - **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão), `e2e/html.spec.ts` (bloco HTML: script que roda, `<script src>` de lib, erro e correção, toggle e impressão), `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto), `e2e/busca.spec.ts` (busca por título nas listagens), `e2e/quiz.spec.ts` (sala ao vivo: professor + aluno, encerrar/sair e exportar perguntas) e `e2e/importacao.spec.ts` (importar por JSON, pendência de bloco vazio, export round-trip e popup de exemplo por tipo).
 
 ---
