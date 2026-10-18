@@ -13,6 +13,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 ## Funcionalidades
 
 **Criação de conteúdo (área protegida por senha)**
+
 - Apostilas com título, descrição e timestamps de criação/atualização.
 - **Busca por título** em todas as listagens (apostilas na home, aulas no painel da apostila, anexos e atividades), com alternância entre visão em lista e grade.
 - Aulas/encontros dentro da apostila, ordenadas e agrupadas por **seção** (catálogo por apostila, com CRUD e reordenação).
@@ -26,6 +27,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 - Tema `brutalist` por padrão, com seletor de tema persistido (aplicado antes da primeira pintura, sem flash).
 
 **Leitura e apresentação (públicas, sem login)**
+
 - Listagem pública de apostilas na home, com **alternância lista/grade** — a escolha é uma preferência do navegador, a mesma para o aluno e para o professor.
 - Página da aula e do anexo (renders KaTeX, Mermaid, exercício de uma ou várias alternativas e dissertativa) com **PDF/imprimir** — rota própria `imprimir` com `@media print` (Ctrl+P), sem gerar arquivo no servidor.
 - **Atividade respondida sem login**: nome do aluno + todas as questões numa página, envio por POST e resultado com gabarito, explicação e uma **chave de integridade** (resumo assinado) que o aluno pode guardar como **PNG** ou imprimir em PDF. Nada é gravado no banco — o gabarito não chega ao HTML, a correção acontece no servidor.
@@ -35,6 +37,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 - **Modo apresentação** (`apresentar`): renderiza cada bloco em tela cheia, um por vez, com navegação por teclado (`←/→`, `Espaço`, `PageUp/Down`, `Esc` para sair). Exercícios viram "revelar resposta" para usar em sala.
 
 **Autenticação**
+
 - Usuário único professor, oculto atrás da **senha mestra**. O usuário é criado automaticamente no primeiro login.
 - `src/hooks.server.ts` resolve a sessão em toda requisição (`event.locals`); rotas de leitura são públicas e as de escrita chamam `requerSessao()` no load/action — a proteção não fica só no markup.
 - Trocar `APP_MASTER_PASSWORD` no `.env` **depois** do primeiro login não migra o hash guardado: o usuário precisa ser resetado no banco.
@@ -49,6 +52,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 | `pnpm check` | 0 erros |
 
 **Ainda não existe (decidido, não é bug)**
+
 - **Tela de validação da chave de integridade**: a chave é gerada e assinada, mas não há página que confira a assinatura. É o lugar natural para exigir a chave antes de dar a nota.
 - A chave **não cobre** as respostas discursivas (só a nota automática e o hash do gabarito objetivo).
 - Sem histórico nem rascunho: a edição é direta, com versão única.
@@ -79,7 +83,6 @@ pnpm dev
 ```
 
 > **Banco**: por padrão o app usa **SQLite** em `DB_PATH`. Para rodar contra **MySQL/MariaDB**, preencha `DB_URL` e suba com `DB_DIALECT=mysql` — o app cria as tabelas no boot, pelo mesmo caminho do deploy (`pnpm db:generate:mysql`/`db:migrate:mysql` só servem para gerar/aplicar a migration na mão).
-
 > **Login**: acesse `/login` e use a senha mestra (campo vazio no `.env` é aviso no dev).
 
 ## Scripts
@@ -105,7 +108,7 @@ pnpm dev
 
 ## Estrutura
 
-```
+```plaintext
 src/
   hooks.server.ts       → resolve a sessão (Better Auth) em event.locals
   lib/
@@ -222,7 +225,7 @@ Os arquivos de upload continuam onde estão e as URLs `/uploads/...` seguem vale
 ## Testes
 
 - **unit**: `src/lib/blocks.test.ts` (blocos válidos/defeatuosos, links internos e modalidades de escolha), `src/lib/corrigir.test.ts` (correção, múltipla escolha e dissertativa), `src/lib/matematica.test.ts` (fórmulas inline), `src/lib/markdown.test.ts` (markdown do bloco de texto, com escape de HTML), `src/lib/server/chave.test.ts` (chave de integridade), `src/lib/server/db/migrar.test.ts` (resolução da pasta de migrações no deploy), `src/lib/server/db/node-sqlite.test.ts` (shim de transação do `node:sqlite`: commit síncrono, rollback e o corpo async fechando a transação no promise), `src/lib/server/db/schema-paridade.test.ts` (contrato dos schemas SQLite/MySQL em sincronia: tabelas e colunas), `src/lib/arrastar.test.ts` (ordem no drag and drop), `src/lib/theme.test.ts` (tema sem flash, lista de temas em sincronia com o app), `src/lib/visao.test.ts` (preferência lista/grade), `src/lib/quiz.test.ts` (código do quiz, pontuação e importação), `src/lib/server/uploads.test.ts` (política do upload: extensão, limite de tamanho, resolução da pasta e o `BODY_SIZE_LIMIT` do adapter) e `src/lib/importar.test.ts` + `src/lib/blocos-pendentes.test.ts` (importação por JSON e pendências mantidas).
-- **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão), `e2e/html.spec.ts` (bloco HTML: script que roda, `<script src>` de lib, erro e correção, toggle e impressão), `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto), `e2e/busca.spec.ts` (busca por título nas listagens), `e2e/quiz.spec.ts` (sala ao vivo: professor + aluno, encerrar/sair e exportar perguntas) `e2e/quiz.spec.ts` (sala ao vivo: professor + aluno, encerrar/sair e exportar perguntas), `e2e/importacao.spec.ts` (importar por JSON, pendência de bloco vazio, export round-trip e popup de exemplo por tipo) e `e2e/uploads.spec.ts` (imagem enviada abrindo na leitura pública sem sessão, cache imutável, escrita protegida e recusa de extensão/tamanho).
+- **E2E**: `e2e/fluxo.spec.ts` (login, apostila, aula, editor, seções), `e2e/anexos.spec.ts` (anexo solto, links e exclusão protegida), `e2e/exercicios.spec.ts` (atividade, resposta pública sem login, chave, múltipla escolha, dissertativa e link com origem), `e2e/apresentacao.spec.ts`, `e2e/arrastar.spec.ts`, `e2e/tema.spec.ts`, `e2e/inserir-bloco.spec.ts` (grid e faixas de inserção), `e2e/markdown.spec.ts` (bloco de texto em markdown), `e2e/simulacao.spec.ts` (p5/q5 na iframe isolada: rodando, sem erro de sandbox, troca de biblioteca, nitidez do canvas, face do aluno e impressão), `e2e/html.spec.ts` (bloco HTML: script que roda, `<script src>` de lib, erro e correção, toggle e impressão), `e2e/visao.spec.ts` (botão de criar à direita com descrição longa, alternância lista/grade na home e no painel da apostila, escolha compartilhada entre listas e cartão solto), `e2e/busca.spec.ts` (busca por título nas listagens), `e2e/quiz.spec.ts` (sala ao vivo: professor + aluno, encerrar/sair e exportar perguntas), `e2e/importacao.spec.ts` (importar por JSON, pendência de bloco vazio, export round-trip e popup de exemplo por tipo) e `e2e/uploads.spec.ts` (imagem enviada abrindo na leitura pública sem sessão, cache imutável, escrita protegida e recusa de extensão/tamanho).
 
 ---
 

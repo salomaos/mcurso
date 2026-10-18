@@ -2,6 +2,10 @@
 
 App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código e commits em pt-BR. Branch `main`, commits com Conventional Commits.
 
+## Git: o commit é do usuário, nunca do agente
+
+**Nunca rode `git commit` nem `git push` por conta própria.** O agente implementa, roda `pnpm check`/`pnpm test`/E2E, e **para**: mostra o que mudou (arquivos e pontos de decisão) e espera o usuário revisar e pedir o commit ("pode commitar"). Só então commita — e o push, se pedido junto ou depois. Vale mesmo com os testes verdes e a mudança "obviamente" pronta: a revisão do diff pelo usuário é parte do fluxo, não uma etapa opcional. Vale também para mudança pequena, documentação, correção de typo e commit de teste — nada de "já que estava ali".
+
 ## Stack (decisões acordadas)
 
 - **SvelteKit 2 / Svelte 5** + **adapter-node** (SSR/Node). O `vite.config.ts` força **runes mode** em todo o app (`runes: true` para tudo fora de `node_modules`): componente novo já nasce com `$state`/`$derived`/`$props`/`$effect`, sem `export let`/`$:` legado. Scaffold: `pnpm create sv@latest`
