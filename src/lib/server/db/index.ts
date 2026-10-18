@@ -4,7 +4,9 @@ import path from 'node:path';
 import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
 import { drizzle as drizzleMysql } from 'drizzle-orm/mysql2';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { dev, building } from '$app/environment';
 import mysql from 'mysql2/promise';
+import { conferirUploads, formatarMb, LIMITE_UPLOAD_BYTES } from '$lib/server/uploads';
 import * as authSchemaSqlite from './auth-schema';
 import * as authSchemaMysql from './auth-schema.mysql';
 import { aplicarMigrations, contarTabelas, type DialetoBanco } from './migrar';
@@ -122,5 +124,21 @@ async function abrirMysql(): Promise<Banco> {
 // banco estar aberto e migrado — que é o contrato que o boot sempre teve.
 export const db = dialeto === 'mysql' ? await abrirMysql() : await abrirSqlite();
 
-export const uploadsDir =
-	process.env.UPLOADS_DIR ?? path.resolve(process.cwd(), 'data/uploads');
+// A pasta de uploads é diagnóstico de boot igual ao do banco: o caminho resolvido aparece
+// no log e, em produção, um caminho relativo (ou um `BODY_SIZE_LIMIT` menor que o limite do
+// app) vira aviso — é o que separa "configuração errada" de "o arquivo sumiu no deploy".
+const uploads = conferirUploads({
+	valor: process.env.UPLOADS_DIR,
+	cwd: process.cwd(),
+	dev,
+	bodySizeLimit: process.env.BODY_SIZE_LIMIT
+});
+
+export const uploadsDir = uploads.caminho;
+
+// O build também importa este módulo (o `analyse` do SvelteKit roda no pós-build) e ali o
+// ambiente é o do build, não o da subida: avisar nessa hora seria ruído. Só quem serve loga.
+if (!building) {
+	console.log(`[mcurso] uploads em ${uploadsDir} (limite ${formatarMb(LIMITE_UPLOAD_BYTES)} MB)`);
+	for (const aviso of uploads.avisos) console.warn(`[mcurso] AVISO: ${aviso}`);
+}

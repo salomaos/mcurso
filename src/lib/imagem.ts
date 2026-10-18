@@ -1,9 +1,9 @@
 // Imagem do resultado, desenhada no cliente com Canvas 2D — sem dependência e
 // sem passar o HTML por html2canvas.
 //
-// O card é só texto: imagens de blocos não entram porque `/uploads/*` exige
-// sessão e o PNG é gerado no navegador do aluno (que não está logado).
-// A fonte é do sistema, então `ctx.font` só pode usar famílias genéricas.
+// O card é só texto — nada de imagem de bloco: desenhar o arquivo do `/uploads` exigiria
+// esperar cada `img` carregar, e o resultado é o que interessa no papel. A fonte é do
+// sistema, então `ctx.font` só pode usar famílias genéricas.
 
 import { temMatematica } from '$lib/matematica';
 import type { Correcao } from '$lib/conteudo';

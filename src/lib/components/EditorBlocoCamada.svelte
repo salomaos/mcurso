@@ -78,8 +78,17 @@
 		dadosFormulario.append('arquivo', arquivo);
 		try {
 			const resposta = await fetch('/api/upload', { method: 'POST', body: dadosFormulario });
-			const dados = (await resposta.json()) as { src?: string; erro?: string };
-			if (!resposta.ok || !dados.src) throw new Error(dados.erro ?? 'Não foi possível enviar a imagem.');
+			// O 413 do adapter-node (`BODY_SIZE_LIMIT`) sai como página de erro, não JSON;
+			// a rota do app responde JSON com `erro` em qualquer recusa própria.
+			const dados = (await resposta.json().catch(() => ({}))) as { src?: string; erro?: string };
+			if (!resposta.ok || !dados.src) {
+				throw new Error(
+					dados.erro ??
+						(resposta.status === 413
+							? 'Arquivo grande demais para o servidor (limite do host).'
+							: 'Não foi possível enviar a imagem.')
+				);
+			}
 			alterar('src', dados.src);
 		} catch (erro) {
 			erroUpload = erro instanceof Error ? erro.message : 'Não foi possível enviar a imagem.';

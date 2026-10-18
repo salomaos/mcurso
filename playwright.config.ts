@@ -51,7 +51,10 @@ export default defineConfig({
 			DB_DIALECT: DIALETO_E2E,
 			DB_PATH: DB_E2E,
 			DB_URL: DB_URL_E2E,
-			UPLOADS_DIR: UPLOADS_E2E
+			UPLOADS_DIR: UPLOADS_E2E,
+			// O adapter corta o corpo em 512K por padrão, bem abaixo do limite de upload do
+			// app (10 MB): o E2E roda com o mesmo valor documentado para o deploy.
+			BODY_SIZE_LIMIT: '12M'
 		}
 	}
 });
