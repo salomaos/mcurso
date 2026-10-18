@@ -52,7 +52,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 - **Tela de validação da chave de integridade**: a chave é gerada e assinada, mas não há página que confira a assinatura. É o lugar natural para exigir a chave antes de dar a nota.
 - A chave **não cobre** as respostas discursivas (só a nota automática e o hash do gabarito objetivo).
 - Sem histórico nem rascunho: a edição é direta, com versão única.
-- Sem multiusuário (por design) e sem PostgreSQL. O banco é **SQLite (dev) ou MySQL/MariaDB (hospedagem), escolhido por deploy** com `DB_DIALECT=sqlite|mysql`: os dois schemas vivem lado a lado (SQLite + gêmeo MySQL, com um teste de paridade) e a **mesma suíte E2E roda nos dois** (`E2E_DIALECT=mysql`). A migração dos dados que já estão no SQLite para o MySQL ainda não existe.
+- Sem multiusuário (por design) e sem PostgreSQL. O banco é **SQLite (dev) ou MySQL/MariaDB (hospedagem), escolhido por deploy** com `DB_DIALECT=sqlite|mysql`: os dois schemas vivem lado a lado (SQLite + gêmeo MySQL, com um teste de paridade) e a **mesma suíte E2E roda nos dois** (`E2E_DIALECT=mysql`). A migração dos dados do SQLite para o MySQL **não existe por decisão**: o deploy MySQL começa de banco vazio e o caminho para levar conteúdo já publicado é o **export/import do `/importar`** (ver [Trocar para MySQL/MariaDB](#trocar-para-mysqlmariadb)).
 
 ## Como começar
 
@@ -183,6 +183,33 @@ O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Qu
 - `p5` e `q5` também ficam em **`dependencies`** pelo mesmo motivo: a rota `lib/[...caminho]` resolve os arquivos no `node_modules` em runtime (a `iframe` do bloco de simulação não pode ir para CDN e o `exports` do p5 bloqueia o caminho normal). No deploy, as duas precisam estar instaladas junto do `node_modules`.
 - Variáveis de ambiente em produção: `DB_DIALECT` (`sqlite` ou `mysql`) e, conforme o dialeto, `DB_PATH` ou `DB_URL` (e `UPLOADS_DIR`), com caminhos graváveis **e persistentes** (fora da pasta de build, que some a cada novo deploy) — mais `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (a URL pública, sem barra final), `APP_MASTER_EMAIL` e `APP_MASTER_PASSWORD` (ver `.env.example`). O servidor escuta em `PORT`/`HOST`, com `ORIGIN` apontando para a URL pública (necessário para os cookies de sessão).
 - A lib de UI entra como `^x.y.z` no `package.json` (versão publicada no registry). O `link:../ahmardesign` só funciona no clone local.
+
+### Trocar para MySQL/MariaDB
+
+O banco é escolha de **deploy**, não de código: quem lê `DB_DIALECT` é o `src/lib/server/db/index.ts` na subida, e nenhum arquivo do app muda. O que confunde é que **o `.env` é gitignored** (`.env` e `.env.*` no `.gitignore`, com `!.env.example`): ele **nunca viaja no push**, então o `.env` da hospedagem é seu e continua como estava — o que foi para o repositório é só o `.env.example` (o modelo).
+
+Num deploy que já roda em SQLite, a virada é o `.env` (ou as variáveis de ambiente do painel — o `adapter-node` lê `process.env` direto e o `dotenv` não sobrescreve o que já existe):
+
+```bash
+DB_DIALECT=mysql
+DB_URL=mysql://usuario:senha@127.0.0.1:3306/banco
+```
+
+- `DB_DIALECT` é comparação **exata**: `mysql` minúsculo. `MySQL`/`MYSQL` cai em SQLite **em silêncio** (não dá erro).
+- Com `DB_DIALECT=mysql` e **sem** `DB_URL`, o app **recusa subir** com mensagem clara, em vez de cair no SQLite.
+- **Copie nome/usuário/host do painel** da hospedagem (a Hostinger prefixa, ex. `u123456_mcurso`) e crie o banco com **`utf8mb4` / `utf8mb4_unicode_ci`** (a Hostinger hoje: MariaDB 11.8 + `utf8mb4_unicode_ci`). O app não tem `LIKE` em SQL — a busca é filtro de tela —, então a collation afeta ordenação de texto, não a busca.
+- O usuário do banco precisa de **DDL** (CREATE/ALTER/INDEX): o app cria as tabelas no boot, não há passo de migration no deploy.
+- `DB_PATH` pode ficar no `.env` (é ignorado no modo mysql) — é o que deixa o **rollback em uma linha**: apagar/comentar o `DB_DIALECT` volta para o SQLite, que segue intacto.
+- **Uploads não vão para o banco**: `UPLOADS_DIR` continua sendo pasta de arquivos e precisa do backup dela (o backup gerenciado do MySQL só protege o banco).
+- A variável importa **na subida** (`node build`), não no `vite build`. Depois de reiniciar, o log diz quantas migrações entraram: `[mcurso] N migração(ões) aplicada(s) em mysql://***@host/banco` (ou `[mcurso] banco em dia em …`).
+
+O banco MySQL **nasce vazio**. Para levar o conteúdo já publicado, use o **export/import do próprio app**, em `/importar`:
+
+1. No site antigo (SQLite), exporte cada apostila/anexo/atividade/quiz.
+2. Vire o `.env` para MySQL e reinicie — o app cria as tabelas no boot.
+3. Importe os JSONs de volta no site novo (apostila **sempre cria nova**; links internos voltam como `alvoTitulo`, resolvidos por conteúdo existente — importe anexos/atividades que são referenciados antes das apostilas que os citam).
+
+Os arquivos de upload continuam onde estão e as URLs `/uploads/...` seguem valendo (o caminho não muda com o dialeto).
 
 ## Testes
 
