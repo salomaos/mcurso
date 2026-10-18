@@ -185,6 +185,8 @@ drizzle-mysql/           → migrations e snapshots (MySQL/MariaDB)
 
 ## Deploy (adapter-node)
 
+**O deploy sai da `main`**: ela é a branch conectada na Hostinger (Deploy → Deployment settings → Branch) e só recebe merge de pull request — o trabalho do dia a dia acontece na `dev`. Como o auto-deploy dispara no push da branch conectada, subir para o ar é consequência do merge: push na `dev` não sobe nada.
+
 O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Quatro pontos que já custaram tempo:
 
 - **As migrations são aplicadas pelo app no boot** (`src/lib/server/db/migrar.ts`, chamado pelo `db/index.ts` antes de qualquer consulta), não por um passo separado de deploy: `drizzle-kit` é `devDependency` e não existe no servidor. A pasta é escolhida pelo dialeto (`drizzle/` no SQLite, `drizzle-mysql/` no MySQL, com `MIGRATIONS_DIR` como escape) e o log de boot diz quantas entraram — `[mcurso] 6 migração(ões) aplicada(s) em mysql://***@host/mcurso` ou `[mcurso] banco em dia em …`. O `pnpm build` copia **as duas** pastas para dentro de `build/`, então só a pasta de build precisa estar no ar. (O build também conecta e migra — ver o item do `ER_BAD_DB_ERROR` mais abaixo.)

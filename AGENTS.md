@@ -1,10 +1,17 @@
 # mcurso
 
-App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código e commits em pt-BR. Branch `main`, commits com Conventional Commits.
+App pessoal (single user) para criar e gerenciar apostilas de aula. UI, código e commits em pt-BR. **`main` é produção, `dev` é onde se trabalha** (ver "Git"), commits com Conventional Commits.
 
 ## Git: o commit é do usuário, nunca do agente
 
 **Nunca rode `git commit` nem `git push` por conta própria.** O agente implementa, roda `pnpm check`/`pnpm test`/E2E, e **para**: mostra o que mudou (arquivos e pontos de decisão) e espera o usuário revisar e pedir o commit ("pode commitar"). Só então commita — e o push, se pedido junto ou depois. Vale mesmo com os testes verdes e a mudança "obviamente" pronta: a revisão do diff pelo usuário é parte do fluxo, não uma etapa opcional. Vale também para mudança pequena, documentação, correção de typo e commit de teste — nada de "já que estava ali".
+
+## Git: `main` é produção, `dev` é onde se trabalha
+
+- **`main` é a branch publicada** e é a **branch conectada no deploy da Hostinger**: o auto-deploy dispara no *push* para a branch conectada (hPanel → Deploy → Deployment settings → Branch), então push na `main` = subir para o ar.
+- **`dev` é o trabalho do dia a dia** (`feature/*` quando a mudança for grande). Nada entra na `main` por push direto: entra por **pull request**.
+- Quem exige o PR é a **ruleset do GitHub** (Settings → Rules → Rulesets, alvo `main`): *Require a pull request before merging* (**0 aprovações** — quem abre o PR mergeia o próprio), *Block force pushes* e *Restrict deletions*, **sem bypass**. Ela vale de graça porque **o repo é público** (ruleset em repo privado exigiria GitHub Pro) e é do lado do servidor: pega o terminal e o agente, sem depender de disciplina.
+- **Fluxo**: commit na `dev` → push da `dev` → PR `dev` → `main` → merge → **o merge dispara o deploy**. Commitar e pushar na `dev` não sobe nada. Se a ruleset cair por algum motivo (plano, repo virar privado), o mínimo continua sendo **nunca push direto na `main`**.
 
 ## Stack (decisões acordadas)
 
