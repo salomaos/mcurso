@@ -7,7 +7,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import mysql from 'mysql2/promise';
 import * as authSchemaSqlite from './auth-schema';
 import * as authSchemaMysql from './auth-schema.mysql';
-import { aplicarMigrations, type DialetoBanco } from './migrar';
+import { aplicarMigrations, contarTabelas, type DialetoBanco } from './migrar';
 import { abrirBanco } from './node-sqlite';
 import * as schemaSqlite from './schema';
 import * as schemaMysql from './schema.mysql';
@@ -26,11 +26,28 @@ export const dialeto: DialetoBanco = process.env.DB_DIALECT === 'mysql' ? 'mysql
 // transação é um só — ver `transacao.ts`.
 type Banco = BetterSQLite3Database<typeof schemaSqlite>;
 
-function logarBanco(onde: string, pasta: string, aplicadas: number): void {
+function logarBanco(onde: string, pasta: string, aplicadas: number, tabelas: number): void {
 	console.log(
-		aplicadas > 0
+		(aplicadas > 0
 			? `[mcurso] ${aplicadas} migração(ões) aplicada(s) em ${onde} (${pasta})`
-			: `[mcurso] banco em dia em ${onde} (${pasta})`
+			: `[mcurso] banco em dia em ${onde} (${pasta})`) + ` — ${tabelas} tabela(s)`
+	);
+}
+
+// O boot confere que as migrações criaram alguma coisa. `__drizzle_migrations` pode
+// dizer que está tudo migrado num banco **sem tabela nenhuma** (basta o controle ter
+// sobrado de um banco recriado): aí o drizzle pula tudo em silêncio, o log mente
+// "banco em dia" e toda consulta falha com "Failed query: ..." sem dizer por quê.
+// Parar o boot com a instrução é melhor do que subir um app que só dá 500 — e a
+// contagem no log já separa "o banco tem 11 tabelas" de "o banco não tem nada".
+function conferirTabelas(onde: string, tabelas: number): void {
+	if (tabelas > 1) return;
+
+	throw new Error(
+		`[mcurso] ${onde} não tem tabela nenhuma além do controle de migração: o banco está ` +
+			'vazio, mas o drizzle registrou as migrações como aplicadas e por isso não criou nada. ' +
+			'Apague a tabela "__drizzle_migrations" no banco e suba o app de novo, que as ' +
+			'migrações rodam do zero.'
 	);
 }
 
@@ -47,7 +64,9 @@ async function abrirSqlite(): Promise<Banco> {
 	// Roda antes de qualquer consulta (este módulo é importado pelo `auth`, que o
 	// `hooks.server.ts` carrega no boot): o deploy não precisa de passo extra de migrate.
 	const { pasta, aplicadas } = await aplicarMigrations(db, 'sqlite');
-	logarBanco(dbPath, pasta, aplicadas);
+	const tabelas = await contarTabelas(db, 'sqlite');
+	conferirTabelas(dbPath, tabelas);
+	logarBanco(dbPath, pasta, aplicadas, tabelas);
 
 	return db;
 }
@@ -61,15 +80,39 @@ async function abrirMysql(): Promise<Banco> {
 		);
 	}
 
-	const cliente = await mysql.createConnection(url);
+	// **Pool, nunca `createConnection`**: em hospedagem compartilhada o servidor
+	// derruba a conexão parada no `wait_timeout` e uma conexão única **nunca** se
+	// recupera — a partir daí toda consulta falha com "Failed query: ..." (o erro do
+	// drizzle esconde a causa, então o sintoma é 500 em tudo até reiniciar o
+	// processo; foi exatamente o que derrubou o deploy de 18/10/2026). O pool
+	// descarta a conexão morta assim que o socket fecha e abre outra na consulta
+	// seguinte. As transações continuam numa conexão só: o `db.transaction` do
+	// drizzle pega uma conexão dedicada do pool e a devolve no fim (ver
+	// `transacao.ts`).
+	const cliente = mysql.createPool({
+		uri: url,
+		connectionLimit: 10,
+		// Fecha a conexão ociosa antes de o servidor fazer o mesmo — é a recomendação
+		// do mysql2 (`maxIdle`/`idleTimeout`) para não segurar conexão que o host já
+		// considera morta.
+		maxIdle: 2,
+		idleTimeout: 60_000,
+		enableKeepAlive: true,
+		keepAliveInitialDelay: 0,
+		waitForConnections: true,
+		queueLimit: 0
+	});
 	const db = drizzleMysql(cliente, {
 		// `mode: 'default'` é o MySQL/MariaDB comum (sem o proxy do PlanetScale).
 		mode: 'default',
 		schema: { ...authSchemaMysql, ...schemaMysql }
 	});
 	const { pasta, aplicadas } = await aplicarMigrations(db, 'mysql');
+	const tabelas = await contarTabelas(db, 'mysql');
 	// A senha da URL não vai para o log.
-	logarBanco(url.replace(/\/\/[^@/]*@/, '//***@'), pasta, aplicadas);
+	const onde = url.replace(/\/\/[^@/]*@/, '//***@');
+	conferirTabelas(onde, tabelas);
+	logarBanco(onde, pasta, aplicadas, tabelas);
 
 	return db as unknown as Banco;
 }

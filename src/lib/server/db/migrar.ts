@@ -54,22 +54,46 @@ function totalMigracoesSqlite(db: BancoSqlite): number {
 }
 
 // No MySQL o mesmo select é assíncrono e o mysql2 embrulha o resultado em
-// `[linhas, campos]`; como o número é só para o log, qualquer forma inesperada cai
-// no 0 do catch.
+// `[linhas, campos]`; o drizzle às vezes repassa essa forma e às vezes já entrega
+// as linhas, então qualquer forma inesperada cai no 0 — o número é para o log e
+// para a conferência das tabelas, não para decidir nada em cima.
+function totalDoResultado(resultado: unknown): number {
+	const linhas =
+		Array.isArray(resultado) && Array.isArray((resultado as unknown[])[0])
+			? (resultado as unknown[])[0]
+			: resultado;
+	const primeira = (linhas as { total?: number }[])[0];
+	return Number(primeira?.total ?? 0);
+}
+
 async function totalMigracoesMysql(db: BancoMysql): Promise<number> {
 	try {
-		const resultado = (await db.execute(
-			sql`select count(*) as total from __drizzle_migrations`
-		)) as unknown;
-		const linhas =
-			Array.isArray(resultado) && Array.isArray((resultado as unknown[])[0])
-				? (resultado as unknown[])[0]
-				: resultado;
-		const primeira = (linhas as { total?: number }[])[0];
-		return Number(primeira?.total ?? 0);
+		return totalDoResultado(await db.execute(sql`select count(*) as total from __drizzle_migrations`));
 	} catch {
 		return 0;
 	}
+}
+
+// Quantas tabelas o banco tem de verdade. Serve para o boot saber que as migrações
+// **criaram algo**: `__drizzle_migrations` pode dizer que está tudo migrado num
+// banco sem tabela nenhuma (basta o controle ter sobrado de um banco recriado) — o
+// drizzle então pula tudo em silêncio, o log mente "banco em dia" e toda consulta
+// passa a falhar com "Failed query: ..." sem dizer por quê. No SQLite `sqlite_%` são
+// as tabelas internas; no MySQL a contagem é a do schema em uso.
+export async function contarTabelas(db: unknown, dialeto: DialetoBanco): Promise<number> {
+	if (dialeto === 'mysql') {
+		const banco = db as BancoMysql;
+		return totalDoResultado(
+			await banco.execute(
+				sql`select count(*) as total from information_schema.tables where table_schema = database()`
+			)
+		);
+	}
+
+	const linhas = (db as BancoSqlite).all<{ total: number }>(
+		sql`select count(*) as total from sqlite_master where type = 'table' and name not like 'sqlite_%'`
+	);
+	return Number(linhas[0]?.total ?? 0);
 }
 
 export async function aplicarMigrations(
