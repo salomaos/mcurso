@@ -29,7 +29,11 @@ export default defineConfig({
 		...devices['Desktop Chrome']
 	},
 	webServer: {
-		command: `pnpm build && node scripts/e2e-reset.mjs && node build`,
+		// O reset vem **antes** do build de propósito: o `analyse` do pós-build do
+		// SvelteKit importa o módulo do servidor, que abre a conexão e aplica as
+		// migrations — no MySQL o build falha com `ER_BAD_DB_ERROR` se o banco ainda
+		// não existir (e o reset é justamente quem o cria).
+		command: `node scripts/e2e-reset.mjs && pnpm build && node build`,
 		url: baseURL,
 		reuseExistingServer: !process.env.CI,
 		stdout: 'pipe',

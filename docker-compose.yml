@@ -1,0 +1,51 @@
+# Banco de desenvolvimento/teste na MESMA versão da hospedagem (MariaDB 11.8.9),
+# com o mesmo charset/collation. Não é o banco de produção: é um banco descartável
+# para rodar o app e a suíte E2E contra o dialeto MySQL.
+#
+#   docker compose up -d        # sobe e espera o healthcheck
+#   docker compose logs -f banco
+#   docker compose down         # para o container (o volume de dados fica)
+#   docker compose down -v      # APAGA o banco (remove o volume também)
+#
+# Porta: 3307 no host (a 3306 costuma estar ocupada por um MySQL/MariaDB local).
+# Para trocar: PORTA_BANCO=3308 docker compose up -d
+#
+# O banco `mcurso` nasce vazio — o app cria as tabelas no boot. Para rodar o app
+# contra ele (o `.env` fica intacto; o dotenv não sobrescreve o que já está no
+# ambiente):
+#   PowerShell:  $env:DB_DIALECT='mysql'; $env:DB_URL='mysql://mcurso:mcurso@127.0.0.1:3307/mcurso'; pnpm dev
+#
+# E2E contra MySQL (o `E2E_DB_URL` default já aponta para cá):
+#   PowerShell:  $env:E2E_DIALECT='mysql'; pnpm test:e2e
+#
+# Credenciais:
+#   - usuário do app: `mcurso` / `mcurso` (privilégio só no banco `mcurso`)
+#   - root:           `root`   / `mcurso` (o E2E precisa dele para criar/apagar `*_e2e`)
+
+services:
+  banco:
+    image: mariadb:11.8.9
+    container_name: mcurso-mysql
+    restart: unless-stopped
+    ports:
+      - '${PORTA_BANCO:-3307}:3306'
+    environment:
+      MARIADB_ROOT_PASSWORD: mcurso
+      MARIADB_DATABASE: mcurso
+      MARIADB_USER: mcurso
+      MARIADB_PASSWORD: mcurso
+    # O app não força charset na conexão: o servidor é quem manda, igual no host.
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - dados:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  dados:

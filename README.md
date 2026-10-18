@@ -44,7 +44,7 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 | Checagem | Resultado da última execução local |
 | --- | --- |
 | `pnpm test` | 156/156 (14 arquivos) |
-| E2E (as 15 specs da suíte) | 90/90 no SQLite **e** 90/90 no MariaDB 10.11 |
+| E2E (as 15 specs da suíte) | 90/90 no SQLite, 90/90 no MariaDB 10.11 e **90/90 no MariaDB 11.8.9** (a versão da hospedagem, via `docker compose`) |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
 
@@ -68,6 +68,11 @@ cp .env.example .env
 # criar/rodar migrações do banco (SQLite)
 # → opcional: o dev já aplica as migrations sozinho no boot
 pnpm db:migrate
+
+# (opcional) banco de dev em MySQL/MariaDB, na mesma versão da hospedagem
+docker compose up -d
+# → e para o app apontar para ele (o .env fica em SQLite):
+#   PowerShell: $env:DB_DIALECT='mysql'; $env:DB_URL='mysql://mcurso:mcurso@127.0.0.1:3307/mcurso'; pnpm dev
 
 # subir o servidor de dev
 pnpm dev
@@ -94,9 +99,9 @@ pnpm dev
 | `pnpm db:generate:mysql` | gera a migration do dialeto MySQL (`drizzle-mysql/`) |
 | `pnpm db:migrate:mysql` | aplica as migrations no MySQL/MariaDB (a partir de `DB_URL`) |
 
-> **E2E**: cada execução recria o banco de E2E (`data/e2e.db` e `data/e2e-uploads` no SQLite; `drop`/`create` no MySQL — o banco de dev nunca é tocado) e sobe o app na porta 5179 (build + `node build`, sem `drizzle-kit`: o app migra sozinho no boot, igual ao deploy). `pnpm test:e2e` roda tudo; para rodar um subconjunto, passe as specs: `pnpm exec playwright test e2e/fluxo.spec.ts e2e/quiz.spec.ts`.
+> **E2E**: o `webServer` recria o banco de E2E (`drop`/`create` no MySQL, arquivos no SQLite — o banco de dev nunca é tocado), roda o build e sobe o app na porta 5179, sem `drizzle-kit`. O reset vem **antes** do build de propósito: o `analyse` do pós-build do SvelteKit importa o módulo do servidor, que abre a conexão e aplica as migrations — se o banco ainda não existir, o build do MySQL morre com `ER_BAD_DB_ERROR`. Para um subconjunto, passe as specs: `pnpm exec playwright test e2e/fluxo.spec.ts e2e/quiz.spec.ts`.
 >
-> A **mesma suíte** roda contra MySQL/MariaDB: `E2E_DIALECT=mysql` + `E2E_DB_URL=mysql://user:senha@host:3306/mcurso_e2e` (o nome precisa terminar em `_e2e`, que é a trava contra apagar um banco de verdade) — é essa execução que valida o dialeto de ponta a ponta.
+> **A mesma suíte** roda contra o MySQL/MariaDB: `docker compose up -d` sobe o banco local na **mesma versão da hospedagem** (MariaDB 11.8.9, porta 3307, `root`/`mcurso`) e o `E2E_DB_URL` default já aponta para ele — basta `$env:E2E_DIALECT='mysql'; pnpm test:e2e`. Para outro servidor, `E2E_DB_URL=mysql://usuario:senha@host:porta/mcurso_e2e`: o banco **precisa** terminar em `_e2e` (a trava do reset contra apagar um banco de verdade) e o usuário precisa poder criar/apagar bancos.
 
 ## Estrutura
 
@@ -170,6 +175,7 @@ src/
 e2e/                     → Playwright (ambiente.ts com as credenciais/banco isolados)
 scripts/e2e-reset.mjs    → recria o banco de E2E antes de cada execução (arquivos no SQLite, drop/create no MySQL)
 scripts/copiar-migracoes.mjs → copia `drizzle/` e `drizzle-mysql/` para dentro de `build/`
+docker-compose.yml       → banco de dev/E2E (MariaDB 11.8.9, a mesma versão da hospedagem)
 drizzle/                 → migrations e snapshots (SQLite)
 drizzle-mysql/           → migrations e snapshots (MySQL/MariaDB)
 ```
@@ -178,9 +184,10 @@ drizzle-mysql/           → migrations e snapshots (MySQL/MariaDB)
 
 O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Quatro pontos que já custaram tempo:
 
-- **As migrations são aplicadas pelo app no boot** (`src/lib/server/db/migrar.ts`, chamado pelo `db/index.ts` antes de qualquer consulta), não por um passo separado de deploy: `drizzle-kit` é `devDependency` e não existe no servidor. A pasta é escolhida pelo dialeto (`drizzle/` no SQLite, `drizzle-mysql/` no MySQL, com `MIGRATIONS_DIR` como escape) e o log de boot diz quantas entraram — `[mcurso] 6 migração(ões) aplicada(s) em mysql://***@host/mcurso` ou `[mcurso] banco em dia em …`. O `pnpm build` copia **as duas** pastas para dentro de `build/`, então só a pasta de build precisa estar no ar.
+- **As migrations são aplicadas pelo app no boot** (`src/lib/server/db/migrar.ts`, chamado pelo `db/index.ts` antes de qualquer consulta), não por um passo separado de deploy: `drizzle-kit` é `devDependency` e não existe no servidor. A pasta é escolhida pelo dialeto (`drizzle/` no SQLite, `drizzle-mysql/` no MySQL, com `MIGRATIONS_DIR` como escape) e o log de boot diz quantas entraram — `[mcurso] 6 migração(ões) aplicada(s) em mysql://***@host/mcurso` ou `[mcurso] banco em dia em …`. O `pnpm build` copia **as duas** pastas para dentro de `build/`, então só a pasta de build precisa estar no ar. (O build também conecta e migra — ver o item do `ER_BAD_DB_ERROR` mais abaixo.)
 - **O app não tem nenhuma dependência nativa**: no SQLite o driver é o `node:sqlite` embutido no Node ≥ 22.13 (`DatabaseSync`) — o que já quebrou o deploy duas vezes com o glibc antigo da hospedagem — e no MySQL é o `mysql2`, JavaScript puro. O import do driver `better-sqlite3` do drizzle é satisfeito por um stub em `vendor/better-sqlite3-stub` — nunca instanciado, porque o app sempre passa a instância do `node:sqlite`. O `engines.node` exige `>=22.13`.
 - `p5` e `q5` também ficam em **`dependencies`** pelo mesmo motivo: a rota `lib/[...caminho]` resolve os arquivos no `node_modules` em runtime (a `iframe` do bloco de simulação não pode ir para CDN e o `exports` do p5 bloqueia o caminho normal). No deploy, as duas precisam estar instaladas junto do `node_modules`.
+- **O build também fala com o banco**: o `analyse` do pós-build do SvelteKit importa o módulo do servidor, então o `pnpm build` abre a conexão e aplica as migrations (um banco vazio vira as 11 tabelas só com o build). Com `DB_DIALECT=mysql`, o banco precisa **existir** na hora do build (senão ele morre com `ER_BAD_DB_ERROR`) e o usuário precisa de DDL no build **e** no boot — crie o banco no painel antes de subir o código.
 - Variáveis de ambiente em produção: `DB_DIALECT` (`sqlite` ou `mysql`) e, conforme o dialeto, `DB_PATH` ou `DB_URL` (e `UPLOADS_DIR`), com caminhos graváveis **e persistentes** (fora da pasta de build, que some a cada novo deploy) — mais `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (a URL pública, sem barra final), `APP_MASTER_EMAIL` e `APP_MASTER_PASSWORD` (ver `.env.example`). O servidor escuta em `PORT`/`HOST`, com `ORIGIN` apontando para a URL pública (necessário para os cookies de sessão).
 - A lib de UI entra como `^x.y.z` no `package.json` (versão publicada no registry). O `link:../ahmardesign` só funciona no clone local.
 
@@ -201,12 +208,12 @@ DB_URL=mysql://usuario:senha@127.0.0.1:3306/banco
 - O usuário do banco precisa de **DDL** (CREATE/ALTER/INDEX): o app cria as tabelas no boot, não há passo de migration no deploy.
 - `DB_PATH` pode ficar no `.env` (é ignorado no modo mysql) — é o que deixa o **rollback em uma linha**: apagar/comentar o `DB_DIALECT` volta para o SQLite, que segue intacto.
 - **Uploads não vão para o banco**: `UPLOADS_DIR` continua sendo pasta de arquivos e precisa do backup dela (o backup gerenciado do MySQL só protege o banco).
-- A variável importa **na subida** (`node build`), não no `vite build`. Depois de reiniciar, o log diz quantas migrações entraram: `[mcurso] N migração(ões) aplicada(s) em mysql://***@host/banco` (ou `[mcurso] banco em dia em …`).
+- **O banco precisa existir antes do build**: o `vite build` também conecta e aplica a migração (o `analyse` do pós-build importa o servidor — ver o item acima), então com `DB_DIALECT=mysql` e sem o banco o build morre com `ER_BAD_DB_ERROR`. Depois de reiniciar, o log diz quantas migrações entraram: `[mcurso] N migração(ões) aplicada(s) em mysql://***@host/banco` (ou `[mcurso] banco em dia em …`).
 
 O banco MySQL **nasce vazio**. Para levar o conteúdo já publicado, use o **export/import do próprio app**, em `/importar`:
 
 1. No site antigo (SQLite), exporte cada apostila/anexo/atividade/quiz.
-2. Vire o `.env` para MySQL e reinicie — o app cria as tabelas no boot.
+2. Vire o `.env` para MySQL e reinicie — o build/o boot cria as tabelas (o banco tem que existir antes).
 3. Importe os JSONs de volta no site novo (apostila **sempre cria nova**; links internos voltam como `alvoTitulo`, resolvidos por conteúdo existente — importe anexos/atividades que são referenciados antes das apostilas que os citam).
 
 Os arquivos de upload continuam onde estão e as URLs `/uploads/...` seguem valendo (o caminho não muda com o dialeto).
