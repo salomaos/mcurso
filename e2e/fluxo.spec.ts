@@ -207,7 +207,8 @@ test('canvas edita tabela e exercício e mantém os dados', async ({ page }) => 
 	await page.getByRole('link', { name: 'Editar', exact: true }).click();
 	await expect(page).toHaveURL(/\/editar/);
 	const blocos = page.locator('[data-canvas-block]');
-	await blocos.nth(0).locator('.canvas-visual').click();
+	// A tabela edita dentro do próprio card (sem prévia), então o input da célula
+	// já está visível quando o editor abre.
 	await expect(page.getByPlaceholder('Coluna').first()).toHaveValue('Entrada');
 	await expect(page.getByPlaceholder('Coluna').nth(1)).toHaveValue('Saída');
 	await expect(page.getByPlaceholder('Valor').nth(1)).toHaveValue('B1');
@@ -224,12 +225,11 @@ test('canvas edita tabela e exercício e mantém os dados', async ({ page }) => 
 		correta: number;
 		explicacao?: string;
 	}[];
-	expect(persistidos[0].linhas[0][1]).toBe('B1');
+	expect(persistidos[0].linhas[1][1]).toBe('B1');
 	expect(persistidos[1].alternativas).toEqual(['Primeira', 'Segunda', 'Terceira']);
 	expect(persistidos[1].correta).toBe(2);
 	expect(persistidos[1].explicacao).toBe('A terceira é a correta.');
 
-	await blocos.nth(0).locator('.canvas-visual').click();
 	await blocos.nth(0).getByRole('button', { name: 'Duplicar' }).click();
 	await expect(blocos).toHaveCount(3);
 	const duplicados = JSON.parse(await page.locator('input[name="blocos"]').inputValue()) as {
@@ -239,7 +239,7 @@ test('canvas edita tabela e exercício e mantém os dados', async ({ page }) => 
 	expect(duplicados[1].id).not.toBe(duplicados[0].id);
 	expect(duplicados[1].linhas).toEqual(duplicados[0].linhas);
 
-	await page.getByRole('button', { name: 'Visualizar' }).click();
+	await page.getByRole('group', { name: 'Modo do editor' }).getByRole('button', { name: 'Visualizar' }).click();
 	await expect(page.getByLabel('Enunciado do exercício', { exact: true })).toHaveCount(0);
 	await expect(page.getByText('Qual é a resposta?')).toBeVisible();
 });

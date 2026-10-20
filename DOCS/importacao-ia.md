@@ -63,7 +63,7 @@ seus campos:
 | `mermaid` | `diagrama`, `tema`? | `tema`: `neutral` (padrão), `default`, `forest`, `dark`, `base` |
 | `imagem` | `src`, `legenda`? | `src`: **URL http/https absoluta** ou caminho `/uploads/...` |
 | `link` | `rotulo`, `tipoLink`, `url`?/`alvoId`?/`alvoTitulo`? | ver "Links" abaixo |
-| `tabela` | `cabecalho` (string[]), `linhas` (string[][]) | `linhas[i]` mesmo tamanho do cabeçalho |
+| `tabela` | `cabecalho` (string[]), `linhas` (string[][]) — **ou** o formato canônico: `linhas` (matriz), `linhasCabecalho`, `colunasCabecalho`, `legenda`?, `zebrada`?, células avançadas `{texto, colspan?, rowspan?, th?, alinhamento?}` | Formato curto é válido (o app dobra o cabeçalho na primeira linha). Quando há mescla/legenda/colunas de cabeçalho, prefira o canônico. `alinhamento` pode ser `esquerda`, `centro` ou `direita`. |
 | `formula` | `latex`, `destaque`? (boolean, padrão `true`) | KaTeX |
 | `exercicio` | `pergunta`, `alternativas` (2+), `selecao`?, `correta`, `explicacao`? | ver "Exercício" abaixo |
 | `dissertativa` | `pergunta`, `orientacao`? | Resposta aberta, fora da nota |

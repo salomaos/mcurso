@@ -13,6 +13,7 @@ import {
 	novoId,
 	normalizarBlocos,
 	type Bloco,
+	type BlocoTabela,
 	type Blocos
 } from '$lib/blocks';
 import type {
@@ -38,6 +39,7 @@ import {
 	secoes
 } from '$lib/server/db/tabelas';
 import { transacao } from '$lib/server/db/transacao';
+import { montarTabela } from '$lib/tabela';
 import type { Falha } from '$lib/server/conteudo';
 
 class ErroImport extends Error {}
@@ -414,8 +416,44 @@ async function carregarTitulos(apostilaId: number | null): Promise<TitulosPorTip
 	return { aulas: novo(aulasLista), anexos: novo(anexosLista), exercicios: novo(exerciciosLista) };
 }
 
+/**
+ * Exporta a tabela no **formato curto** (`cabecalho` + `linhas`) quando ela é
+ * simples — é o formato da doc da IA e o que o professor lê melhor, então o
+ * round-trip export → colar na IA continua enxuto —, e no canônico quando tem
+ * mescla, legenda, zebra, `th` avulso, alinhamento, coluna de cabeçalho ou mais
+ * de uma linha de cabeçalho (o curto não carrega nada disso). Os dois formatos
+ * voltam pelo mesmo caminho na importação (`lerTabela`).
+ */
+function tabelaParaExportar(bloco: BlocoTabela): ImportacaoBloco {
+	const tabela = montarTabela(bloco);
+	const complexa =
+		bloco.legenda !== undefined ||
+		bloco.zebrada === true ||
+		tabela.colunasCabecalho > 0 ||
+		tabela.linhasCabecalho > 1 ||
+		tabela.linhas.some((linha) =>
+			linha.celulas.some(
+				(celula) =>
+					celula.colspan > 1 ||
+					celula.rowspan > 1 ||
+					celula.alinhamento !== null ||
+					(celula.th && celula.linha !== 0)
+			)
+		);
+	if (complexa) return { ...bloco } as unknown as ImportacaoBloco;
+
+	const texto = tabela.linhas.map((linha) => linha.celulas.map((celula) => celula.texto));
+	if (tabela.linhasCabecalho === 1) {
+		return { id: bloco.id, tipo: 'tabela', cabecalho: texto[0] ?? [], linhas: texto.slice(1) };
+	}
+	// Sem cabeçalho o formato curto é só `linhas`: o leitor sem `cabecalho` cai em
+	// zero linha de cabeçalho.
+	return { id: bloco.id, tipo: 'tabela', linhas: texto };
+}
+
 function blocosParaExportar(blocos: Blocos, titulos: TitulosPorTipo): ImportacaoBloco[] {
 	return blocos.map((bloco) => {
+		if (bloco.tipo === 'tabela') return tabelaParaExportar(bloco);
 		if (bloco.tipo !== 'link' || bloco.tipoLink === 'externo') {
 			return { ...bloco } as unknown as ImportacaoBloco;
 		}
