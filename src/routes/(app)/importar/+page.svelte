@@ -241,7 +241,7 @@
 			<div class="modal-action flex-wrap">
 				<button class="btn btn-ghost" type="button" onclick={fecharExemplo}>Fechar</button>
 				<button class="btn btn-outline" type="button" onclick={copiarExemplo}>
-					{copiado ? 'Copiado!' : 'Copiar para a IA'}
+					{copiado ? 'Copiado!' : 'Copiar'}
 				</button>
 				<button class="btn btn-primary" type="button" onclick={usarExemplo}>Usar no editor</button>
 			</div>

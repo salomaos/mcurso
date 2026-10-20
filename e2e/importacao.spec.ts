@@ -144,7 +144,7 @@ test('abre o exemplo de cada tipo no popup, copia e coloca no editor', async ({ 
 		await expect(modal.locator('pre')).toContainText(titulo);
 
 		// Copiar dá feedback no próprio botão.
-		await page.getByRole('button', { name: 'Copiar para a IA' }).click();
+		await page.getByRole('button', { name: 'Copiar' }).click();
 		await expect(page.getByRole('button', { name: 'Copiado!' })).toBeVisible();
 
 		// "Usar no editor" fecha o popup e preenche o textarea com o exemplo.

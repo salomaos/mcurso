@@ -46,8 +46,8 @@ Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (lo
 
 | Checagem | Resultado da última execução local |
 | --- | --- |
-| `pnpm test` | 156/156 (14 arquivos) |
-| E2E (as 15 specs da suíte) | 90/90 no SQLite, 90/90 no MariaDB 10.11 e **90/90 no MariaDB 11.8.9** (a versão da hospedagem, via `docker compose`) |
+| `pnpm test` | 168/168 (15 arquivos) |
+| E2E (as 16 specs da suíte) | 92/92 no SQLite e **92/92 no MariaDB 11.8.9** (a versão da hospedagem, via `docker compose`) |
 | `pnpm build` | ok |
 | `pnpm check` | 0 erros |
 
@@ -184,6 +184,8 @@ drizzle-mysql/           → migrations e snapshots (MySQL/MariaDB)
 ```
 
 ## Deploy (adapter-node)
+
+**O deploy sai da `main`**: ela é a branch conectada na Hostinger (Deploy → Deployment settings → Branch) e só recebe merge de pull request — o trabalho do dia a dia acontece na `dev`. Como o auto-deploy dispara no push da branch conectada, subir para o ar é consequência do merge: push na `dev` não sobe nada.
 
 O `adapter-node` gera o servidor Node em `build/`, iniciado com `node build`. Quatro pontos que já custaram tempo:
 

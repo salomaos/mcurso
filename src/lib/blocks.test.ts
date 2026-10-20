@@ -206,11 +206,80 @@ describe('normalizarBlocos / ehBloco', () => {
 			{ id: 'e', tipo: 'exercicio', pergunta: 'q', alternativas: ['a', 'b'], correta: 1, explicacao: null },
 			{ id: 'd', tipo: 'dissertativa', pergunta: 'explique', orientacao: null }
 		]);
-		expect(limpos[0]).toEqual({ id: 't', tipo: 'tabela', cabecalho: ['a'], linhas: [['1']] });
 		expect(limpos[1]).toMatchObject({ tipo: 'formula', latex: 'x^2', destaque: false });
 		expect(limpos[2]).toMatchObject({ tipo: 'exercicio', correta: 1, selecao: 'radio' });
 		expect((limpos[2] as { explicacao?: string }).explicacao).toBeUndefined();
 		expect(limpos[3]).toEqual({ id: 'd', tipo: 'dissertativa', pergunta: 'explique' });
+	});
+
+	it('grava a tabela no formato canônico, venha ela do formato antigo ou não', () => {
+		const esperado = {
+			id: 't',
+			tipo: 'tabela',
+			linhas: [
+				['a', 'b'],
+				['1', '2']
+			],
+			linhasCabecalho: 1,
+			colunasCabecalho: 0
+		};
+		// `cabecalho` é o formato de todo conteúdo já salvo (e o que a IA gera): a
+		// partir daqui ele é dobrado na primeira linha da matriz, com a contagem de
+		// linhas de cabeçalho guardada em campo próprio.
+		const [antigo] = normalizarBlocos([
+			{ id: 't', tipo: 'tabela', cabecalho: ['a', 'b'], linhas: [['1', '2']] }
+		]);
+		expect(antigo).toEqual(esperado);
+
+		const [atual] = normalizarBlocos([
+			{ id: 't', tipo: 'tabela', linhas: esperado.linhas, linhasCabecalho: 1 }
+		]);
+		expect(atual).toEqual(esperado);
+	});
+
+	it('aceita a célula avançada da tabela (mescla, th avulso, alinhamento)', () => {
+		const [bloco] = normalizarBlocos([
+			{
+				id: 't',
+				tipo: 'tabela',
+				linhas: [
+					['a', 'b'],
+					[{ texto: 'mesclada', colspan: 2, th: true, alinhamento: 'centro' }]
+				],
+				linhasCabecalho: 1,
+				colunasCabecalho: 0,
+				legenda: 'Tabela 1',
+				zebrada: true
+			}
+		]);
+		expect(bloco).toMatchObject({ legenda: 'Tabela 1', zebrada: true });
+		expect((bloco as { linhas: unknown[] }).linhas[1]).toEqual([
+			{ texto: 'mesclada', colspan: 2, th: true, alinhamento: 'centro' }
+		]);
+	});
+
+	it('aceita número e booleano na célula (JSON de IA) e descarta tabela com buraco', () => {
+		const [bloco] = normalizarBlocos([
+			{ id: 't', tipo: 'tabela', linhas: [['Ano', 2026], ['Ativo', true]] }
+		]);
+		expect((bloco as { linhas: unknown[] }).linhas).toEqual([
+			['Ano', '2026'],
+			['Ativo', 'true']
+		]);
+
+		expect(normalizarBlocos([{ id: 't', tipo: 'tabela', linhas: [['a', { colspan: 2 }]] }])).toEqual([]);
+		expect(normalizarBlocos([{ id: 't', tipo: 'tabela', linhas: [['a', ['b']]] }])).toEqual([]);
+	});
+
+	it('tabela sem nenhuma linha vira tabela vazia (o aviso é da pendência)', () => {
+		const [bloco] = normalizarBlocos([{ id: 't', tipo: 'tabela' }]);
+		expect(bloco).toEqual({
+			id: 't',
+			tipo: 'tabela',
+			linhas: [['']],
+			linhasCabecalho: 0,
+			colunasCabecalho: 0
+		});
 	});
 
 	it('descarta tabela com linhas não-array', () => {

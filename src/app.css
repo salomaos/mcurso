@@ -143,6 +143,28 @@
 	text-align: center;
 }
 
+/* Célula selecionada no editor da tabela (ver `EditorBlocoCamada.svelte`): a lib
+   não tem utilitário de contorno/anel, então o destaque mora aqui, como os
+   `.arrasto-*`. `outline` (e não `border`) porque não desloca a grade, e o
+   `offset` negativo põe o traço dentro da célula — longe da borda vizinha. */
+[data-celula-selecionada] {
+	outline: 2px solid hsl(var(--p));
+	outline-offset: -2px;
+}
+
+/* Legenda da tabela (`<caption>`). A lib não estiliza `caption`, então a escala
+   é daqui; `caption-side: top` explícito porque o default do navegador é embaixo. */
+.tabela-legenda {
+	caption-side: top;
+	text-align: left;
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	opacity: 0.6;
+	padding-bottom: 0.25rem;
+}
+
 @media print {
 	.no-print {
 		display: none !important;
@@ -166,6 +188,19 @@
 	.markdown blockquote,
 	.markdown table,
 	.markdown li {
+		break-inside: avoid;
+		page-break-inside: avoid;
+	}
+
+	/* Tabela do bloco no papel: rolagem lateral não existe, e a caixa é
+	   `overflow-x: auto` na tela — sem isso as colunas da direita somem. A quebra
+	   é evitada por linha (a tabela inteira pode não caber numa página). */
+	.tabela-bloco {
+		overflow: visible !important;
+	}
+
+	.tabela-bloco tr,
+	.tabela-bloco caption {
 		break-inside: avoid;
 		page-break-inside: avoid;
 	}

@@ -5,6 +5,7 @@
 // JSON cru e avisa também de link interno dependendo de resolução.
 
 import { TIPOS_BLOCO, type Bloco, type Blocos } from '$lib/blocks';
+import { lerTabela, tabelaVazia } from '$lib/tabela';
 import type { ImportacaoBloco } from '$lib/importar';
 
 export type Pendencia = { indice: number; rotulo: string; motivo: string };
@@ -40,12 +41,8 @@ function motivoDoBloco(bloco: Bloco): string | null {
 			return bloco.diagrama.trim() ? null : 'diagrama vazio';
 		case 'imagem':
 			return bloco.src.trim() ? null : 'sem endereço de imagem';
-		case 'tabela': {
-			const vazia =
-				bloco.cabecalho.every((celula) => !celula.trim()) &&
-				bloco.linhas.every((linha) => linha.every((celula) => !celula.trim()));
-			return vazia ? 'tabela vazia' : null;
-		}
+		case 'tabela':
+			return tabelaVazia(bloco) ? 'tabela vazia' : null;
 		case 'formula':
 			return bloco.latex.trim() ? null : 'fórmula vazia';
 		case 'exercicio':
@@ -117,13 +114,10 @@ export function pendenciasDeImportacao(blocos: ImportacaoBloco[]): Pendencia[] {
 				if (!ehTexto(bloco.latex)) acrescentar(posicao, tipo, 'fórmula vazia');
 				break;
 			case 'tabela': {
-				const celulas = [
-					...(Array.isArray(bloco.cabecalho) ? bloco.cabecalho : []),
-					...(Array.isArray(bloco.linhas) ? bloco.linhas.flat() : [])
-				].map((valor) => (typeof valor === 'string' ? valor.trim() : ''));
-				if (celulas.length === 0 || celulas.every((celula) => !celula)) {
-					acrescentar(posicao, tipo, 'tabela vazia');
-				}
+				// Lê o formato cru (novo ou antigo) e pergunta ao modelo se sobrou
+				// alguma célula com texto.
+				const tabela = lerTabela(bloco);
+				if (!tabela || tabelaVazia(tabela)) acrescentar(posicao, tipo, 'tabela vazia');
 				break;
 			}
 			case 'exercicio': {

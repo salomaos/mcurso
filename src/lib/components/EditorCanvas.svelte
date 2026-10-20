@@ -94,7 +94,6 @@ import Html from "./Html.svelte";
     "alternativas",
     "explicacao",
     "orientacao",
-    "cabecalho",
     "linhas",
     "html",
     "css",
@@ -102,12 +101,13 @@ import Html from "./Html.svelte";
   ] as const;
 
   // Blocos com edição dentro do próprio card (exercício, dissertativa,
-  // simulação): não têm camada de configuração nem botão "Editar".
+  // simulação, HTML, tabela): não têm camada de configuração nem botão "Editar".
   const EM_CARTAO = new Set<Bloco["tipo"]>([
     "exercicio",
     "dissertativa",
     "simulacao",
     "html",
+    "tabela",
   ]);
 
   function temConteudo(bloco: Bloco): boolean {
@@ -417,6 +417,16 @@ import Html from "./Html.svelte";
             {bloco}
             modo="editar"
             aoAlterar={(parcial) => atualizarBloco(bloco.id, { ...bloco, ...parcial })}
+          />
+        </div>
+      {:else if modo === "editar" && bloco.tipo === "tabela"}
+        <!-- A tabela tem o próprio toggle Editar/Visualizar dentro do card, então
+             não passa pela prévia fixa (`canvas-visual`) — igual a simulação e HTML. -->
+        <div class="canvas-conteudo">
+          <EditorBlocoCamada
+            {bloco}
+            atualizar={(transformar) => atualizarBloco(bloco.id, transformar)}
+            {alvos}
           />
         </div>
       {:else}
