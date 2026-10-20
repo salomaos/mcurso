@@ -120,9 +120,18 @@ const marked = new Marked({
 	renderer: renderizador
 });
 
-/** Markdown do professor → HTML confiável (único `innerHTML` de conteúdo do app). */
+/** Markdown do professor → HTML confiável (um dos `innerHTML` de conteúdo do app). */
 export function markdownParaHtml(markdown: string): string {
 	// O `marked` devolve uma `\n` no fim; para o `{@html}` não é diferença, mas
 	// comparar string na spec fica ridículo.
 	return (marked.parse(markdown, { async: false }) as string).trim();
+}
+
+/**
+ * Markdown **inline** (célula de tabela, rótulo curto): mesma máquina do bloco de
+ * texto, sem o `<p>` em volta — dentro de `<td>`/`<th>` o parágrafo é HTML
+ * inválido e o `<p>` ainda criaria margem. É o outro `{@html}` de conteúdo.
+ */
+export function markdownInlineParaHtml(markdown: string): string {
+	return (marked.parseInline(markdown, { async: false }) as string).trim();
 }

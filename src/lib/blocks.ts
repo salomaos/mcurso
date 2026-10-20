@@ -4,6 +4,7 @@
 import { caminhoAnexo, caminhoAula, caminhoExercicio } from '$lib/conteudo';
 import type { NomeIcone } from '$lib/icones';
 import { SELECOES_EXERCICIO, type SelecaoExercicio } from '$lib/conteudo';
+import { lerTabela, type DadosTabela } from '$lib/tabela';
 
 export { SELECOES_EXERCICIO, type SelecaoExercicio };
 
@@ -62,7 +63,10 @@ export type BlocoLink = {
 	url?: string;
 	alvoId?: number;
 };
-export type BlocoTabela = { id: string; tipo: 'tabela'; cabecalho: string[]; linhas: string[][] };
+// A tabela inteira é uma matriz só (`linhas`), com o cabeçalho por contagem —
+// ver `$lib/tabela`. O campo `cabecalho` do formato antigo continua sendo
+// **lido** (é o que está no banco e o que a IA gera), mas nunca mais gravado.
+export type BlocoTabela = { id: string; tipo: 'tabela' } & DadosTabela;
 export type BlocoFormula = { id: string; tipo: 'formula'; latex: string; destaque: boolean };
 // Como o aluno responde: um botão de rádio (uma alternativa verdadeira) ou
 // caixas de seleção (várias alternativas verdadeiras). Definido em
@@ -311,7 +315,13 @@ export function criarBloco(tipo: Bloco['tipo']): Bloco {
 		case 'link':
 			return { id, tipo, rotulo: '', tipoLink: 'externo' };
 		case 'tabela':
-			return { id, tipo, cabecalho: ['Coluna 1'], linhas: [['']] };
+			return {
+				id,
+				tipo,
+				linhas: [['Coluna 1'], ['']],
+				linhasCabecalho: 1,
+				colunasCabecalho: 0
+			};
 		case 'formula':
 			return { id, tipo, latex: 'E = mc^2', destaque: true };
 		case 'exercicio':
@@ -456,12 +466,9 @@ export function ehBloco(valor: unknown): valor is Bloco {
 			}
 			return ehUrlSegura(b.url);
 		case 'tabela':
-			return (
-				Array.isArray(b.cabecalho) &&
-				b.cabecalho.every((c) => typeof c === 'string') &&
-				Array.isArray(b.linhas) &&
-				b.linhas.every((l) => Array.isArray(l) && l.every((c) => typeof c === 'string'))
-			);
+			// `cabecalho` + `linhas` (formato antigo) e `linhas` + contagens
+			// (formato novo) são lidos; o que não dá para ler, sai.
+			return lerTabela(b) !== null;
 		case 'formula':
 			return typeof b.latex === 'string' && (b.destaque === undefined || typeof b.destaque === 'boolean');
 		case 'exercicio':
@@ -536,13 +543,13 @@ function normalizarCamposBloco(bloco: Bloco): Bloco {
 			};
 		case 'link':
 			return normalizarLink(bloco);
-		case 'tabela':
-			return {
-				id: bloco.id,
-				tipo: 'tabela',
-				cabecalho: bloco.cabecalho.map((c) => String(c)),
-				linhas: bloco.linhas.map((l) => l.map((c) => String(c)))
-			};
+		case 'tabela': {
+			// O formato antigo é dobrado no novo aqui (`lerTabela`); daqui para
+			// frente o bloco é gravado sempre no formato canônico, com os spans já
+			// dentro da faixa e a legenda/zebra preservadas.
+			const tabela = lerTabela(bloco) ?? { linhas: [['']], linhasCabecalho: 0, colunasCabecalho: 0 };
+			return { id: bloco.id, tipo: 'tabela', ...tabela };
+		}
 		case 'formula':
 			return { id: bloco.id, tipo: 'formula', latex: bloco.latex, destaque: bloco.destaque !== false };
 		case 'exercicio': {

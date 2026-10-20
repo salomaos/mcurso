@@ -8,6 +8,8 @@
 	import Simulacao from './Simulacao.svelte';
 	import Html from './Html.svelte';
 	import TextoMarkdown from './TextoMarkdown.svelte';
+	import { CLASSE_ALINHAMENTO, montarTabela, type CelulaRender } from '$lib/tabela';
+	import { markdownInlineParaHtml } from '$lib/markdown';
 
 	// `imprimir` só muda os blocos com iframe (simulação e HTML renderizam o
 	// código no papel, já que o `srcdoc` não roda na impressão); para o resto é o
@@ -87,22 +89,58 @@
 		{/if}
 	</a>
 {:else if bloco.tipo === 'tabela'}
-	<div class="overflow-x-auto my-3">
-		<table class="table table-bordered table-sm">
-			{#if bloco.cabecalho.length > 0}
+	<!--
+		O layout vem de `montarTabela` (em `$lib/tabela`), nunca do índice do array:
+		com mescla os dois divergem. `linhasCabecalho` decide o `<thead>` e
+		`colunasCabecalho`/`th` avulso viram `<th>` no corpo. `scope` é o que faz o
+		leitor de tela anunciar a linha/coluna de cada célula.
+	-->
+	{@const tabela = montarTabela(bloco)}
+	{#snippet celulaTabela(celula: CelulaRender, escopo: 'col' | 'row')}
+		{#if celula.th}
+			<th
+				colspan={celula.colspan}
+				rowspan={celula.rowspan}
+				scope={escopo}
+				class={celula.alinhamento ? CLASSE_ALINHAMENTO[celula.alinhamento] : ''}
+			>
+				{@html markdownInlineParaHtml(celula.texto)}
+			</th>
+		{:else}
+			<td
+				colspan={celula.colspan}
+				rowspan={celula.rowspan}
+				class={celula.alinhamento ? CLASSE_ALINHAMENTO[celula.alinhamento] : ''}
+			>
+				{@html markdownInlineParaHtml(celula.texto)}
+			</td>
+		{/if}
+	{/snippet}
+	<div class="tabela-bloco overflow-x-auto my-3">
+		<table
+			class={bloco.zebrada
+				? 'table table-bordered table-sm table-zebra'
+				: 'table table-bordered table-sm'}
+		>
+			{#if bloco.legenda}
+				<caption class="tabela-legenda">{bloco.legenda}</caption>
+			{/if}
+			{#if tabela.linhasCabecalho > 0}
 				<thead>
-					<tr>
-						{#each bloco.cabecalho as celula}
-							<th>{celula || ''}</th>
-						{/each}
-					</tr>
+					{#each tabela.linhas.slice(0, tabela.linhasCabecalho) as linha}
+						<tr>
+							{#each linha.celulas as celula}
+								{@render celulaTabela(celula, 'col')}
+							{/each}
+						</tr>
+					{/each}
 				</thead>
 			{/if}
 			<tbody>
-				{#each bloco.linhas as linha}
+				{#each tabela.linhas.slice(tabela.linhasCabecalho) as linha}
 					<tr>
-						{#each linha as celula}
-							<td>{celula || ''}</td>
+						{#each linha.celulas as celula}
+							{@render celulaTabela(celula, 'row')}
 						{/each}
 					</tr>
 				{/each}
