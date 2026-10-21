@@ -387,7 +387,7 @@ export const EXEMPLO_ANEXO = `{
     { "tipo": "tabela", "cabecalho": ["Figura", "Área", "Perímetro"], "linhas": [["Quadrado", "a²", "4a"], ["Retângulo", "b · h", "2(b + h)"], ["Círculo", "πr²", "2πr"]] },
     { "tipo": "codigo", "linguagem": "js", "codigo": "const areaCirculo = (raio) => Math.PI * raio ** 2;" },
     { "tipo": "imagem", "src": "https://picsum.photos/seed/formulas/800/400", "legenda": "Figuras com as fórmulas principais." },
-    { "tipo": "link", "rotulo": "Explorar no GeoGebra", "tipoLink": "externo", "url": "https://www.geogebra.org/" },
+    { "tipo": "link", "rotulo": "Explorar no GeoGebra", "tipoLink": "externo", "url": "https://www.geogebra.org/", "tamanho": "pequeno", "posicao": "centro" },
     { "tipo": "mermaid", "diagrama": "flowchart TD\\n  A[Fórmula] --> B{Precisa de área?}\\n  B -->|sim| C[multiplica e divide]\\n  B -->|não| D[confere o enunciado]", "tema": "neutral" }
   ]
 }`;
