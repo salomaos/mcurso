@@ -14,6 +14,7 @@ import {
 	exemploBibliotecaSimulacao,
 	hrefLinkInterno,
 	linksPara,
+	LIMITE_NOME_SECAO,
 	mesmoNomeSecao,
 	normalizarBlocos,
 	normalizarNomeSecao,
@@ -77,7 +78,8 @@ describe('agruparPorSecao', () => {
 describe('normalizarNomeSecao / mesmoNomeSecao', () => {
 	it('colapsa espaços e limita o tamanho', () => {
 		expect(normalizarNomeSecao('  Bloco   1  ')).toBe('Bloco 1');
-		expect(normalizarNomeSecao('a'.repeat(80))).toHaveLength(60);
+		expect(normalizarNomeSecao('a'.repeat(LIMITE_NOME_SECAO + 20))).toHaveLength(LIMITE_NOME_SECAO);
+		expect(normalizarNomeSecao('a'.repeat(LIMITE_NOME_SECAO))).toHaveLength(LIMITE_NOME_SECAO);
 		expect(normalizarNomeSecao('   ')).toBe('');
 		expect(normalizarNomeSecao(null)).toBe('');
 	});

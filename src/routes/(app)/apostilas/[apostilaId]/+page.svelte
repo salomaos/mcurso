@@ -1,7 +1,12 @@
 <script lang="ts">
 import { invalidateAll } from '$app/navigation';
 	import { arrastar, moverItem } from '$lib/arrastar';
-	import { agruparPorSecao, type AulaUi, type SecaoUi } from '$lib/blocks';
+	import {
+		agruparPorSecao,
+		LIMITE_NOME_SECAO,
+		type AulaUi,
+		type SecaoUi
+	} from '$lib/blocks';
 	import TextoEditavel from '$lib/components/TextoEditavel.svelte';
 	import CardConteudo from '$lib/components/ui/CardConteudo.svelte';
 	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
@@ -248,7 +253,7 @@ let erroOrdem = $state('');
 									type="text"
 									name="nome"
 									bind:value={nomeSecao}
-									maxlength="60"
+									maxlength={LIMITE_NOME_SECAO}
 									autofocus
 									aria-label={`Nome da seção ${secao.nome}`}
 									onkeydown={(event) => {
@@ -319,7 +324,7 @@ let erroOrdem = $state('');
 					type="text"
 					name="nome"
 					placeholder="Nova seção (ex.: Bloco 1)"
-					maxlength="60"
+					maxlength={LIMITE_NOME_SECAO}
 					aria-label="Nome da nova seção"
 				/>
 				<button class="btn btn-outline btn-sm" type="submit">+ Criar seção</button>

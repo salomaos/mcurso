@@ -454,7 +454,7 @@ export function agruparPorSecao<T extends AulaUi>(secoes: SecaoUi[], aulas: T[])
 	return semSecao.aulas.length > 0 ? [...grupos, semSecao] : grupos;
 }
 
-export const LIMITE_NOME_SECAO = 60;
+export const LIMITE_NOME_SECAO = 120;
 
 export function normalizarNomeSecao(valor: unknown): string {
 	return String(valor ?? '')

@@ -134,7 +134,7 @@ aviso** no topo, visível só para o professor. Nunca impede a importação.
 ```
 
 - `secoes` e `aulas` são listas **ordenadas** (essa é a ordem do material).
-- Nome de seção é único por apostila (ignora acento e caixa, máx. 60 chars).
+- Nome de seção é único por apostila (ignora acento e caixa, máx. 120 chars).
 - `apostila` **sempre cria uma apostila nova**; edite depois no editor.
 
 ## Anexo / Exercício
