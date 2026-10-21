@@ -330,7 +330,7 @@ export const EXEMPLO_APOSTILA = `{
           "blocos": [
             { "tipo": "mermaid", "diagrama": "graph LR\\n  A[ax] --> B[b]", "tema": "neutral" },
             { "tipo": "imagem", "src": "https://picsum.photos/seed/mcurso/800/400", "legenda": "Gráfico típico de função afim." },
-            { "tipo": "link", "rotulo": "Explorar no GeoGebra", "tipoLink": "externo", "url": "https://www.geogebra.org/" },
+            { "tipo": "link", "rotulo": "Explorar no GeoGebra", "tipoLink": "externo", "url": "https://www.geogebra.org/", "tamanho": "grande", "largura": "full", "posicao": "centro" },
             {
               "tipo": "simulacao",
               "biblioteca": "p5",

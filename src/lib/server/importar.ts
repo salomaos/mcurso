@@ -9,9 +9,15 @@ import { eq } from 'drizzle-orm';
 import { asc } from 'drizzle-orm';
 import {
 	agruparPorSecao,
+	ehLarguraLink,
+	ehPosicaoLink,
+	ehTamanhoLink,
+	LARGURA_LINK_PADRAO,
 	mesmoNomeSecao,
 	novoId,
 	normalizarBlocos,
+	POSICAO_LINK_PADRAO,
+	TAMANHO_LINK_PADRAO,
 	type Bloco,
 	type BlocoTabela,
 	type Blocos
@@ -101,13 +107,18 @@ function garantirIds(blocos: ImportacaoBloco[]): ImportacaoBloco[] {
 }
 
 function blocoLink(bloco: ImportacaoBloco, alvo: { alvoId: number } | { url: string }): ImportacaoBloco {
-	return {
+	const saida: ImportacaoBloco = {
 		id: bloco.id,
 		tipo: 'link',
 		rotulo: typeof bloco.rotulo === 'string' ? bloco.rotulo : '',
 		tipoLink: bloco.tipoLink,
 		...('alvoId' in alvo ? { alvoId: alvo.alvoId } : { url: alvo.url })
 	};
+	// Cosméticos do link: viajam junto para o round-trip não perder o tamanho.
+	if (ehTamanhoLink(bloco.tamanho)) saida.tamanho = bloco.tamanho;
+	if (ehLarguraLink(bloco.largura)) saida.largura = bloco.largura;
+	if (ehPosicaoLink(bloco.posicao)) saida.posicao = bloco.posicao;
+	return saida;
 }
 
 function rotuloDoLink(bloco: ImportacaoBloco): string {
@@ -471,6 +482,18 @@ function blocosParaExportar(blocos: Blocos, titulos: TitulosPorTipo): Importacao
 			tipoLink: bloco.tipoLink
 		};
 		if (alvoTitulo) saida.alvoTitulo = alvoTitulo;
+		// Cosméticos do link: só saem quando fogem do padrão (o JSON curto
+		// continua curto) e nunca como `undefined`, já que este caminho lê o JSON
+		// cru do banco e um bloco antigo pode não ter os campos.
+		if (ehTamanhoLink(bloco.tamanho) && bloco.tamanho !== TAMANHO_LINK_PADRAO) {
+			saida.tamanho = bloco.tamanho;
+		}
+		if (ehLarguraLink(bloco.largura) && bloco.largura !== LARGURA_LINK_PADRAO) {
+			saida.largura = bloco.largura;
+		}
+		if (ehPosicaoLink(bloco.posicao) && bloco.posicao !== POSICAO_LINK_PADRAO) {
+			saida.posicao = bloco.posicao;
+		}
 		return saida;
 	});
 }

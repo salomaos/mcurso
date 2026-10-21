@@ -1,7 +1,15 @@
 <script lang="ts">
 	import type { Bloco, BlocoLink } from '$lib/blocks';
 	import { ROTULO_ALVO, ROTULO_EDITAR, ROTULO_VISUALIZAR, type AlvoLink, type TipoAlvo } from '$lib/conteudo';
-	import { TEMAS_MERMAID } from '$lib/blocks';
+	import {
+		LARGURAS_LINK,
+		POSICOES_LINK,
+		TAMANHOS_LINK,
+		TEMAS_MERMAID,
+		ehLarguraLink,
+		ehPosicaoLink,
+		ehTamanhoLink
+	} from '$lib/blocks';
 	import { markdownInlineParaHtml } from '$lib/markdown';
 	import {
 		ALINHAMENTOS,
@@ -360,6 +368,56 @@
 						oninput={(event) => alterar('url', event.currentTarget.value)}
 						placeholder="https://..."
 				/>
+				</Campo>
+			{/if}
+			<Campo rotulo="Tamanho" id={`link-tamanho-${bloco.id}`}>
+				<select
+					id={`link-tamanho-${bloco.id}`}
+					class="select select-sm select-bordered"
+					value={bloco.tamanho}
+					onchange={(event) => {
+						if (ehTamanhoLink(event.currentTarget.value)) {
+							alterar('tamanho', event.currentTarget.value);
+						}
+					}}
+				>
+					{#each TAMANHOS_LINK as tamanho (tamanho.valor)}
+						<option value={tamanho.valor}>{tamanho.rotulo}</option>
+					{/each}
+				</select>
+			</Campo>
+			<Campo rotulo="Largura" id={`link-largura-${bloco.id}`}>
+				<select
+					id={`link-largura-${bloco.id}`}
+					class="select select-sm select-bordered"
+					value={bloco.largura}
+					onchange={(event) => {
+						if (ehLarguraLink(event.currentTarget.value)) {
+							alterar('largura', event.currentTarget.value);
+						}
+					}}
+				>
+					{#each LARGURAS_LINK as largura (largura.valor)}
+						<option value={largura.valor}>{largura.rotulo}</option>
+					{/each}
+				</select>
+			</Campo>
+			{#if bloco.largura !== 'full'}
+				<Campo rotulo="Posição" id={`link-posicao-${bloco.id}`}>
+					<select
+						id={`link-posicao-${bloco.id}`}
+						class="select select-sm select-bordered"
+						value={bloco.posicao}
+						onchange={(event) => {
+							if (ehPosicaoLink(event.currentTarget.value)) {
+								alterar('posicao', event.currentTarget.value);
+							}
+						}}
+					>
+						{#each POSICOES_LINK as posicao (posicao.valor)}
+							<option value={posicao.valor}>{posicao.rotulo}</option>
+						{/each}
+					</select>
 				</Campo>
 			{/if}
 	{:else if bloco.tipo === 'tabela'}

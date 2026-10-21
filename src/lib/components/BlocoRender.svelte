@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { hrefLinkInterno, type Bloco, type BlocoLink, type NivelTitulo } from '$lib/blocks';
+	import {
+		hrefLinkInterno,
+		type Bloco,
+		type BlocoLink,
+		type LarguraLink,
+		type NivelTitulo,
+		type PosicaoLink,
+		type TamanhoLink
+	} from '$lib/blocks';
 	import Codigo from './Codigo.svelte';
 	import Mermaid from './Mermaid.svelte';
 	import Formula from './Formula.svelte';
@@ -41,6 +49,31 @@
 		externo: 'link'
 	};
 
+	// Tamanho, largura e posição do link (ver `BlocoLink`). As classes de
+	// utilitário da lib são `!important`, então elas vencem o `height`/`width`
+	// fixos do `.badge`; `h-auto` devolve a altura ao padding de cada tamanho.
+	const TAMANHO_LINK: Record<TamanhoLink, string> = {
+		pequeno: 'h-auto py-1 px-2 text-xs',
+		medio: 'h-auto py-3 px-2',
+		grande: 'h-auto py-4 px-3 text-base'
+	};
+
+	// Alinhamento do botão na própria linha. O link é sempre um bloco de largura
+	// cheia (`flex flex-col`), então dois links seguidos ficam um **em cima do
+	// outro** — na leitura e na edição — e é dentro dessa linha que a posição
+	// encaixa o botão.
+	const POSICAO_LINK: Record<PosicaoLink, string> = {
+		esquerda: 'items-start',
+		centro: 'items-center',
+		direita: 'items-end'
+	};
+
+	// Largura total ignora a posição (o botão já ocupa a linha inteira).
+	const LARGURA_LINK: Record<LarguraLink, string> = {
+		conteudo: '',
+		full: 'w-full justify-center'
+	};
+
 	// Um lugar só para os 6 níveis: a tag (`h1`…`h6`), o tamanho e o respiro saem
 	// daqui, então trocar a escala é uma linha.
 	const TITULO_CLASSE: Record<NivelTitulo, string> = {
@@ -73,21 +106,29 @@
 {:else if bloco.tipo === 'link'}
 	{@const hrefInterno = hrefLinkInterno(bloco, apostilaId, baseHref, aulaContexto)}
 	{@const externo = bloco.tipoLink === 'externo'}
-	<a
-		href={hrefInterno ?? bloco.url}
-		target={externo ? '_blank' : undefined}
-		rel={externo ? 'noopener noreferrer' : undefined}
-		class="badge badge-outline gap-1 py-3 px-2"
-		onclick={(event) => {
-			if (modo === 'editar') event.preventDefault();
-		}}
-	>
-		<span class="text-xs uppercase font-semibold">{ROTULO_LINK[bloco.tipoLink]}</span>
-		<span>{bloco.rotulo}</span>
-		{#if externo}
-			<span class="text-xs opacity-60">↗</span>
-		{/if}
-	</a>
+	<!--
+		A moldura é `flex flex-col` de propósito: o `<a>` é `inline-flex`, então
+		sem uma caixa de bloco por link dois links seguidos dividiriam a mesma
+		linha e ficariam lado a lado (o desencontro entre edição e leitura). Com a
+		moldura cada link ocupa a própria linha e a `posicao` escolhe o lado.
+	-->
+	<div class="flex flex-col {bloco.largura !== 'full' ? POSICAO_LINK[bloco.posicao] : ''}">
+		<a
+			href={hrefInterno ?? bloco.url}
+			target={externo ? '_blank' : undefined}
+			rel={externo ? 'noopener noreferrer' : undefined}
+			class="badge badge-outline gap-1 {TAMANHO_LINK[bloco.tamanho]} {LARGURA_LINK[bloco.largura]}"
+			onclick={(event) => {
+				if (modo === 'editar') event.preventDefault();
+			}}
+		>
+			<span class="text-xs uppercase font-semibold">{ROTULO_LINK[bloco.tipoLink]}</span>
+			<span>{bloco.rotulo}</span>
+			{#if externo}
+				<span class="text-xs opacity-60">↗</span>
+			{/if}
+		</a>
+	</div>
 {:else if bloco.tipo === 'tabela'}
 	<!--
 		O layout vem de `montarTabela` (em `$lib/tabela`), nunca do índice do array:

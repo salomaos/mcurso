@@ -111,6 +111,10 @@ test('exporta o que já existe de volta para o editor (round-trip)', async ({ pa
 	await expect(textarea).toHaveValue(/"titulo": "Matemática — Revisão"/);
 	await expect(textarea).toHaveValue(/"alvoTitulo": "Função afim"/);
 	await expect(textarea).not.toHaveValue(/"alvoId"/);
+	// Aparência do link é cosmética, mas viaja junto no round-trip.
+	await expect(textarea).toHaveValue(/"tamanho": "grande"/);
+	await expect(textarea).toHaveValue(/"largura": "full"/);
+	await expect(textarea).toHaveValue(/"posicao": "centro"/);
 
 	// E a prévia confirma: dá para reimportar o que foi exportado.
 	await expect(page.getByRole('heading', { name: 'Matemática — Revisão' })).toBeVisible();

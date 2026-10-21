@@ -172,14 +172,68 @@ describe('normalizarBlocos / ehBloco', () => {
 		const [bloco] = normalizarBlocos([
 			{ id: 'l', tipo: 'link', rotulo: 'Aula 1', tipoLink: 'aula', aulaId: 3, url: 'x' }
 		]);
-		expect(bloco).toEqual({ id: 'l', tipo: 'link', rotulo: 'Aula 1', tipoLink: 'aula', alvoId: 3 });
+		expect(bloco).toEqual({
+			id: 'l',
+			tipo: 'link',
+			rotulo: 'Aula 1',
+			tipoLink: 'aula',
+			alvoId: 3,
+			tamanho: 'medio',
+			largura: 'conteudo',
+			posicao: 'esquerda'
+		});
 	});
 
 	it('descarta o alvoApostilaId: anexo é solto e aula vive na apostila do bloco', () => {
 		const [bloco] = normalizarBlocos([
 			{ id: 'l', tipo: 'link', rotulo: 'Anexo', tipoLink: 'anexo', alvoId: 9, alvoApostilaId: 4 }
 		]);
-		expect(bloco).toEqual({ id: 'l', tipo: 'link', rotulo: 'Anexo', tipoLink: 'anexo', alvoId: 9 });
+		expect(bloco).toEqual({
+			id: 'l',
+			tipo: 'link',
+			rotulo: 'Anexo',
+			tipoLink: 'anexo',
+			alvoId: 9,
+			tamanho: 'medio',
+			largura: 'conteudo',
+			posicao: 'esquerda'
+		});
+	});
+
+	it('saneia tamanho, largura e posição fora da lista para o padrão', () => {
+		const [bloco] = normalizarBlocos([
+			{
+				id: 'l',
+				tipo: 'link',
+				rotulo: 'Anexo',
+				tipoLink: 'anexo',
+				alvoId: 1,
+				tamanho: 'gigante',
+				largura: 'metade',
+				posicao: 'baixo'
+			}
+		]);
+		expect(bloco.tipo === 'link' && bloco.tamanho).toBe('medio');
+		expect(bloco.tipo === 'link' && bloco.largura).toBe('conteudo');
+		expect(bloco.tipo === 'link' && bloco.posicao).toBe('esquerda');
+	});
+
+	it('preserva tamanho, largura e posição válidos', () => {
+		const [bloco] = normalizarBlocos([
+			{
+				id: 'l',
+				tipo: 'link',
+				rotulo: 'Anexo',
+				tipoLink: 'anexo',
+				alvoId: 1,
+				tamanho: 'grande',
+				largura: 'full',
+				posicao: 'direita'
+			}
+		]);
+		expect(bloco.tipo === 'link' && bloco.tamanho).toBe('grande');
+		expect(bloco.tipo === 'link' && bloco.largura).toBe('full');
+		expect(bloco.tipo === 'link' && bloco.posicao).toBe('direita');
 	});
 
 	it('normaliza JSON não-array para lista vazia', () => {
@@ -386,8 +440,10 @@ describe('hrefLinkInterno', () => {
 			{ id: 'l', tipo: 'link', rotulo: 'E', tipoLink: 'externo', url: 'https://x.dev' }
 		])[0];
 		expect(hrefLinkInterno(externo as never, 1)).toBeNull();
-		expect(hrefLinkInterno({ id: 'l', tipo: 'link', rotulo: 'E', tipoLink: 'anexo' }, 1)).toBeNull();
-		expect(normalizarBlocos([{ id: 'l', tipo: 'link', rotulo: 'E', tipoLink: 'anexo' }])).toEqual([]);
+		// Bloco sem os campos cosméticos (formato antigo) continua válido na leitura.
+		const legado = { id: 'l', tipo: 'link', rotulo: 'E', tipoLink: 'anexo' };
+		expect(hrefLinkInterno(legado as never, 1)).toBeNull();
+		expect(normalizarBlocos([legado])).toEqual([]);
 	});
 });
 
