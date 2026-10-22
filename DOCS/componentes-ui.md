@@ -449,6 +449,14 @@ fora dele e o `.canvas-bloco` não tem `overflow`) — é o mesmo tipo de armadi
 `e2e/markdown.spec.ts` confere a geometria (`boundingBox().y <= 1` depois de rolar 700px),
 porque `toBeInViewport` sozinho passaria com a barra ainda no lugar.
 
+**Rodada 22/10/2026** — bloco de texto **vazio** não colapsa mais: sem conteúdo o
+`TextoMarkdown` não renderiza nada (`{#if html !== ''}`), então a prévia ficava com poucos
+pixels de altura e voltar a editar dependia de acertar a listra. Agora, vazio, a prévia
+mostra um marcador ("Texto vazio — clique para editar") e ganha `min-height: 3.5rem` —
+a **mesma altura do `textarea`** (`min-height`), então o bloco não muda de tamanho ao
+entrar/sair da edição. E2E novo em `e2e/markdown.spec.ts` ("bloco de texto vazio mantém
+área clicável para voltar a editar") mede a altura da prévia e volta a editar pelo clique.
+
 **Rodada 04/10/2026 (2)** — prévia do bloco de texto: fora da edição o bloco mostra a
 mesma leitura do aluno (`TextoMarkdown.svelte` dentro de um `div role="button"`, `aria-label`
 `Editar texto`), e o clique volta a editar com o cursor no fim.
