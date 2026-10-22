@@ -354,16 +354,17 @@ O grid de criação ficava só no fim da lista: numa aula grande, criar um bloco
 obrigava a rolar até o fim e voltar. Solução: **cada bloco carrega um botão flutuante na
 sua borda de baixo** (no vão para o próximo) que aparece no hover e abre o mesmo grid
 naquela posição. E, pela mesma razão, **o topo da lista tem a faixa equivalente** — sem
-ela não dava para criar o bloco 0 (o grid do fim só insere abaixo do selecionado).
+ela não dava para criar o bloco 0 sem descer até o grid do fim (hoje o grid do fim
+acrescenta sempre na última posição, então a faixa é o caminho do ponto escolhido).
 
 - `src/lib/components/CriadorBloco.svelte` (novo): o grid de `TIPOS_BLOCO` com 10 botões,
   usado nos três lugares. `rotuloGrupo` continua "Adicionar bloco" no fim (contrato de
   `fluxo.spec.ts:409`) e é "Tipos de bloco" na faixa — o `getByRole` do Playwright casa
   por substring, então o nome da faixa não pode conter "Adicionar bloco".
 - `e2e/inserir-bloco.spec.ts` (novo, 7 testes): hover sem mexer no layout, inserção na
-  posição ignorando a seleção, `Esc`/clique fora, o grid do fim ainda funcionando, a faixa
-  do topo criando o bloco 1 (com ida e volta ao salvar) e a mesma faixa em anexo e
-  atividade.
+  posição ignorando a seleção, `Esc`/clique fora, o grid do fim acrescentando sempre no
+  fim, a faixa do topo criando o bloco 1 (com ida e volta ao salvar) e a mesma faixa em
+  anexo e atividade.
 
 Cinco decisões que só apareceram na implementação:
 
@@ -379,16 +380,18 @@ Cinco decisões que só apareceram na implementação:
    nunca acontecia. Só apareceu no E2E, e é o bug mais chato dos quatro.
 4. **A âncora da faixa é o id do bloco de cima**, não o índice: a inserção continua
    correta se a lista mudar enquanto a faixa está aberta. O último bloco não tem faixa
-   (para o fim da lista responde o grid do fim) e, sem hover (`@media (hover: none)`), o
-   botão some e o grid do fim segue sendo o caminho do toque.
+   (para o fim da lista responde o grid do fim, que agora sempre acrescenta lá) e, sem
+   hover (`@media (hover: none)`), o botão some e o grid do fim segue sendo o caminho do
+   toque.
 5. **A faixa do topo não tem `article` para morar dentro nem bloco para ancorar.** Ela é
    filho direto do canvas, também absoluto (`top: -1.05rem`), e quem se revela no hover é
    o próprio botão (`.canvas-inserir-btn:hover`) — `opacity: 0` continua clicável, então
    não precisa de bloco-pai. A âncora no `insercaoAberta` é a sentinel `INICIO` (id de
    bloco é UUID, não colide) e a inserção usa o id do bloco de baixo, com índice 0 como
    reserva caso ele suma com a faixa aberta. Mesma regra do fim: **sem nenhum bloco a
-   faixa do topo não existe** (o grid do fim cria o primeiro). Vale para aula, anexo e
-   atividade, porque os três usam o mesmo `EditorCanvas`.
+   faixa do topo não existe** (o grid do fim cria o primeiro, na última posição — com a
+   lista vazia essa é também a primeira). Vale para aula, anexo e atividade, porque os
+   três usam o mesmo `EditorCanvas`.
 
 ---
 

@@ -468,7 +468,7 @@ test('trocar tipo de bloco com conteúdo pede confirmação', async ({ page }) =
 	await expect(vazio).toHaveCount(0);
 });
 
-test('grid de criação adiciona o bloco escolhido logo abaixo do selecionado', async ({ page }) => {
+test('grid de criação acrescenta o bloco escolhido no fim da lista', async ({ page }) => {
 	await page.goto('/login');
 	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
 	await page.getByRole('button', { name: 'Entrar' }).click();
@@ -499,12 +499,13 @@ test('grid de criação adiciona o bloco escolhido logo abaixo do selecionado', 
 		'Mover bloco 2: Tabela'
 	]);
 
-	// Com o primeiro bloco selecionado, o novo entra entre ele e o que já vinha depois.
+	// Mesmo com o primeiro bloco selecionado, o grid do fim acrescenta **no fim**
+	// (inserir no meio é papel da faixa de hover entre os blocos).
 	await primeiro.click();
 	await page.getByRole('button', { name: 'Código', exact: true }).click();
 	await expect(posicoes()).resolves.toEqual([
 		'Mover bloco 1: Título',
-		'Mover bloco 2: Código',
-		'Mover bloco 3: Tabela'
+		'Mover bloco 2: Tabela',
+		'Mover bloco 3: Código'
 	]);
 });
