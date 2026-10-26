@@ -62,7 +62,7 @@ seus campos:
 | `codigo` | `linguagem`, `codigo` | Ex.: `js`, `python`, `html` |
 | `mermaid` | `diagrama`, `tema`? | `tema`: `neutral` (padrão), `default`, `forest`, `dark`, `base` |
 | `imagem` | `src`, `legenda`? | `src`: **URL http/https absoluta** ou caminho `/uploads/...` |
-| `link` | `rotulo`, `tipoLink`, `url`?/`alvoId`?/`alvoTitulo`? | ver "Links" abaixo |
+| `link` | `rotulo`, `tipoLink`, `url`?/`alvoId`?/`alvoTitulo`?, `tamanho`?, `largura`?, `posicao`? | ver "Links" abaixo |
 | `tabela` | `cabecalho` (string[]), `linhas` (string[][]) — **ou** o formato canônico: `linhas` (matriz), `linhasCabecalho`, `colunasCabecalho`, `legenda`?, `zebrada`?, células avançadas `{texto, colspan?, rowspan?, th?, alinhamento?}` | Formato curto é válido (o app dobra o cabeçalho na primeira linha). Quando há mescla/legenda/colunas de cabeçalho, prefira o canônico. `alinhamento` pode ser `esquerda`, `centro` ou `direita`. |
 | `formula` | `latex`, `destaque`? (boolean, padrão `true`) | KaTeX |
 | `exercicio` | `pergunta`, `alternativas` (2+), `selecao`?, `correta`, `explicacao`? | ver "Exercício" abaixo |
@@ -91,6 +91,11 @@ servidor.
   - Para `anexo`/`exercicio`, o alvo deve **já existir** (por id ou título).
     O import de apostila **não** cria anexos/atividades.
 - Link que não resolve **faz o import falhar** com mensagem clara.
+- **Aparência** (opcional): `tamanho` = `pequeno` | `medio` (padrão) | `grande`,
+  `largura` = `conteudo` (padrão, largura do texto) | `full` (linha inteira) e
+  `posicao` = `esquerda` (padrão) | `centro` | `direita` (onde o botão encaixa na
+  própria linha — cada link ocupa uma linha, então nunca ficam lado a lado).
+  Valor fora da lista cai no padrão; `largura: full` ignora a posição.
 
 ### Imagem
 
@@ -129,7 +134,7 @@ aviso** no topo, visível só para o professor. Nunca impede a importação.
 ```
 
 - `secoes` e `aulas` são listas **ordenadas** (essa é a ordem do material).
-- Nome de seção é único por apostila (ignora acento e caixa, máx. 60 chars).
+- Nome de seção é único por apostila (ignora acento e caixa, máx. 120 chars).
 - `apostila` **sempre cria uma apostila nova**; edite depois no editor.
 
 ## Anexo / Exercício

@@ -72,8 +72,8 @@ test('o grid do vão cria o bloco naquela posição, ignorando a seleção', asy
 		'Mover bloco 2: Tabela'
 	]);
 
-	// Deixa o primeiro bloco selecionado: o grid do fim inseriria logo abaixo dele,
-	// mas o do vão tem que respeitar o ponto escolhido.
+	// Deixa o primeiro bloco selecionado: o grid do fim acrescenta sempre no fim,
+	// então é a faixa do vão que tem que respeitar o ponto escolhido.
 	await page.getByLabel('Editar título').first().click();
 
 	await vaoDepoisDe(page, 1).click();
@@ -123,15 +123,25 @@ test('Esc e o clique fora fecham o grid do vão', async ({ page }) => {
 	]);
 });
 
-test('o grid do fim continua existindo e segue o bloco selecionado', async ({ page }) => {
+test('o grid do fim sempre acrescenta na última posição, ignorando a seleção', async ({ page }) => {
 	await abrirEditor(page, ['Título', 'Tabela']);
 
+	// Seleciona o primeiro bloco: o grid do fim **não** pode inserir embaixo dele.
 	await page.getByLabel('Editar título').first().click();
 	await page.getByRole('group', { name: 'Adicionar bloco' }).getByRole('button', { name: 'Texto' }).click();
 	await expect(ordem(page)).resolves.toEqual([
 		'Mover bloco 1: Título',
-		'Mover bloco 2: Texto',
-		'Mover bloco 3: Tabela'
+		'Mover bloco 2: Tabela',
+		'Mover bloco 3: Texto'
+	]);
+
+	// Com outro bloco selecionado (o novo), o próximo também vai para o fim.
+	await page.getByRole('group', { name: 'Adicionar bloco' }).getByRole('button', { name: 'Código' }).click();
+	await expect(ordem(page)).resolves.toEqual([
+		'Mover bloco 1: Título',
+		'Mover bloco 2: Tabela',
+		'Mover bloco 3: Texto',
+		'Mover bloco 4: Código'
 	]);
 
 	await page.getByRole('button', { name: 'Salvar aula' }).click();
@@ -141,8 +151,9 @@ test('o grid do fim continua existindo e segue o bloco selecionado', async ({ pa
 	await expect(page).toHaveURL(/\/editar$/);
 	await expect(ordem(page)).resolves.toEqual([
 		'Mover bloco 1: Título',
-		'Mover bloco 2: Texto',
-		'Mover bloco 3: Tabela'
+		'Mover bloco 2: Tabela',
+		'Mover bloco 3: Texto',
+		'Mover bloco 4: Código'
 	]);
 });
 
@@ -161,8 +172,8 @@ test('a faixa do topo cria o primeiro bloco, abaixo do título e da descrição'
 	const grade = page.getByRole('group', { name: 'Tipos de bloco' });
 	await expect(grade).toBeVisible();
 
-	// A tabela está selecionada (veio do grid do fim), então o grid do fim
-	// inseriria embaixo dela: a faixa do topo tem que criar no índice 0.
+	// A tabela está selecionada (veio do grid do fim), mas o grid do fim agora
+	// acrescenta sempre no fim: a faixa do topo tem que criar no índice 0.
 	await grade.getByRole('button', { name: 'Título' }).click();
 	await expect(ordem(page)).resolves.toEqual([
 		'Mover bloco 1: Título',

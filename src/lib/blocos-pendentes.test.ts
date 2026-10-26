@@ -14,7 +14,7 @@ describe('blocosPendentes (blocos normalizados)', () => {
 			comId({ tipo: 'titulo', texto: '', nivel: 1 }),
 			comId({ tipo: 'texto', conteudo: '' }),
 			comId({ tipo: 'codigo', linguagem: 'js', codigo: '' }),
-			comId({ tipo: 'link', rotulo: '', tipoLink: 'externo' }),
+			comId({ tipo: 'link', rotulo: '', tipoLink: 'externo', tamanho: 'medio', largura: 'conteudo', posicao: 'esquerda' }),
 			comId({ tipo: 'exercicio', pergunta: '', alternativas: ['', ''], selecao: 'radio', correta: 0 }),
 			comId({ tipo: 'dissertativa', pergunta: '' }),
 			comId({ tipo: 'simulacao', biblioteca: 'p5', codigo: '', altura: 240 })
@@ -45,7 +45,7 @@ describe('blocosPendentes (blocos normalizados)', () => {
 			comId({ tipo: 'titulo', texto: 'Definição', nivel: 2 }),
 			comId({ tipo: 'texto', conteudo: 'Conteúdo' }),
 			comId({ tipo: 'exercicio', pergunta: 'Pergunta', alternativas: ['a', 'b'], selecao: 'radio', correta: 0 }),
-			comId({ tipo: 'link', rotulo: 'Ver', tipoLink: 'anexo', alvoId: 1 })
+			comId({ tipo: 'link', rotulo: 'Ver', tipoLink: 'anexo', alvoId: 1, tamanho: 'medio', largura: 'conteudo', posicao: 'esquerda' })
 		];
 		expect(blocosPendentes(blocos)).toEqual([]);
 	});

@@ -55,6 +55,54 @@ export function ehTemaMermaid(valor: unknown): valor is TemaMermaid {
 	return typeof valor === 'string' && TEMAS_MERMAID_VALIDOS.has(valor);
 }
 export type BlocoImagem = { id: string; tipo: 'imagem'; src: string; legenda?: string };
+
+// Como o link aparece na leitura: três tamanhos e largura do conteúdo ou da
+// linha inteira. São cosméticos (bloco antigo vale o padrão), então valor fora
+// da lista é saneado no `normalizarCamposBloco`, igual ao tema do Mermaid.
+export const TAMANHOS_LINK = [
+	{ valor: 'pequeno', rotulo: 'Pequeno' },
+	{ valor: 'medio', rotulo: 'Médio' },
+	{ valor: 'grande', rotulo: 'Grande' }
+] as const;
+export type TamanhoLink = (typeof TAMANHOS_LINK)[number]['valor'];
+export const TAMANHO_LINK_PADRAO: TamanhoLink = 'medio';
+
+export const LARGURAS_LINK = [
+	{ valor: 'conteudo', rotulo: 'Tamanho do conteúdo' },
+	{ valor: 'full', rotulo: 'Largura total' }
+] as const;
+export type LarguraLink = (typeof LARGURAS_LINK)[number]['valor'];
+export const LARGURA_LINK_PADRAO: LarguraLink = 'conteudo';
+
+const TAMANHOS_LINK_VALIDOS = new Set<string>(TAMANHOS_LINK.map((item) => item.valor));
+
+export function ehTamanhoLink(valor: unknown): valor is TamanhoLink {
+	return typeof valor === 'string' && TAMANHOS_LINK_VALIDOS.has(valor);
+}
+
+const LARGURAS_LINK_VALIDAS = new Set<string>(LARGURAS_LINK.map((item) => item.valor));
+
+export function ehLarguraLink(valor: unknown): valor is LarguraLink {
+	return typeof valor === 'string' && LARGURAS_LINK_VALIDAS.has(valor);
+}
+
+// Onde o link fica na horizontal. Cada link ocupa a própria linha (coluna), então
+// a posição decide o alinhamento dele dentro dessa linha; com `largura` full o
+// botão já ocupa tudo e a posição não muda nada.
+export const POSICOES_LINK = [
+	{ valor: 'esquerda', rotulo: 'Esquerda' },
+	{ valor: 'centro', rotulo: 'Centro' },
+	{ valor: 'direita', rotulo: 'Direita' }
+] as const;
+export type PosicaoLink = (typeof POSICOES_LINK)[number]['valor'];
+export const POSICAO_LINK_PADRAO: PosicaoLink = 'esquerda';
+
+const POSICOES_LINK_VALIDAS = new Set<string>(POSICOES_LINK.map((item) => item.valor));
+
+export function ehPosicaoLink(valor: unknown): valor is PosicaoLink {
+	return typeof valor === 'string' && POSICOES_LINK_VALIDAS.has(valor);
+}
+
 export type BlocoLink = {
 	id: string;
 	tipo: 'link';
@@ -62,6 +110,9 @@ export type BlocoLink = {
 	tipoLink: 'exercicio' | 'anexo' | 'aula' | 'externo';
 	url?: string;
 	alvoId?: number;
+	tamanho: TamanhoLink;
+	largura: LarguraLink;
+	posicao: PosicaoLink;
 };
 // A tabela inteira é uma matriz só (`linhas`), com o cabeçalho por contagem —
 // ver `$lib/tabela`. O campo `cabecalho` do formato antigo continua sendo
@@ -313,7 +364,15 @@ export function criarBloco(tipo: Bloco['tipo']): Bloco {
 		case 'imagem':
 			return { id, tipo, src: '' };
 		case 'link':
-			return { id, tipo, rotulo: '', tipoLink: 'externo' };
+			return {
+				id,
+				tipo,
+				rotulo: '',
+				tipoLink: 'externo',
+				tamanho: TAMANHO_LINK_PADRAO,
+				largura: LARGURA_LINK_PADRAO,
+				posicao: POSICAO_LINK_PADRAO
+			};
 		case 'tabela':
 			return {
 				id,
@@ -395,7 +454,7 @@ export function agruparPorSecao<T extends AulaUi>(secoes: SecaoUi[], aulas: T[])
 	return semSecao.aulas.length > 0 ? [...grupos, semSecao] : grupos;
 }
 
-export const LIMITE_NOME_SECAO = 60;
+export const LIMITE_NOME_SECAO = 120;
 
 export function normalizarNomeSecao(valor: unknown): string {
 	return String(valor ?? '')
@@ -458,7 +517,17 @@ export function ehBloco(valor: unknown): valor is Bloco {
 		case 'imagem':
 			return typeof b.src === 'string' && (b.legenda === undefined || typeof b.legenda === 'string');
 		case 'link':
+			// `tamanho`/`largura`/`posicao` são cosméticos: valor desconhecido é
+			// saneado no `normalizarCamposBloco` e bloco antigo (sem os campos) vale
+			// o padrão.
 			if (typeof b.rotulo !== 'string' || !TIPOS_LINK.has(b.tipoLink as BlocoLink['tipoLink'])) {
+				return false;
+			}
+			if (
+				(b.tamanho !== undefined && typeof b.tamanho !== 'string') ||
+				(b.largura !== undefined && typeof b.largura !== 'string') ||
+				(b.posicao !== undefined && typeof b.posicao !== 'string')
+			) {
 				return false;
 			}
 			if (b.tipoLink === 'aula' || b.tipoLink === 'anexo' || b.tipoLink === 'exercicio') {
@@ -615,7 +684,15 @@ function normalizarCamposBloco(bloco: Bloco): Bloco {
 // link externo guarda a `url`.
 function normalizarLink(bloco: Bloco & { tipo: 'link' }): BlocoLink {
 	const legado = bloco as BlocoLink & { aulaId?: unknown };
-	const base: BlocoLink = { id: bloco.id, tipo: 'link', rotulo: bloco.rotulo, tipoLink: bloco.tipoLink };
+	const base: BlocoLink = {
+		id: bloco.id,
+		tipo: 'link',
+		rotulo: bloco.rotulo,
+		tipoLink: bloco.tipoLink,
+		tamanho: ehTamanhoLink(bloco.tamanho) ? bloco.tamanho : TAMANHO_LINK_PADRAO,
+		largura: ehLarguraLink(bloco.largura) ? bloco.largura : LARGURA_LINK_PADRAO,
+		posicao: ehPosicaoLink(bloco.posicao) ? bloco.posicao : POSICAO_LINK_PADRAO
+	};
 	if (bloco.tipoLink === 'aula' || bloco.tipoLink === 'anexo' || bloco.tipoLink === 'exercicio') {
 		const alvoId = ehAlvo(bloco.alvoId) ? bloco.alvoId : ehAlvo(legado.aulaId) ? legado.aulaId : undefined;
 		return alvoId === undefined ? base : { ...base, alvoId };

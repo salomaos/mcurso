@@ -147,13 +147,16 @@ import Html from "./Html.svelte";
     );
   }
 
+  /**
+   * Grid do fim: cria o bloco na **última posição**, sempre. Um bloco novo nasce
+   * no fim independente do que estiver selecionado — quem quer inserir no meio
+   * usa as faixas de hover, que já têm o ponto exato escolhido pelo usuário
+   * (antes, com um bloco selecionado, o novo entrava logo abaixo dele e caía no
+   * meio da aula sem o usuário ter pedido).
+   */
   function adicionar(tipo: Bloco["tipo"]) {
     const bloco = criarBloco(tipo);
-    const selecionado = selecionadoId
-      ? blocos.findIndex((atual) => atual.id === selecionadoId)
-      : -1;
-    const copia = [...blocos];
-    copia.splice(selecionado === -1 ? copia.length : selecionado + 1, 0, bloco);
+    const copia = [...blocos, bloco];
     atualizar(copia);
     selecionadoId = bloco.id;
   }
@@ -574,6 +577,8 @@ import Html from "./Html.svelte";
   {/each}
 
   {#if modo === "editar"}
+    <!-- O grid do fim acrescenta na última posição (não segue a seleção): para
+         inserir no meio, o caminho é a faixa de hover entre os blocos. -->
     <div class="canvas-adicionar space-y-2">
       <span class="text-xs font-semibold uppercase tracking-wide opacity-60"
         >Adicionar bloco</span

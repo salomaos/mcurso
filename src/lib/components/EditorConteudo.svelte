@@ -9,7 +9,7 @@
 	import { enviando } from '$lib/enviando';
 	import type { Snippet } from 'svelte';
 	import type { Blocos, SecaoUi } from '$lib/blocks';
-	import { mesmoNomeSecao } from '$lib/blocks';
+	import { LIMITE_NOME_SECAO, mesmoNomeSecao } from '$lib/blocks';
 	import { ROTULO_EDITAR, ROTULO_TIPO, ROTULO_VISUALIZAR, rotasConteudo, type AlvoLink, type ContextoConteudo } from '$lib/conteudo';
 
 	type Conteudo = {
@@ -178,7 +178,7 @@
 								class="input input-sm input-bordered w-56"
 								type="text"
 								bind:value={novaSecao}
-								maxlength="60"
+								maxlength={LIMITE_NOME_SECAO}
 								placeholder="Nome da nova seção"
 								aria-label="Nome da nova seção"
 								autofocus

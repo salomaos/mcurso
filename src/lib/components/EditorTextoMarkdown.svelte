@@ -34,6 +34,11 @@
 	let pressionado = false;
 	let adiado = false;
 
+	// Vazio, o markdown não renderiza nada e a prévia colapsa para ~0 de altura:
+	// sobrava uma listra de poucos pixels, difícil de acertar com o mouse para
+	// voltar a editar. Nesse caso o bloco mostra um marcador e uma altura mínima.
+	let vazio = $derived(conteudo.trim() === '');
+
 	/**
 	 * Entra editando. `abrindo` descarta o `cliqueFora` do **mesmo** clique: como o
 	 * Svelte atualiza o DOM no microtask entre os listeners, o clique que criou o
@@ -314,6 +319,7 @@
 		conteúdo de frase, e markdown gera `div`/`ul`/`pre`).
 	-->
 	<div
+		class:editor-texto-vazio={vazio}
 		class="cursor-text rounded-box px-1 py-0.5 hover:bg-base-200"
 		role="button"
 		tabindex="0"
@@ -321,7 +327,11 @@
 		onclick={ativar}
 		onkeydown={abrirPeloTeclado}
 	>
-		<TextoMarkdown {conteudo} />
+		{#if vazio}
+			<span class="opacity-50">Texto vazio — clique para editar</span>
+		{:else}
+			<TextoMarkdown {conteudo} />
+		{/if}
 	</div>
 {/if}
 
@@ -337,5 +347,14 @@
 
 	.editor-texto::placeholder {
 		opacity: 0.5;
+	}
+
+	/* Prévia do bloco vazio: sem isso a área clicável fica com poucos pixels de
+	   altura. A altura mínima é a mesma do textarea (`min-height: 3.5rem`) para o
+	   bloco não encolher nem crescer ao entrar e sair da edição. */
+	.editor-texto-vazio {
+		display: flex;
+		align-items: center;
+		min-height: 3.5rem;
 	}
 </style>

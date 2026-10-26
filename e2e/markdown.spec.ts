@@ -175,3 +175,23 @@ test('texto salvo mantém o markdown no banco e formata na leitura', async ({ pa
 	await page.getByLabel('Editar texto').click();
 	await expect(page.getByLabel('Texto do bloco')).toHaveValue('## Seção\n\ntexto com `código`');
 });
+
+test('bloco de texto vazio mantém área clicável para voltar a editar', async ({ page }) => {
+	// Cria o bloco e sai da edição sem digitar nada: o markdown vazio não renderiza
+	// nada, então a prévia precisa de altura mínima (senão sobra uma listra de
+	// poucos pixels e o bloco fica difícil de acertar com o mouse).
+	await editorComTexto(page, '');
+	await page.getByLabel('Título da aula').click();
+
+	const previa = page.getByLabel('Editar texto');
+	await expect(previa).toContainText('Texto vazio');
+
+	const caixa = await previa.boundingBox();
+	expect(caixa!.height).toBeGreaterThanOrEqual(50);
+
+	// O clique na área volta a editar (antes, com a listra de poucos pixels,
+	// o alvo era difícil de acertar).
+	await previa.click();
+	await expect(page.getByLabel('Texto do bloco')).toBeVisible();
+	await expect(page.getByLabel('Texto do bloco')).toHaveValue('');
+});
