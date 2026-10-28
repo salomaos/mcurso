@@ -181,9 +181,19 @@ export type LinhaRanking = {
 	nome: string;
 	pontuacao: number;
 	posicao: number;
+	/** Perguntas já resolvidas que o jogador acertou. */
+	acertos: number;
+	/** Perguntas já resolvidas que ele errou ou deixou em branco. */
+	erros: number;
 };
 
-export type Pontuavel = { id: string; nome: string; pontuacao: number };
+export type Pontuavel = {
+	id: string;
+	nome: string;
+	pontuacao: number;
+	acertos: number;
+	erros: number;
+};
 
 // Ranking do fim/revelação: maior pontuação primeiro, nome como desempate. Quem
 // empata divide a posição (1, 1, 3) — é o que o Kahoot faz e evita inventar uma
@@ -199,7 +209,14 @@ export function calcularRanking(jogadores: Pontuavel[]): LinhaRanking[] {
 		const posicao = jogador.pontuacao === pontuacaoAnterior ? posicaoAnterior : indice + 1;
 		posicaoAnterior = posicao;
 		pontuacaoAnterior = jogador.pontuacao;
-		return { jogadorId: jogador.id, nome: jogador.nome, pontuacao: jogador.pontuacao, posicao };
+		return {
+			jogadorId: jogador.id,
+			nome: jogador.nome,
+			pontuacao: jogador.pontuacao,
+			posicao,
+			acertos: jogador.acertos,
+			erros: jogador.erros
+		};
 	});
 }
 

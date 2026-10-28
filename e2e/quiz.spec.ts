@@ -216,6 +216,49 @@ test('fluxo completo: professor abre a sala e o aluno responde', async ({ page, 
 	await contexto.close();
 });
 
+test('ranking final mostra acertos e erros, e pergunta em branco conta como erro', async ({
+	page,
+	browser
+}) => {
+	await entrar(page);
+	const token = `Placar ${Date.now()}`;
+	await criarQuizImportado(page, token, [
+		{ pergunta: 'Qual é a capital da França?', alternativas: ['Paris', 'Roma'], correta: 0, tempo: 15 },
+		{ pergunta: 'Qual é a capital da Itália?', alternativas: ['Madri', 'Roma'], correta: 1, tempo: 5 }
+	]);
+
+	await page.goto('/quiz');
+	const cartao = page.locator('main ul > li', { hasText: token });
+	await cartao.getByRole('button', { name: 'Iniciar' }).click();
+	await expect(page).toHaveURL(/\/quiz\/host\/[A-Z0-9]+/);
+	const codigo = page.url().split('/').pop()!;
+
+	const contexto = await browser.newContext();
+	const jogador = await contexto.newPage();
+	await jogador.goto('/quiz/jogar');
+	await jogador.getByLabel('Código da sala').fill(codigo);
+	await jogador.getByLabel('Seu nome').fill('Aluno Placar');
+	await jogador.getByRole('button', { name: 'Entrar' }).click();
+	await expect(jogador).toHaveURL(new RegExp(`/quiz/jogar/${codigo}`));
+	await expect(page.getByText('Aluno Placar').first()).toBeVisible({ timeout: 10000 });
+
+	await page.getByRole('button', { name: 'Iniciar quiz' }).click();
+
+	// Acerta a primeira...
+	await jogador.getByRole('button', { name: 'Paris' }).click();
+	await expect(jogador.getByText('Acertou!')).toBeVisible({ timeout: 10000 });
+
+	// ...e deixa a segunda estourar o tempo em branco: ela conta como erro.
+	await expect(jogador.getByText('Qual é a capital da Itália?')).toBeVisible({ timeout: 15000 });
+	await expect(jogador.getByText('Fim!')).toBeVisible({ timeout: 20000 });
+	await expect(jogador.getByText('1 acerto · 1 erro')).toBeVisible();
+
+	await expect(page.getByRole('heading', { name: 'Ranking final' })).toBeVisible({ timeout: 15000 });
+	await expect(page.getByText('1 acerto · 1 erro')).toBeVisible();
+
+	await contexto.close();
+});
+
 test('alternativa longa não quebra o badge da resposta em duas linhas', async ({ page, browser }) => {
 	await entrar(page);
 	const token = `Longa ${Date.now()}`;

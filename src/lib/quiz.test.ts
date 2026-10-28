@@ -87,13 +87,19 @@ describe('pontosDaResposta', () => {
 describe('calcularRanking', () => {
 	it('ordena por pontuação e divide a posição em empate', () => {
 		const ranking = calcularRanking([
-			{ id: 'a', nome: 'Ana', pontuacao: 100 },
-			{ id: 'b', nome: 'Bia', pontuacao: 300 },
-			{ id: 'c', nome: 'Caio', pontuacao: 300 }
+			{ id: 'a', nome: 'Ana', pontuacao: 100, acertos: 1, erros: 2 },
+			{ id: 'b', nome: 'Bia', pontuacao: 300, acertos: 3, erros: 0 },
+			{ id: 'c', nome: 'Caio', pontuacao: 300, acertos: 2, erros: 1 }
 		]);
 		expect(ranking.map((linha) => linha.posicao)).toEqual([1, 1, 3]);
 		expect(ranking[0].nome).toBe('Bia');
 		expect(ranking[2].nome).toBe('Ana');
+		// Acertos e erros acompanham a linha do ranking sem mexer na ordem.
+		expect(ranking.map((linha) => [linha.acertos, linha.erros])).toEqual([
+			[3, 0],
+			[2, 1],
+			[1, 2]
+		]);
 	});
 });
 

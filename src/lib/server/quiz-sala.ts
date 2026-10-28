@@ -27,7 +27,7 @@ import {
 
 export const NOME_MAX = 40;
 
-type Jogador = { id: string; nome: string; pontuacao: number; entrouEm: number };
+type Jogador = { id: string; nome: string; pontuacao: number; acertos: number; entrouEm: number };
 
 type Resposta = { indice: number; tempoMs: number; pontos: number; correta: boolean };
 
@@ -123,7 +123,13 @@ export function entrarSala(codigoBruto: string, nomeBruto: string): ResultadoJog
 	if (!nome) return { erro: 'Informe seu nome para entrar.' };
 	if (sala.jogadores.size >= MAX_JOGADORES) return { erro: 'A sala está cheia.' };
 
-	const jogador: Jogador = { id: crypto.randomUUID(), nome, pontuacao: 0, entrouEm: Date.now() };
+	const jogador: Jogador = {
+		id: crypto.randomUUID(),
+		nome,
+		pontuacao: 0,
+		acertos: 0,
+		entrouEm: Date.now()
+	};
 	sala.jogadores.set(jogador.id, jogador);
 	sala.atualizadaEm = Date.now();
 	return { id: jogador.id, nome: jogador.nome };
@@ -226,6 +232,7 @@ export function responder(sala: Sala, jogadorId: string, indice: number): Result
 	const pontos = pontosDaResposta(correta, tempoMs, pergunta.tempo);
 
 	jogador.pontuacao += pontos;
+	if (correta) jogador.acertos += 1;
 	sala.respostas.set(jogadorId, { indice, tempoMs, pontos, correta });
 	sala.atualizadaEm = agora;
 
@@ -240,8 +247,16 @@ export function responder(sala: Sala, jogadorId: string, indice: number): Result
 
 // --- Projeções para o polling ---------------------------------------------
 
+// Perguntas cujo resultado já existe (a que está em jogo só conta quando vira
+// revelação; no fim contam todas). É o que fecha a conta `acertos + erros`.
+function perguntasResolvidas(sala: Sala): number {
+	if (sala.status === 'lobby') return 0;
+	if (sala.status === 'pergunta') return sala.indice;
+	return Math.min(sala.perguntas.length, sala.indice + 1);
+}
+
 function listaJogadores(sala: Sala): JogadorPublico[] {
-	const posicoes = new Map(calcularRanking([...sala.jogadores.values()]).map((linha) => [linha.jogadorId, linha.posicao]));
+	const posicoes = new Map(ranking(sala).map((linha) => [linha.jogadorId, linha.posicao]));
 	return [...sala.jogadores.values()].map((jogador) => ({
 		id: jogador.id,
 		nome: jogador.nome,
@@ -250,8 +265,19 @@ function listaJogadores(sala: Sala): JogadorPublico[] {
 	}));
 }
 
+// Deixar a pergunta em branco conta como erro: `acertos + erros` é sempre o
+// número de perguntas já resolvidas.
 function ranking(sala: Sala): LinhaRanking[] {
-	return calcularRanking([...sala.jogadores.values()]);
+	const resolvidas = perguntasResolvidas(sala);
+	return calcularRanking(
+		[...sala.jogadores.values()].map((jogador) => ({
+			id: jogador.id,
+			nome: jogador.nome,
+			pontuacao: jogador.pontuacao,
+			acertos: jogador.acertos,
+			erros: resolvidas - jogador.acertos
+		}))
+	);
 }
 
 function destacaCorreta(sala: Sala): boolean {
