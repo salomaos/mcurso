@@ -233,12 +233,20 @@
 				<ol class="space-y-2">
 					{#each estado.ranking as linha (linha.jogadorId)}
 						<li
-							class={`flex items-center justify-between gap-2 rounded-box p-3 ${
+							class={`flex flex-wrap items-center justify-between gap-2 rounded-box p-3 ${
 								linha.posicao === 1 ? 'bg-primary text-primary-content' : 'bg-base-200'
 							}`}
 						>
 							<span class="font-bold">{linha.posicao}º {linha.nome}</span>
-							<span class="font-mono">{linha.pontuacao}</span>
+							<span class="flex items-center gap-2">
+								<span class="badge badge-neutral shrink-0">
+									{linha.acertos}
+									{linha.acertos === 1 ? 'acerto' : 'acertos'} ·
+									{linha.erros}
+									{linha.erros === 1 ? 'erro' : 'erros'}
+								</span>
+								<span class="font-mono">{linha.pontuacao}</span>
+							</span>
 						</li>
 					{/each}
 				</ol>
