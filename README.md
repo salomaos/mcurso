@@ -8,6 +8,8 @@ Fora das apostilas há ainda os **anexos** (materiais de apoio **soltos**, usado
 
 Feito com **SvelteKit 2 / Svelte 5** (SSR + `adapter-node`), **Better Auth** (login por senha), **Drizzle ORM** com **SQLite ou MySQL/MariaDB escolhido por deploy** (`DB_DIALECT`; no SQLite o driver é o `node:sqlite` embutido no Node, sem binário nativo a compilar), a biblioteca de UI **ahmardesign** e **KaTeX/Mermaid** no cliente.
 
+**Gerenciador de pacotes: npm** (não pnpm).
+
 ---
 
 ## Funcionalidades
