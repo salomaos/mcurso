@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { SENHA_E2E } from './ambiente';
 
 async function entrar(page: Page) {
@@ -292,4 +292,27 @@ test('checkbox sem o conjunto completo zera, e o formulário aceita fórmula e d
 	// Recarregar devolve o formulário com o nome ainda na sessão.
 	await page.getByRole('link', { name: 'Responder de novo' }).click();
 	await expect(page.getByLabel('Seu nome')).toHaveValue('Bruno');
+});
+
+test('mantém a ordem do canvas: bloco entre questões fica entre elas', async ({ page }) => {
+	await entrar(page);
+
+	const caminho = await criarAtividade(page, `Ordem dos blocos ${Date.now()}`);
+	await questao(page, { enunciado: 'Primeira questão?', alternativas: ['a', 'b'], correta: 'A' });
+	await dissertativa(page, 'Meio do caminho');
+	await questao(page, { enunciado: 'Segunda questão?', alternativas: ['a', 'b'], correta: 'B' });
+
+	await page.getByRole('button', { name: 'Salvar atividade' }).click();
+	await expect(page).toHaveURL(new RegExp(`${caminho}$`));
+
+	// A dissertativa entre as duas questões aparece entre elas: antes do fix,
+	// a página pública jogava todos os blocos de apoio para cima das questões.
+	const y = async (alvo: Locator) => (await alvo.boundingBox())!.y;
+	const primeira = page.locator('fieldset', { hasText: 'Primeira questão?' });
+	const meio = page.locator('fieldset', { hasText: 'Meio do caminho' });
+	const segunda = page.locator('fieldset', { hasText: 'Segunda questão?' });
+	await expect(primeira.getByText('Questão 1')).toBeVisible();
+	await expect(segunda.getByText('Questão 2')).toBeVisible();
+	expect(await y(meio)).toBeGreaterThan(await y(primeira));
+	expect(await y(segunda)).toBeGreaterThan(await y(meio));
 });

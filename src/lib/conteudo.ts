@@ -3,6 +3,8 @@
 // guardam blocos e compartilham o editor; a leitura da atividade é outra
 // (runner com gabarito só no fim).
 
+import type { Bloco } from '$lib/blocks';
+
 export const TIPOS_CONTEUDO = ['aula', 'anexo', 'exercicio'] as const;
 export type TipoConteudo = (typeof TIPOS_CONTEUDO)[number];
 
@@ -139,6 +141,14 @@ export type DissertativaPublica = {
 	pergunta: string;
 	orientacao?: string;
 };
+
+// Bloco da página pública da atividade, **na ordem do canvas**: os blocos de
+// apoio vêm inteiros; `exercicio`/`dissertativa` trocam para o payload público
+// (sem gabarito). É o contrato que o SSR entrega ao aluno.
+export type BlocoAtividadePublico =
+	| Exclude<Bloco, { tipo: 'exercicio' } | { tipo: 'dissertativa' }>
+	| ({ tipo: 'exercicio' } & QuestaoPublica)
+	| ({ tipo: 'dissertativa' } & DissertativaPublica);
 
 // Questão corrigida no servidor, devolvida no resultado (aqui o gabarito pode
 // aparecer: a resposta já foi dada). `escolhida`/`correta` são listas para as
