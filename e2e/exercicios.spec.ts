@@ -29,13 +29,15 @@ async function questao(
 		enunciado,
 		alternativas,
 		correta,
-		selecao
+		selecao,
+		explicacao
 	}: {
 		enunciado: string;
 		alternativas: string[];
 		/** letras da(s) alternativa(s) verdadeira(s) */
 		correta: string | string[];
 		selecao?: 'radio' | 'checkbox';
+		explicacao?: string;
 	}
 ) {
 	await page.getByRole('button', { name: 'Exercício', exact: true }).click();
@@ -53,6 +55,10 @@ async function questao(
 	}
 	for (const letra of Array.isArray(correta) ? correta : [correta]) {
 		await page.getByLabel(`Marcar alternativa ${letra} como correta`).last().click();
+	}
+	if (explicacao) {
+		await page.getByLabel('Explicação', { exact: true }).last().click();
+		await page.keyboard.type(explicacao);
 	}
 }
 
@@ -103,7 +109,9 @@ test('cria atividade, responde sem login e confere o resultado com chave', async
 	await page.getByRole('button', { name: 'Enviar respostas' }).click();
 
 	await expect(page.getByText('1/2 acertos')).toBeVisible();
-	await expect(page.getByText('Incorreto — resposta certa: B')).toBeVisible();
+	// Gabarito só sai nas certas: a errada diz "Incorreto" sem revelar a resposta.
+	await expect(page.getByText('Incorreto')).toBeVisible();
+	await expect(page.getByText('resposta certa: B')).toHaveCount(0);
 	await expect(page.getByText('Correto!')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Baixar imagem' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Imprimir / PDF' })).toBeVisible();
@@ -252,12 +260,15 @@ test('checkbox exige o conjunto inteiro, e a dissertativa volta preenchida', asy
 	await page.getByRole('button', { name: 'Enviar respostas' }).click();
 
 	await expect(page.getByText('1/2 acertos')).toBeVisible();
-	await expect(page.getByText('Incorreto — resposta certa: A, C')).toBeVisible();
+	await expect(page.getByText('Incorreto')).toBeVisible();
+	await expect(page.getByText('resposta certa: A, C')).toHaveCount(0);
 
-	// O resultado mostra quais alternativas foram selecionadas, com o gabarito.
+	// A errada mostra o que o aluno marcou, sem gabarito; a certa mostra o gabarito.
 	const primeira = page.locator('fieldset', { hasText: 'Quais são números pares?' }).first();
 	await expect(primeira.getByText('selecionada')).toHaveCount(3);
-	await expect(primeira.getByText('gabarito')).toHaveCount(2);
+	await expect(primeira.getByText('gabarito')).toHaveCount(0);
+	const certa = page.locator('fieldset', { hasText: 'Qual a área?' }).first();
+	await expect(certa.getByText('gabarito')).toHaveCount(1);
 
 	// A resposta discursiva aparece para avaliação, em campo somente leitura.
 	const respostaAluno = page.getByLabel('Resposta do aluno');
@@ -287,11 +298,56 @@ test('checkbox sem o conjunto completo zera, e o formulário aceita fórmula e d
 	await page.getByRole('button', { name: 'Enviar respostas' }).click();
 
 	await expect(page.getByText('0/1 acertos')).toBeVisible();
-	await expect(page.getByText('Incorreto — resposta certa: A, B')).toBeVisible();
+	await expect(page.getByText('Incorreto')).toBeVisible();
+	await expect(page.getByText('resposta certa: A, B')).toHaveCount(0);
 
 	// Recarregar devolve o formulário com o nome ainda na sessão.
 	await page.getByRole('link', { name: 'Responder de novo' }).click();
 	await expect(page.getByLabel('Seu nome')).toHaveValue('Bruno');
+});
+
+test('só mostra gabarito e explicação nas questões que o aluno acertou', async ({ page }) => {
+	await entrar(page);
+
+	const caminho = await criarAtividade(page, `Gabarito parcial ${Date.now()}`);
+	await questao(page, {
+		enunciado: 'Quanto é 2 + 2?',
+		alternativas: ['3', '4'],
+		correta: 'B',
+		explicacao: 'Dois mais dois é quatro.'
+	});
+	await questao(page, {
+		enunciado: 'Quanto é 3 + 3?',
+		alternativas: ['5', '6'],
+		correta: 'B',
+		explicacao: 'Três mais três é seis.'
+	});
+
+	await page.getByRole('button', { name: 'Salvar atividade' }).click();
+	await expect(page).toHaveURL(new RegExp(`${caminho}$`));
+
+	await sair(page);
+	await page.goto(caminho);
+
+	// Acerta a primeira e erra a segunda.
+	await page.getByLabel('Seu nome').fill('Carla');
+	await page.getByLabel('Alternativa B', { exact: true }).first().check();
+	await page.getByLabel('Alternativa A', { exact: true }).nth(1).check();
+	await page.getByRole('button', { name: 'Enviar respostas' }).click();
+
+	await expect(page.getByText('1/2 acertos')).toBeVisible();
+
+	// Acertada: o gabarito (badge) e a explicação aparecem.
+	const certa = page.locator('fieldset', { hasText: 'Quanto é 2 + 2?' });
+	await expect(certa.getByText('gabarito')).toHaveCount(1);
+	await expect(certa.getByText('Dois mais dois é quatro.')).toBeVisible();
+
+	// Errada: mostra que errou (e o que marcou), sem gabarito e sem explicação.
+	const errada = page.locator('fieldset', { hasText: 'Quanto é 3 + 3?' });
+	await expect(errada.getByText('Incorreto')).toBeVisible();
+	await expect(errada.getByText('selecionada')).toHaveCount(1);
+	await expect(errada.getByText('gabarito')).toHaveCount(0);
+	await expect(errada.getByText('Três mais três é seis.')).toHaveCount(0);
 });
 
 test('mantém a ordem do canvas: bloco entre questões fica entre elas', async ({ page }) => {

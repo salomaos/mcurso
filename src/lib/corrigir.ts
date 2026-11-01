@@ -68,10 +68,13 @@ export function corrigirExercicio(blocos: Blocos, form: FormData): Correcao {
 			pergunta: bloco.pergunta,
 			selecao: multipla ? 'checkbox' : 'radio',
 			escolhida,
-			correta,
+			// O gabarito só sai quando o aluno acertou: questão errada devolve
+			// `correta` vazio e sem `explicacao` — o resultado mostra que errou,
+			// não qual era a resposta certa.
+			correta: acertou ? correta : [],
 			acertou,
 			alternativas: bloco.alternativas,
-			explicacao: bloco.explicacao
+			explicacao: acertou ? bloco.explicacao : undefined
 		};
 	});
 

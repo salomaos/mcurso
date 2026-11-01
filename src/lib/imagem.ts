@@ -64,10 +64,12 @@ function linhas(dados: DadosImagem): Linha[] {
 	push(dados.quando, `400 16px ${FONTE}`, SUAVE, 0, 2);
 
 	correcao.questoes.forEach((questao, indice) => {
+		// ✓/✗ por questão: com o gabarito só saindo nas acertadas, o marcador é
+		// o que diz no papel onde o aluno errou.
 		push(
-			`${indice + 1}. ${questao.pergunta}`,
+			`${indice + 1}. ${questao.acertou ? '✓' : '✗'} ${questao.pergunta}`,
 			`600 18px ${FONTE}`,
-			TINTA,
+			questao.acertou ? CERTA : ERRADA,
 			0,
 			22
 		);

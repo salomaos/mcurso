@@ -151,14 +151,18 @@ export type BlocoAtividadePublico =
 	| ({ tipo: 'dissertativa' } & DissertativaPublica);
 
 // Questão corrigida no servidor, devolvida no resultado (aqui o gabarito pode
-// aparecer: a resposta já foi dada). `escolhida`/`correta` são listas para as
-// duas modalidades caberem no mesmo formato: `radio` nunca passa de um item.
+// aparecer: a resposta já foi dada). **Só aparece quando o aluno acertou**:
+// questão errada devolve `correta` vazio e sem `explicacao` — o resultado
+// mostra que errou, não qual era a resposta certa. `escolhida`/`correta` são
+// listas para as duas modalidades caberem no mesmo formato: `radio` nunca
+// passa de um item.
 export type CorrecaoQuestao = {
 	id: string;
 	pergunta: string;
 	selecao: SelecaoExercicio;
 	/** alternativas marcadas pelo aluno; vazia = deixou em branco */
 	escolhida: number[];
+	/** gabarito: só vem preenchido quando `acertou`; errada devolve vazio */
 	correta: number[];
 	acertou: boolean;
 	alternativas: string[];
