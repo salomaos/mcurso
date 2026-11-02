@@ -18,7 +18,8 @@ export type NomeIcone =
 	| 'listaNumerada'
 	| 'citacao'
 	| 'linha'
-	| 'grade';
+	| 'grade'
+	| 'ajustes';
 
 export type Forma =
 	| { tipo: 'caminho'; d: string }
@@ -116,5 +117,15 @@ export const FORMAS_ICONE: Record<NomeIcone, Forma[]> = {
 		{ tipo: 'retangulo', x: 13, y: 4, largura: 7, altura: 7, raio: 1 },
 		{ tipo: 'retangulo', x: 4, y: 13, largura: 7, altura: 7, raio: 1 },
 		{ tipo: 'retangulo', x: 13, y: 13, largura: 7, altura: 7, raio: 1 }
+	],
+	// Ajustes: faders verticais — é o toggle que revela o slider de tamanho do
+	// texto no rodapé da apresentação.
+	ajustes: [
+		{ tipo: 'caminho', d: 'M5 4v16' },
+		{ tipo: 'circulo', cx: 5, cy: 9, raio: 2 },
+		{ tipo: 'caminho', d: 'M12 4v16' },
+		{ tipo: 'circulo', cx: 12, cy: 15, raio: 2 },
+		{ tipo: 'caminho', d: 'M19 4v16' },
+		{ tipo: 'circulo', cx: 19, cy: 7, raio: 2 }
 	]
 };

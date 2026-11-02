@@ -1,9 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import BlocoRender from '$lib/components/BlocoRender.svelte';
+	import Icone from '$lib/components/Icone.svelte';
 	import TextoMatematico from '$lib/components/TextoMatematico.svelte';
 	import { corretasDoExercicio, type Blocos, type NivelTitulo } from '$lib/blocks';
 	import { ROTULO_TIPO, rotasConteudo, type ContextoConteudo } from '$lib/conteudo';
+
+	// Tamanho do texto do slide, escolhido pelo professor: persiste no navegador
+	// (como o tema e a visão) porque o ajuste é da pessoa, não da apresentação.
+	const CHAVE_ZOOM = 'mcurso:apresentacao-zoom';
+	const ZOOM_MINIMO = 75;
+	const ZOOM_MAXIMO = 500;
 
 	let {
 		blocos,
@@ -21,6 +28,8 @@
 
 	let indice = $state(0);
 	let revelado = $state(false);
+	let mostrarAjuste = $state(false);
+	let zoomPercentual = $state(100);
 	const total = $derived(blocos.length);
 	const bloco = $derived(blocos[indice] ?? null);
 
@@ -49,7 +58,17 @@
 		location.href = proprio;
 	}
 
+	function ajustarZoom(valor: number) {
+		zoomPercentual = valor;
+		localStorage.setItem(CHAVE_ZOOM, String(valor));
+	}
+
 	onMount(() => {
+		const salvo = Number(localStorage.getItem(CHAVE_ZOOM));
+		if (Number.isInteger(salvo) && salvo >= ZOOM_MINIMO && salvo <= ZOOM_MAXIMO) {
+			zoomPercentual = salvo;
+		}
+
 		function aoTeclar(e: KeyboardEvent) {
 			const alvo = e.target as HTMLElement | null;
 			const editavel = alvo?.isContentEditable || ['input', 'textarea', 'select'].includes(alvo?.tagName.toLowerCase() ?? '');
@@ -96,7 +115,7 @@
 		{#if total === 0}
 			<p class="opacity-50">Nenhum bloco nesta aula.</p>
 		{:else}
-			<div class="max-w-4xl w-full">
+			<div class="apresentacao-slide max-w-4xl w-full" style:zoom={zoomPercentual / 100}>
 				{#key indice}
 					<div class="flex flex-col items-center gap-0 w-full">
 						{#if bloco && bloco.tipo === 'titulo'}
@@ -147,6 +166,30 @@
 	<!-- Barra inferior -->
 	<div class="flex items-center justify-between gap-2 px-4 py-2 border-t border-base-300 shrink-0">
 		<span class="text-xs opacity-50 hidden sm:inline">←/→ ou Espaço navega · Esc fecha</span>
+		<div class="flex items-center gap-2">
+			<button
+				class="btn btn-ghost btn-xs"
+				type="button"
+				aria-pressed={mostrarAjuste}
+				aria-label="Ajustar tamanho do texto"
+				title="Ajustar tamanho do texto"
+				onclick={() => (mostrarAjuste = !mostrarAjuste)}
+			>
+				<Icone nome="ajustes" tamanho={16} />
+			</button>
+			{#if mostrarAjuste}
+				<input
+					class="range range-accent w-24 sm:w-32"
+					type="range"
+					min={ZOOM_MINIMO}
+					max={ZOOM_MAXIMO}
+					step="5"
+					value={zoomPercentual}
+					aria-label="Tamanho do texto do slide"
+					oninput={(event) => ajustarZoom(Number((event.currentTarget as HTMLInputElement).value))}
+				/>
+			{/if}
+		</div>
 		<div class="flex items-center gap-1">
 			<button
 				class="btn btn-ghost btn-xs"
