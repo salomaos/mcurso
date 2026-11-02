@@ -71,7 +71,14 @@
 
 		function aoTeclar(e: KeyboardEvent) {
 			const alvo = e.target as HTMLElement | null;
-			const editavel = alvo?.isContentEditable || ['input', 'textarea', 'select'].includes(alvo?.tagName.toLowerCase() ?? '');
+			const tag = alvo?.tagName.toLowerCase() ?? '';
+			// O guard de "campo de edição" protege quem está digitando (o caret
+			// usa as setas). `input[type=range]` (o slider de zoom) não é campo de
+			// edição: com ele focado, as teclas de navegação continuam valendo.
+			const editavel =
+				alvo?.isContentEditable ||
+				['textarea', 'select'].includes(tag) ||
+				(tag === 'input' && alvo?.getAttribute('type') !== 'range');
 			if (editavel) return;
 			if ((e.key === ' ' || e.key === 'Enter') && alvo?.closest('button, a, [role="application"]')) return;
 			if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown' || e.key === 'Enter') {
@@ -188,6 +195,11 @@
 					aria-label="Tamanho do texto do slide"
 					oninput={(event) => ajustarZoom(Number((event.currentTarget as HTMLInputElement).value))}
 				/>
+				<button
+					class="btn btn-ghost btn-xs"
+					type="button"
+					onclick={() => ajustarZoom(100)}
+				>Redefinir</button>
 			{/if}
 		</div>
 		<div class="flex items-center gap-1">

@@ -87,6 +87,8 @@ test('ajusta o tamanho do texto do slide e persiste entre sessões', async ({ pa
 	await page.keyboard.type('Aula com zoom');
 	await page.getByRole('button', { name: 'Texto', exact: true }).click();
 	await page.getByRole('textbox', { name: 'Texto do bloco' }).fill('Conteúdo para projetar');
+	await page.getByRole('button', { name: 'Texto', exact: true }).click();
+	await page.getByRole('textbox', { name: 'Texto do bloco' }).fill('Segundo slide');
 	await page.getByRole('button', { name: 'Salvar aula' }).click();
 	await expect(page).toHaveURL(/\/aulas\/\d+$/);
 
@@ -97,11 +99,13 @@ test('ajusta o tamanho do texto do slide e persiste entre sessões', async ({ pa
 	const slide = page.locator('.apresentacao-slide');
 	await expect(slide).toBeVisible();
 
-	// O slider fica escondido atrás do toggle até ser pedido (rodapé discreto).
+	// O slider (e o reset) ficam escondidos atrás do toggle até serem pedidos.
 	const ajuste = page.getByRole('button', { name: 'Ajustar tamanho do texto' });
 	const slider = page.getByRole('slider', { name: 'Tamanho do texto do slide' });
+	const redefinir = page.getByRole('button', { name: 'Redefinir' });
 	await expect(ajuste).toBeVisible();
 	await expect(slider).toHaveCount(0);
+	await expect(redefinir).toHaveCount(0);
 
 	// Abre o ajuste e aumenta o texto: o zoom do slide acompanha.
 	await ajuste.click();
@@ -112,7 +116,23 @@ test('ajusta o tamanho do texto do slide e persiste entre sessões', async ({ pa
 	});
 	await expect.poll(() => slide.evaluate((el) => getComputedStyle(el).zoom)).toBe('1.25');
 
-	// A escolha persiste: recarregar mantém o zoom, sem tocar no slider de novo.
+	// As setas navegam os slides mesmo com o foco no slider de zoom.
+	await slider.focus();
+	await page.keyboard.press('ArrowRight');
+	await expect(page.getByText('2 / 2')).toBeVisible();
+	await page.keyboard.press('ArrowLeft');
+	await expect(page.getByText('1 / 2')).toBeVisible();
+
+	// Redefinir volta ao tamanho original na hora.
+	await redefinir.click();
+	await expect.poll(() => slide.evaluate((el) => getComputedStyle(el).zoom)).toBe('1');
+	await expect(slider).toHaveValue('100');
+
+	// Ajusta de novo: a escolha persiste — recarregar mantém o zoom.
+	await slider.evaluate((el: HTMLInputElement) => {
+		el.value = '125';
+		el.dispatchEvent(new Event('input', { bubbles: true }));
+	});
 	await page.reload();
 	await expect(slide).toBeVisible();
 	await expect.poll(() => slide.evaluate((el) => getComputedStyle(el).zoom)).toBe('1.25');
