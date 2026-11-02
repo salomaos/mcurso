@@ -123,6 +123,22 @@ test('ajusta o tamanho do texto do slide e persiste entre sessões', async ({ pa
 	await page.keyboard.press('ArrowLeft');
 	await expect(page.getByText('1 / 2')).toBeVisible();
 
+	// O contador no topo abre uma lista para pular direto para um slide.
+	await page.getByRole('button', { name: '1 / 2' }).click();
+	const irPara2 = page.getByRole('button', { name: 'Ir para o slide 2' });
+	await expect(irPara2).toBeVisible();
+	await irPara2.click();
+	await expect(page.getByText('2 / 2')).toBeVisible();
+	await expect(irPara2).toHaveCount(0);
+
+	// Esc fecha a lista sem fechar a apresentação.
+	await page.getByRole('button', { name: '2 / 2' }).click();
+	const irPara1 = page.getByRole('button', { name: 'Ir para o slide 1' });
+	await expect(irPara1).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(irPara1).toHaveCount(0);
+	await expect(page.getByText('2 / 2')).toBeVisible();
+
 	// Redefinir volta ao tamanho original na hora.
 	await redefinir.click();
 	await expect.poll(() => slide.evaluate((el) => getComputedStyle(el).zoom)).toBe('1');
