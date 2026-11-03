@@ -19,7 +19,9 @@ export type NomeIcone =
 	| 'citacao'
 	| 'linha'
 	| 'grade'
-	| 'ajustes';
+	| 'ajustes'
+	| 'volume'
+	| 'volumeMudo';
 
 export type Forma =
 	| { tipo: 'caminho'; d: string }
@@ -127,5 +129,15 @@ export const FORMAS_ICONE: Record<NomeIcone, Forma[]> = {
 		{ tipo: 'circulo', cx: 12, cy: 15, raio: 2 },
 		{ tipo: 'caminho', d: 'M19 4v16' },
 		{ tipo: 'circulo', cx: 19, cy: 7, raio: 2 }
+	],
+	// Som do quiz: alto-falante com ondas; o "mudo" é o mesmo desenho com um X.
+	volume: [
+		{ tipo: 'caminho', d: 'M11 5 6 9H2v6h4l5 4V5z' },
+		{ tipo: 'caminho', d: 'M15.5 8.5a5 5 0 0 1 0 7' },
+		{ tipo: 'caminho', d: 'M19 4.5a10 10 0 0 1 0 15' }
+	],
+	volumeMudo: [
+		{ tipo: 'caminho', d: 'M11 5 6 9H2v6h4l5 4V5z' },
+		{ tipo: 'caminho', d: 'm16 9 6 6M22 9l-6 6' }
 	]
 };

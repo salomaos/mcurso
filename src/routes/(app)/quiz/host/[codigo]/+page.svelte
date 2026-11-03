@@ -3,7 +3,9 @@
 	import { onMount, untrack } from 'svelte';
 	import CabecalhoPagina from '$lib/components/ui/CabecalhoPagina.svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
+	import Icone from '$lib/components/Icone.svelte';
 	import { caminhoJogar, type EstadoQuizHost } from '$lib/quiz';
+	import { TrilhaQuiz, faixaParaFase } from '$lib/quiz-audio';
 	import { buscarEstado, enviarAcao } from '$lib/quiz-cliente';
 
 	let { data } = $props<{ data: { estado: EstadoQuizHost } }>();
@@ -13,6 +15,8 @@
 	let agora = $state(Date.now());
 	let erro = $state<string | null>(null);
 	let comandoEmAndamento = $state(false);
+	let trilha = $state<TrilhaQuiz | null>(null);
+	let mudo = $state(false);
 
 	const LETRAS = ['A', 'B', 'C', 'D'];
 	const CORES = ['btn-error', 'btn-info', 'btn-warning', 'btn-success'];
@@ -62,12 +66,41 @@
 		}
 	}
 
+	// Trilha sonora: o polling troca a faixa sozinha por fase; a revelação fica
+	// sem música e toca o jingle de revelação. O áudio só destrava no primeiro
+	// gesto do usuário (política de autoplay) — daí o re-apply em `destravar`.
+	function sincronizarTrilha() {
+		void trilha?.tocarFaixa(faixaParaFase(estado.status));
+	}
+
+	function alternarSom() {
+		if (!trilha) return;
+		mudo = trilha.alternarMudo();
+	}
+
+	$effect(() => {
+		const status = estado.status;
+		if (!trilha) return;
+		if (status === 'revelacao') void trilha.tocarJingle('revelacao');
+		sincronizarTrilha();
+	});
+
 	onMount(() => {
+		trilha = new TrilhaQuiz();
+		mudo = trilha.mudo;
+		const destravar = () => void trilha?.destravar().then(() => sincronizarTrilha());
+		window.addEventListener('pointerdown', destravar, { once: true });
+		window.addEventListener('keydown', destravar, { once: true });
+
 		const relogio = setInterval(() => (agora = Date.now()), 200);
 		const sincronia = setInterval(atualizar, 1000);
 		return () => {
+			window.removeEventListener('pointerdown', destravar);
+			window.removeEventListener('keydown', destravar);
 			clearInterval(relogio);
 			clearInterval(sincronia);
+			trilha?.parar();
+			trilha = null;
 		};
 	});
 </script>
@@ -97,6 +130,16 @@
 			disabled={comandoEmAndamento}
 		>
 			Sair e remover todos
+		</button>
+		<button
+			class="btn btn-ghost btn-sm"
+			type="button"
+			onclick={alternarSom}
+			aria-pressed={mudo}
+			aria-label="Som do quiz"
+			title={mudo ? 'Ativar som' : 'Silenciar'}
+		>
+			<Icone nome={mudo ? 'volumeMudo' : 'volume'} tamanho={18} />
 		</button>
 	</CabecalhoPagina>
 
