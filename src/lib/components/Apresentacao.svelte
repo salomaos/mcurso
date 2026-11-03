@@ -1,9 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import BlocoRender from '$lib/components/BlocoRender.svelte';
+	import Icone from '$lib/components/Icone.svelte';
 	import TextoMatematico from '$lib/components/TextoMatematico.svelte';
 	import { corretasDoExercicio, type Blocos, type NivelTitulo } from '$lib/blocks';
 	import { ROTULO_TIPO, rotasConteudo, type ContextoConteudo } from '$lib/conteudo';
+
+	// Tamanho do texto do slide, escolhido pelo professor: persiste no navegador
+	// (como o tema e a visão) porque o ajuste é da pessoa, não da apresentação.
+	const CHAVE_ZOOM = 'mcurso:apresentacao-zoom';
+	const ZOOM_MINIMO = 75;
+	const ZOOM_MAXIMO = 500;
 
 	let {
 		blocos,
@@ -21,6 +28,9 @@
 
 	let indice = $state(0);
 	let revelado = $state(false);
+	let mostrarAjuste = $state(false);
+	let menuAberto = $state(false);
+	let zoomPercentual = $state(100);
 	const total = $derived(blocos.length);
 	const bloco = $derived(blocos[indice] ?? null);
 
@@ -45,14 +55,47 @@
 		revelado = false;
 	}
 
+	function irPara(destino: number) {
+		indice = Math.min(total - 1, Math.max(0, destino));
+		revelado = false;
+		menuAberto = false;
+	}
+
 	function fechar() {
 		location.href = proprio;
 	}
 
+	function ajustarZoom(valor: number) {
+		zoomPercentual = valor;
+		localStorage.setItem(CHAVE_ZOOM, String(valor));
+	}
+
 	onMount(() => {
+		const salvo = Number(localStorage.getItem(CHAVE_ZOOM));
+		if (Number.isInteger(salvo) && salvo >= ZOOM_MINIMO && salvo <= ZOOM_MAXIMO) {
+			zoomPercentual = salvo;
+		}
+
 		function aoTeclar(e: KeyboardEvent) {
 			const alvo = e.target as HTMLElement | null;
-			const editavel = alvo?.isContentEditable || ['input', 'textarea', 'select'].includes(alvo?.tagName.toLowerCase() ?? '');
+			if (menuAberto) {
+				// A lista de slides captura o teclado: Esc só fecha ela (não a
+				// apresentação) e as teclas de navegação ficam quietas até a
+				// escolha — senão o slide troca com a lista aberta.
+				if (e.key === 'Escape') {
+					e.preventDefault();
+					menuAberto = false;
+				}
+				return;
+			}
+			const tag = alvo?.tagName.toLowerCase() ?? '';
+			// O guard de "campo de edição" protege quem está digitando (o caret
+			// usa as setas). `input[type=range]` (o slider de zoom) não é campo de
+			// edição: com ele focado, as teclas de navegação continuam valendo.
+			const editavel =
+				alvo?.isContentEditable ||
+				['textarea', 'select'].includes(tag) ||
+				(tag === 'input' && alvo?.getAttribute('type') !== 'range');
 			if (editavel) return;
 			if ((e.key === ' ' || e.key === 'Enter') && alvo?.closest('button, a, [role="application"]')) return;
 			if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown' || e.key === 'Enter') {
@@ -88,7 +131,44 @@
 			<span class="opacity-30 hidden sm:inline">/</span>
 			<span class="text-xs font-semibold truncate">{conteudoTitulo}</span>
 		</div>
-		<span class="text-xs opacity-60 tabular-nums shrink-0">{indice + 1} / {total}</span>
+		<div class="relative shrink-0">
+			<button
+				class="btn btn-ghost btn-xs tabular-nums"
+				type="button"
+				disabled={total === 0}
+				aria-haspopup="true"
+				aria-expanded={menuAberto}
+				title="Ir para um slide"
+				onclick={() => (menuAberto = !menuAberto)}
+			>{indice + 1} / {total} <span class="opacity-50" aria-hidden="true">▾</span></button>
+			{#if menuAberto}
+				<!-- Fundo invisível: clicar fora fecha a lista. -->
+				<button
+					class="fixed inset-0 z-40 cursor-default"
+					type="button"
+					tabindex="-1"
+					aria-label="Fechar lista de slides"
+					onclick={() => (menuAberto = false)}
+				></button>
+				<div
+					class="absolute right-0 top-full mt-1 z-50 card card-bordered p-2 shadow-lg max-h-64 min-w-20 overflow-y-auto"
+					role="group"
+					aria-label="Slides"
+				>
+					<div class="flex flex-col gap-1">
+						{#each Array.from({ length: total }, (_, i) => i) as i (i)}
+							<button
+								class="btn btn-block btn-xs {i === indice ? '' : 'btn-ghost'}"
+								type="button"
+								aria-label={`Ir para o slide ${i + 1}`}
+								aria-current={i === indice}
+								onclick={() => irPara(i)}
+							>{i + 1}</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Slide -->
@@ -96,7 +176,7 @@
 		{#if total === 0}
 			<p class="opacity-50">Nenhum bloco nesta aula.</p>
 		{:else}
-			<div class="max-w-4xl w-full">
+			<div class="apresentacao-slide max-w-4xl w-full" style:zoom={zoomPercentual / 100}>
 				{#key indice}
 					<div class="flex flex-col items-center gap-0 w-full">
 						{#if bloco && bloco.tipo === 'titulo'}
@@ -147,6 +227,35 @@
 	<!-- Barra inferior -->
 	<div class="flex items-center justify-between gap-2 px-4 py-2 border-t border-base-300 shrink-0">
 		<span class="text-xs opacity-50 hidden sm:inline">←/→ ou Espaço navega · Esc fecha</span>
+		<div class="flex items-center gap-2">
+			<button
+				class="btn btn-ghost btn-xs"
+				type="button"
+				aria-pressed={mostrarAjuste}
+				aria-label="Ajustar tamanho do texto"
+				title="Ajustar tamanho do texto"
+				onclick={() => (mostrarAjuste = !mostrarAjuste)}
+			>
+				<Icone nome="ajustes" tamanho={16} />
+			</button>
+			{#if mostrarAjuste}
+				<input
+					class="range range-accent w-24 sm:w-32"
+					type="range"
+					min={ZOOM_MINIMO}
+					max={ZOOM_MAXIMO}
+					step="5"
+					value={zoomPercentual}
+					aria-label="Tamanho do texto do slide"
+					oninput={(event) => ajustarZoom(Number((event.currentTarget as HTMLInputElement).value))}
+				/>
+				<button
+					class="btn btn-ghost btn-xs"
+					type="button"
+					onclick={() => ajustarZoom(100)}
+				>Redefinir</button>
+			{/if}
+		</div>
 		<div class="flex items-center gap-1">
 			<button
 				class="btn btn-ghost btn-xs"

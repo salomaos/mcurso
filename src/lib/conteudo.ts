@@ -3,6 +3,8 @@
 // guardam blocos e compartilham o editor; a leitura da atividade é outra
 // (runner com gabarito só no fim).
 
+import type { Bloco } from '$lib/blocks';
+
 export const TIPOS_CONTEUDO = ['aula', 'anexo', 'exercicio'] as const;
 export type TipoConteudo = (typeof TIPOS_CONTEUDO)[number];
 
@@ -140,15 +142,27 @@ export type DissertativaPublica = {
 	orientacao?: string;
 };
 
+// Bloco da página pública da atividade, **na ordem do canvas**: os blocos de
+// apoio vêm inteiros; `exercicio`/`dissertativa` trocam para o payload público
+// (sem gabarito). É o contrato que o SSR entrega ao aluno.
+export type BlocoAtividadePublico =
+	| Exclude<Bloco, { tipo: 'exercicio' } | { tipo: 'dissertativa' }>
+	| ({ tipo: 'exercicio' } & QuestaoPublica)
+	| ({ tipo: 'dissertativa' } & DissertativaPublica);
+
 // Questão corrigida no servidor, devolvida no resultado (aqui o gabarito pode
-// aparecer: a resposta já foi dada). `escolhida`/`correta` são listas para as
-// duas modalidades caberem no mesmo formato: `radio` nunca passa de um item.
+// aparecer: a resposta já foi dada). **Só aparece quando o aluno acertou**:
+// questão errada devolve `correta` vazio e sem `explicacao` — o resultado
+// mostra que errou, não qual era a resposta certa. `escolhida`/`correta` são
+// listas para as duas modalidades caberem no mesmo formato: `radio` nunca
+// passa de um item.
 export type CorrecaoQuestao = {
 	id: string;
 	pergunta: string;
 	selecao: SelecaoExercicio;
 	/** alternativas marcadas pelo aluno; vazia = deixou em branco */
 	escolhida: number[];
+	/** gabarito: só vem preenchido quando `acertou`; errada devolve vazio */
 	correta: number[];
 	acertou: boolean;
 	alternativas: string[];

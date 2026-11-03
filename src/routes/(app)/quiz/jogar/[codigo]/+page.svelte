@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import Pagina from '$lib/components/ui/Pagina.svelte';
+	import Icone from '$lib/components/Icone.svelte';
 	import type { EstadoQuizJogador } from '$lib/quiz';
+	import { TrilhaQuiz, faixaParaFase, jingleDaRevelacao } from '$lib/quiz-audio';
 	import { buscarEstado, enviarAcao } from '$lib/quiz-cliente';
 
 	let { data } = $props<{ data: { estado: EstadoQuizJogador; jogadorId: string } }>();
@@ -13,6 +15,8 @@
 	let enviando = $state(false);
 	let alternativaEnviada = $state<number | null>(null);
 	let encerrada = $state(false);
+	let trilha = $state<TrilhaQuiz | null>(null);
+	let mudo = $state(false);
 
 	const LETRAS = ['A', 'B', 'C', 'D'];
 	const CORES = ['btn-error', 'btn-info', 'btn-warning', 'btn-success'];
@@ -55,12 +59,42 @@
 		}
 	}
 
+	// Mesmo motor de trilha do host: o polling troca a faixa por fase e a
+	// revelação toca o jingle de acerto/erro deste jogador. Só destrava no
+	// primeiro gesto (autoplay), por isso o re-apply em `destravar`.
+	function sincronizarTrilha() {
+		void trilha?.tocarFaixa(faixaParaFase(estado.status));
+	}
+
+	function alternarSom() {
+		if (!trilha) return;
+		mudo = trilha.alternarMudo();
+	}
+
+	$effect(() => {
+		const status = estado.status;
+		const acertou = estado.jogador.acertou;
+		if (!trilha) return;
+		if (status === 'revelacao') void trilha.tocarJingle(jingleDaRevelacao(acertou));
+		sincronizarTrilha();
+	});
+
 	onMount(() => {
+		trilha = new TrilhaQuiz();
+		mudo = trilha.mudo;
+		const destravar = () => void trilha?.destravar().then(() => sincronizarTrilha());
+		window.addEventListener('pointerdown', destravar, { once: true });
+		window.addEventListener('keydown', destravar, { once: true });
+
 		const relogio = setInterval(() => (agora = Date.now()), 200);
 		const sincronia = setInterval(atualizar, 1000);
 		return () => {
+			window.removeEventListener('pointerdown', destravar);
+			window.removeEventListener('keydown', destravar);
 			clearInterval(relogio);
 			clearInterval(sincronia);
+			trilha?.parar();
+			trilha = null;
 		};
 	});
 </script>
@@ -72,9 +106,21 @@
 <Pagina largura="conteudo" espaco={4}>
 	<header class="flex flex-wrap items-center justify-between gap-2">
 		<span class="font-bold">{estado.titulo}</span>
-		<span class="badge badge-outline">
-			{estado.jogador.nome} · {estado.jogador.pontuacao} pts
-		</span>
+		<div class="flex items-center gap-2">
+			<button
+				class="btn btn-ghost btn-sm"
+				type="button"
+				onclick={alternarSom}
+				aria-pressed={mudo}
+				aria-label="Som do quiz"
+				title={mudo ? 'Ativar som' : 'Silenciar'}
+			>
+				<Icone nome={mudo ? 'volumeMudo' : 'volume'} tamanho={18} />
+			</button>
+			<span class="badge badge-outline">
+				{estado.jogador.nome} · {estado.jogador.pontuacao} pts
+			</span>
+		</div>
 	</header>
 
 	{#if erro}

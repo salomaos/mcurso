@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import ListaBlocos from '$lib/components/ListaBlocos.svelte';
+	import BlocoRender from '$lib/components/BlocoRender.svelte';
 	import Dissertativa from '$lib/components/Dissertativa.svelte';
 	import Questao from '$lib/components/Questao.svelte';
 	import { resultadoParaImagem } from '$lib/imagem';
@@ -15,6 +15,7 @@
 	ROTULO_IMPRIMIR_RESULTADO,
 	ROTULO_RESPONDER_DE_NOVO,
 	ROTULO_VISUALIZAR,
+	type BlocoAtividadePublico,
 	type Correcao,
 	type CorrecaoQuestao
 } from '$lib/conteudo';
@@ -43,8 +44,24 @@
 	let baixando = $state(false);
 
 	const temPerguntas = $derived(
-		data.atividade.questoes.length > 0 || data.atividade.dissertativas.length > 0
+		data.atividade.blocos.some(
+			(bloco: BlocoAtividadePublico) => bloco.tipo === 'exercicio' || bloco.tipo === 'dissertativa'
+		)
 	);
+
+	// As questões são numeradas na ordem em que aparecem no canvas — que é a
+	// mesma ordem em que `blocos` vem do servidor.
+	const numeros = $derived.by(() => {
+		const mapa = new Map<string, number>();
+		let numero = 0;
+		for (const bloco of data.atividade.blocos) {
+			if (bloco.tipo === 'exercicio') {
+				numero += 1;
+				mapa.set(bloco.id, numero);
+			}
+		}
+		return mapa;
+	});
 
 	onMount(() => {
 		nome = nomeDoPost || lerNome();
@@ -55,15 +72,12 @@
 		guardarNome(nome);
 	}
 
-	function questaoCorrigida(indice: number): CorrecaoQuestao | undefined {
-		const id = data.atividade.questoes[indice]?.id;
+	function questaoCorrigida(id: string): CorrecaoQuestao | undefined {
 		return resultado?.correcao.questoes.find((questao) => questao.id === id);
 	}
 
-	function respostaDissertativa(indice: number): string | undefined {
-		const id = data.atividade.dissertativas[indice]?.id;
-		const corrigida = resultado?.correcao.dissertativas.find((item) => item.id === id);
-		return corrigida ? corrigida.resposta : undefined;
+	function respostaDissertativa(id: string): string | undefined {
+		return resultado?.correcao.dissertativas.find((item) => item.id === id)?.resposta;
 	}
 
 	function baixarImagem() {
@@ -145,27 +159,23 @@
 			<p class="break-all font-mono text-xs">{resultado.chaveFormatada}</p>
 		</div>
 
-		{#if data.atividade.instrucoes.length > 0}
-			<ListaBlocos
-				blocos={data.atividade.instrucoes}
-				apostilaId={data.contexto.aula?.apostilaId}
-			/>
+		{#if data.atividade.blocos.length > 0}
+			<div class="space-y-3">
+				{#each data.atividade.blocos as bloco (bloco.id)}
+					{#if bloco.tipo === 'exercicio'}
+						<Questao
+							questao={bloco}
+							numero={numeros.get(bloco.id) ?? 0}
+							resultado={questaoCorrigida(bloco.id)}
+						/>
+					{:else if bloco.tipo === 'dissertativa'}
+						<Dissertativa bloco={bloco} resposta={respostaDissertativa(bloco.id)} />
+					{:else}
+						<BlocoRender {bloco} apostilaId={data.contexto.aula?.apostilaId} />
+					{/if}
+				{/each}
+			</div>
 		{/if}
-
-		<div class="space-y-3">
-			{#each data.atividade.questoes as questao, indice (questao.id)}
-				<Questao {questao} numero={indice + 1} resultado={questaoCorrigida(indice)} />
-			{/each}
-		</div>
-
-		<div class="space-y-3">
-			{#each data.atividade.dissertativas as dissertativa, indice (dissertativa.id)}
-				<Dissertativa
-					bloco={{ ...dissertativa, tipo: 'dissertativa' }}
-					resposta={respostaDissertativa(indice)}
-				/>
-			{/each}
-		</div>
 
 		<div class="flex flex-wrap gap-2 no-print">
 			<a href={caminhoExercicio(data.atividade.id)} class="btn btn-ghost btn-sm">
@@ -191,22 +201,15 @@
 					/>
 				</Campo>
 
-				{#if data.atividade.instrucoes.length > 0}
-					<ListaBlocos
-						blocos={data.atividade.instrucoes}
-						apostilaId={data.contexto.aula?.apostilaId}
-					/>
-				{/if}
-
 				<div class="space-y-3">
-					{#each data.atividade.questoes as questao, indice (questao.id)}
-						<Questao {questao} numero={indice + 1} />
-					{/each}
-				</div>
-
-				<div class="space-y-3">
-					{#each data.atividade.dissertativas as dissertativa (dissertativa.id)}
-						<Dissertativa bloco={{ ...dissertativa, tipo: 'dissertativa' }} campo="d_{dissertativa.id}" />
+					{#each data.atividade.blocos as bloco (bloco.id)}
+						{#if bloco.tipo === 'exercicio'}
+							<Questao questao={bloco} numero={numeros.get(bloco.id) ?? 0} />
+						{:else if bloco.tipo === 'dissertativa'}
+							<Dissertativa bloco={bloco} campo="d_{bloco.id}" />
+						{:else}
+							<BlocoRender {bloco} apostilaId={data.contexto.aula?.apostilaId} />
+						{/if}
 					{/each}
 				</div>
 

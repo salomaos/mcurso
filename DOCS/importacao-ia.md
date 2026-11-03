@@ -19,7 +19,7 @@ blocos desconhecidos são descartados; campos opcionais ausentes usam o padrão.
 
 ```jsonc
 {
-  "conteudo": "apostila" | "anexo" | "exercicio" | "quiz",
+  "conteudo": "apostila" | "anexo" | "exercicio" | "quiz" | "aula",
   "titulo": "Título",
   "descricao": "Opcional",
   // ... campos específicos abaixo
@@ -28,10 +28,11 @@ blocos desconhecidos são descartados; campos opcionais ausentes usam o padrão.
 
 | Valor | O que cria | Observação |
 |---|---|---|
-| `apostila` | Apostila + seções + aulas com blocos | Aula **só existe dentro** do envelope de apostila |
+| `apostila` | Apostila + seções + aulas com blocos | Sempre cria uma apostila nova |
 | `anexo` | Material de apoio solto | Não pertence a apostila |
 | `exercicio` | Atividade de exercícios solta | Gabarito fica no servidor |
 | `quiz` | Quiz estilo Kahoot | Formato próprio (igual ao "Colar um JSON pronto" do editor) |
+| `aula` | Substitui o conteúdo da aula aberta no editor | Só no editor da aula; não entra na tela `/importar` |
 
 Um `bloco` já salvo pode ser exportado no mesmo formato e colado de volta
 (round-trip com a IA).
@@ -41,7 +42,9 @@ Um `bloco` já salvo pode ser exportado no mesmo formato e colado de volta
 A tela de importação do app tem "Carregar no editor": pega **o conteúdo inteiro**
 já existente (apostila/anexo/atividade/quiz), devolve no JSON deste mesmo
 contrato e preenche o campo de colar — pronto para guardar, ajustar pela IA ou
-reimportar (apostila reimportada volta a criar uma nova).
+reimportar (apostila reimportada volta a criar uma nova). O editor da aula tem o
+mesmo caminho por aula: "Exportar aula atual" (`conteudo: "aula"`), para ajustar
+uma aula só com a IA e colar de volta por cima do conteúdo atual.
 
 Para o round-trip nunca quebrar, o exportado usa as mesmas regras do import:
 **sem `id`** (nem de bloco nem de conteúdo), apostila sai com `secoes`/`aulas`
@@ -147,6 +150,26 @@ aviso** no topo, visível só para o professor. Nunca impede a importação.
   "blocos": [ "… blocos …" ]
 }
 ```
+
+## Aula (substituição no editor)
+
+```jsonc
+{
+  "conteudo": "aula",
+  "titulo": "Função afim",
+  "descricao": "Opcional",
+  "blocos": [ "… blocos …" ]
+}
+```
+
+- Só existe no **editor da aula** (seção "Importar / exportar por JSON"): exportar
+  joga o conteúdo atual para o campo; importar **substitui** o título, a descrição e
+  todos os blocos da aula aberta (sempre com confirmação). Não cria aula nova e a
+  tela `/importar` não aceita esse envelope.
+- `alvoOrdem` não vale aqui (não há "lista de import", o JSON é a aula inteira):
+  `aula→aula` resolve por `alvoTitulo` (título de uma aula da mesma apostila, sem
+  acento/caixa) ou `alvoId` de uma aula existente; anexo/atividade precisam já
+  existir (por título ou id). Link que não resolve **aborta a importação**.
 
 ## Quiz
 

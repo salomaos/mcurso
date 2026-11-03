@@ -29,19 +29,32 @@ const blocos = normalizarBlocos([
 ]);
 
 describe('corrigirExercicio', () => {
-	it('conta acertos e devolve gabarito e explicação por questão', () => {
-		const correcao = corrigirExercicio(blocos, form({ q_q1: '1', q_q2: '0' }));
+	it('conta acertos e devolve o gabarito só das questões certas', () => {
+		const comExplicacao = normalizarBlocos([
+			{ ...questao('e1', 1, 'radio'), explicacao: 'porque sim' },
+			{ ...questao('e2', 2, 'radio'), explicacao: 'porque não' }
+		]);
+		const correcao = corrigirExercicio(comExplicacao, form({ q_e1: '1', q_e2: '0' }));
 
 		expect(correcao.total).toBe(2);
 		expect(correcao.acertos).toBe(1);
+		// Acertou: gabarito e explicação vêm.
 		expect(correcao.questoes[0]).toMatchObject({
-			id: 'q1',
+			id: 'e1',
 			selecao: 'radio',
 			escolhida: [1],
 			correta: [1],
-			acertou: true
+			acertou: true,
+			explicacao: 'porque sim'
 		});
-		expect(correcao.questoes[1]).toMatchObject({ id: 'q2', escolhida: [0], acertou: false });
+		// Errou: o resultado diz que errou, mas não revela a certa nem a explicação.
+		expect(correcao.questoes[1]).toMatchObject({
+			id: 'e2',
+			escolhida: [0],
+			correta: [],
+			acertou: false
+		});
+		expect(correcao.questoes[1].explicacao).toBeUndefined();
 	});
 
 	it('ignora blocos de apoio e só corrige blocos de exercício', () => {
@@ -99,9 +112,9 @@ describe('múltipla escolha (checkbox)', () => {
 		expect(correcao.questoes[0].acertou).toBe(true);
 	});
 
-	it('sem nenhuma marcada é errada, e o gabarito segue lista', () => {
+	it('sem nenhuma marcada é errada, e o gabarito não vem', () => {
 		const correcao = corrigirExercicio(multiplos, form({}));
-		expect(correcao.questoes[0]).toMatchObject({ escolhida: [], correta: [0, 2], acertou: false });
+		expect(correcao.questoes[0]).toMatchObject({ escolhida: [], correta: [], acertou: false });
 	});
 
 	it('lê `q_` repetido e ignora valor inválido no meio', () => {

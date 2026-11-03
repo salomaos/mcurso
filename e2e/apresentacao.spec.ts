@@ -66,3 +66,97 @@ test('apresenta blocos como slides e navega por teclado', async ({ page }) => {
 	await page.keyboard.press('Escape');
 	await expect(page).toHaveURL(/\/apostilas\/\d+\/aulas\/\d+$/);
 });
+
+test('ajusta o tamanho do texto do slide e persiste entre sessões', async ({ page }) => {
+	// ---- login ----
+	await page.goto('/login');
+	await page.getByLabel('Senha mestra').fill(SENHA_E2E);
+	await page.getByRole('button', { name: 'Entrar' }).click();
+	await expect(page.getByRole('heading', { name: 'Apostilas', level: 1 })).toBeVisible();
+
+	// ---- cria apostila + aula com um texto ----
+	const titulo = `Zoom do slide ${Date.now()}`;
+	await page.goto('/apostilas/nova');
+	await page.getByLabel('Título').fill(titulo);
+	await page.getByRole('button', { name: 'Criar' }).click();
+	await expect(page).toHaveURL(/\/apostilas\/\d+/);
+
+	await page.getByRole('button', { name: '+ Nova aula/encontro' }).click();
+	await expect(page).toHaveURL(/\/editar/);
+	await page.getByLabel('Título da aula').click();
+	await page.keyboard.type('Aula com zoom');
+	await page.getByRole('button', { name: 'Texto', exact: true }).click();
+	await page.getByRole('textbox', { name: 'Texto do bloco' }).fill('Conteúdo para projetar');
+	await page.getByRole('button', { name: 'Texto', exact: true }).click();
+	await page.getByRole('textbox', { name: 'Texto do bloco' }).fill('Segundo slide');
+	await page.getByRole('button', { name: 'Salvar aula' }).click();
+	await expect(page).toHaveURL(/\/aulas\/\d+$/);
+
+	// ---- abre o modo apresentação ----
+	await page.getByRole('link', { name: 'Apresentar' }).click();
+	await expect(page).toHaveURL(/\/apresentar/);
+
+	const slide = page.locator('.apresentacao-slide');
+	await expect(slide).toBeVisible();
+
+	// O slider (e o reset) ficam escondidos atrás do toggle até serem pedidos.
+	const ajuste = page.getByRole('button', { name: 'Ajustar tamanho do texto' });
+	const slider = page.getByRole('slider', { name: 'Tamanho do texto do slide' });
+	const redefinir = page.getByRole('button', { name: 'Redefinir' });
+	await expect(ajuste).toBeVisible();
+	await expect(slider).toHaveCount(0);
+	await expect(redefinir).toHaveCount(0);
+
+	// Abre o ajuste e aumenta o texto: o zoom do slide acompanha.
+	await ajuste.click();
+	await expect(slider).toBeVisible();
+	await slider.evaluate((el: HTMLInputElement) => {
+		el.value = '125';
+		el.dispatchEvent(new Event('input', { bubbles: true }));
+	});
+	await expect.poll(() => slide.evaluate((el) => getComputedStyle(el).zoom)).toBe('1.25');
+
+	// As setas navegam os slides mesmo com o foco no slider de zoom.
+	await slider.focus();
+	await page.keyboard.press('ArrowRight');
+	await expect(page.getByText('2 / 2')).toBeVisible();
+	await page.keyboard.press('ArrowLeft');
+	await expect(page.getByText('1 / 2')).toBeVisible();
+
+	// O contador no topo abre uma lista para pular direto para um slide.
+	await page.getByRole('button', { name: '1 / 2' }).click();
+	const irPara2 = page.getByRole('button', { name: 'Ir para o slide 2' });
+	await expect(irPara2).toBeVisible();
+	await irPara2.click();
+	await expect(page.getByText('2 / 2')).toBeVisible();
+	await expect(irPara2).toHaveCount(0);
+
+	// Esc fecha a lista sem fechar a apresentação.
+	await page.getByRole('button', { name: '2 / 2' }).click();
+	const irPara1 = page.getByRole('button', { name: 'Ir para o slide 1' });
+	await expect(irPara1).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(irPara1).toHaveCount(0);
+	await expect(page.getByText('2 / 2')).toBeVisible();
+
+	// Redefinir volta ao tamanho original na hora.
+	await redefinir.click();
+	await expect.poll(() => slide.evaluate((el) => getComputedStyle(el).zoom)).toBe('1');
+	await expect(slider).toHaveValue('100');
+
+	// Ajusta de novo: a escolha persiste — recarregar mantém o zoom.
+	await slider.evaluate((el: HTMLInputElement) => {
+		el.value = '125';
+		el.dispatchEvent(new Event('input', { bubbles: true }));
+	});
+	await page.reload();
+	await expect(slide).toBeVisible();
+	await expect.poll(() => slide.evaluate((el) => getComputedStyle(el).zoom)).toBe('1.25');
+
+	// Depois do reload o toggle volta fechado; abrir de novo revela o slider
+	// ainda no zoom escolhido.
+	await ajuste.click();
+	await expect(slider).toHaveValue('125');
+	await ajuste.click();
+	await expect(slider).toHaveCount(0);
+});

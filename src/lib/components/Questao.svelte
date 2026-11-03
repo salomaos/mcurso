@@ -20,10 +20,6 @@
 	function letra(indice: number) {
 		return String.fromCharCode(65 + indice);
 	}
-
-	function letras(lista: number[]) {
-		return lista.map(letra).join(', ');
-	}
 </script>
 
 <fieldset class="card card-bordered p-4 space-y-3 quebra-pagina" disabled={resultado !== undefined}>
@@ -55,11 +51,7 @@
 			class="alert {resultado.acertou ? 'alert-success' : 'alert-error'} text-sm"
 			role="status"
 		>
-			{resultado.acertou
-				? 'Correto!'
-				: resultado.escolhida.length === 0
-					? `Sem resposta — gabarito: ${letras(resultado.correta)}`
-					: `Incorreto — resposta certa: ${letras(resultado.correta)}`}
+			{resultado.acertou ? 'Correto!' : resultado.escolhida.length === 0 ? 'Sem resposta' : 'Incorreto'}
 		</div>
 		{#if resultado.explicacao}
 			<p class="text-sm opacity-80 whitespace-pre-wrap">

@@ -8,11 +8,13 @@ import {
 	corretasDoExercicio,
 	linksPara,
 	normalizarBlocos,
+	type Bloco,
 	type Blocos
 } from '$lib/blocks';
 import { dissertativasPublicas, questoesPublicas } from '$lib/corrigir';
 import type {
 	AlvoLink,
+	BlocoAtividadePublico,
 	DissertativaPublica,
 	ExercicioUi,
 	QuestaoPublica,
@@ -23,7 +25,13 @@ import { inserirId } from '$lib/server/db/inserir';
 import { apostilas, aulas, exercicios } from '$lib/server/db/tabelas';
 import { erroNaoEncontrado, lerConteudo, validarLinksInternos, type Falha } from '$lib/server/conteudo';
 
-export type { DissertativaPublica, ExercicioUi, QuestaoPublica, ReferenciaAnexo };
+export type {
+	BlocoAtividadePublico,
+	DissertativaPublica,
+	ExercicioUi,
+	QuestaoPublica,
+	ReferenciaAnexo
+};
 
 function comBlocos(linha: typeof exercicios.$inferSelect) {
 	return { ...linha, blocos: normalizarBlocos(linha.blocos as Blocos) };
@@ -164,20 +172,34 @@ export async function excluirExercicio(exercicioId: number): Promise<Falha | nul
 // que o SSR entrega: `correta` e `explicacao` saem do objeto antes da
 // serialização. A correção acontece só aqui, no POST.
 
-// Página pública: instruções (blocos de apoio) + questões sem resposta.
-// O payload das questões/dissertativas é montado em `$lib/corrigir` (mesma regra do
-// gabarito) — `correta` e `explicacao` não entram.
-export async function buscarExercicioPublico(exercicioId: number) {
+// Página pública: os blocos vêm **na ordem do canvas**, intercalando instruções,
+// questões e dissertativas como o professor montou (um título entre duas
+// questões fica entre elas). Questões/dissertativas passam pelas mesmas
+// conversões públicas de `$lib/corrigir` — `correta` e `explicacao` não entram.
+export async function buscarExercicioPublico(exercicioId: number): Promise<{
+	id: number;
+	titulo: string;
+	descricao: string | null;
+	blocos: BlocoAtividadePublico[];
+}> {
 	const linha = await buscarExercicio(exercicioId);
-	const { instrucoes } = separarExercicio(linha.blocos);
+	const questoes = new Map(questoesPublicas(linha.blocos).map((questao) => [questao.id, questao]));
+	const dissertativas = new Map(
+		dissertativasPublicas(linha.blocos).map((dissertativa) => [dissertativa.id, dissertativa])
+	);
+
+	const blocos = linha.blocos.map((bloco) => {
+		if (bloco.tipo === 'exercicio') return { tipo: 'exercicio' as const, ...questoes.get(bloco.id)! };
+		if (bloco.tipo === 'dissertativa')
+			return { tipo: 'dissertativa' as const, ...dissertativas.get(bloco.id)! };
+		return bloco;
+	});
 
 	return {
 		id: linha.id,
 		titulo: linha.titulo,
 		descricao: linha.descricao,
-		instrucoes,
-		questoes: questoesPublicas(linha.blocos),
-		dissertativas: dissertativasPublicas(linha.blocos)
+		blocos
 	};
 }
 

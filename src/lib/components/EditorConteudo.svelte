@@ -7,6 +7,8 @@
 	import Pagina from './ui/Pagina.svelte';
 	import { blocosPendentes } from '$lib/blocos-pendentes';
 	import { enviando } from '$lib/enviando';
+	import { interpretarImportacaoAula, resumoImportacaoAula } from '$lib/importar';
+	import { exportarAulaLocal, resolverLinksAula } from '$lib/importar-aula';
 	import type { Snippet } from 'svelte';
 	import type { Blocos, SecaoUi } from '$lib/blocks';
 	import { LIMITE_NOME_SECAO, mesmoNomeSecao } from '$lib/blocks';
@@ -106,6 +108,45 @@
 
 	function atualizarBlocos(novos: Blocos) {
 		blocos = novos;
+	}
+
+	// --- Importar/exportar por JSON (só aula) ----------------------------------
+	// Colar um JSON de aula substitui o título, a descrição e todos os blocos
+	// da aula aberta (com confirmação); a gravação continua sendo o "Salvar" do
+	// form, que revalida tudo no servidor.
+	let jsonAula = $state('');
+	let aulaImportada = $state(false);
+
+	const parseAula = $derived(jsonAula.trim() === '' ? null : interpretarImportacaoAula(jsonAula));
+	const dadosAula = $derived(parseAula && 'dados' in parseAula ? parseAula.dados : null);
+	const erroAula = $derived(parseAula && 'erro' in parseAula ? parseAula.erro : null);
+	const resumoAula = $derived(dadosAula ? resumoImportacaoAula(dadosAula) : null);
+	const resolucaoAula = $derived(dadosAula ? resolverLinksAula(dadosAula.blocos, alvos) : null);
+	const erroResolucaoAula = $derived(
+		resolucaoAula && 'erro' in resolucaoAula ? resolucaoAula.erro : null
+	);
+	const prontoParaImportar = $derived(
+		dadosAula !== null && resolucaoAula !== null && 'blocos' in resolucaoAula
+	);
+
+	function exportarAulaAtual() {
+		jsonAula = exportarAulaLocal(titulo, descricao, blocos, alvos);
+		aulaImportada = false;
+	}
+
+	function importarAula() {
+		if (!dadosAula || !resolucaoAula || 'erro' in resolucaoAula) return;
+		if (
+			!confirm(
+				'Importar substitui o título, a descrição e todos os blocos atuais desta aula. Continuar?'
+			)
+		) {
+			return;
+		}
+		titulo = dadosAula.titulo;
+		descricao = dadosAula.descricao;
+		blocos = resolucaoAula.blocos;
+		aulaImportada = true;
 	}
 </script>
 
@@ -286,6 +327,71 @@
 			{/if}
 			<a href={proprio} class="btn btn-ghost">Cancelar</a>
 		</div>
+
+		{#if contexto.tipo === 'aula' && modo === 'editar'}
+			<details class="card card-bordered p-4">
+				<summary class="cursor-pointer font-medium">Importar / exportar por JSON</summary>
+				<div class="space-y-3 pt-3">
+					<p class="text-sm opacity-70">
+						"Exportar aula atual" joga o conteúdo da aula (mesmo formato do <a href="/importar" class="link">/importar</a>,
+						ver <code>DOCS/importacao-ia.md</code>) para o JSON abaixo, pronto para ajustar pela IA. Importar
+						substitui o título, a descrição e todos os blocos da aula — a gravação acontece no "Salvar aula".
+					</p>
+					<Campo rotulo="JSON da aula" id="json-aula">
+						<textarea
+							id="json-aula"
+							bind:value={jsonAula}
+							oninput={() => (aulaImportada = false)}
+							class="textarea textarea-bordered w-full font-mono text-xs"
+							rows={10}
+						></textarea>
+					</Campo>
+
+					<div class="flex flex-wrap items-center gap-2">
+						<button class="btn btn-outline btn-sm" type="button" onclick={exportarAulaAtual}>
+							Exportar aula atual
+						</button>
+						<button
+							class="btn btn-primary btn-sm"
+							type="button"
+							disabled={!prontoParaImportar}
+							onclick={importarAula}
+						>
+							Importar e substituir
+						</button>
+					</div>
+
+					{#if aulaImportada}
+						<div class="alert alert-success py-2 text-sm">
+							Aula substituída no editor. Clique em "Salvar aula" para gravar.
+						</div>
+					{/if}
+					{#if erroAula}
+						<div class="alert alert-warning py-2 text-sm">{erroAula}</div>
+					{:else if erroResolucaoAula}
+						<div class="alert alert-error py-2 text-sm">{erroResolucaoAula}</div>
+					{:else if resumoAula}
+						<p class="text-sm opacity-70">
+							{resumoAula.blocos} bloco(s) — "{resumoAula.titulo}"
+						</p>
+						{#if resumoAula.desconhecidos > 0}
+							<div class="alert alert-warning py-2 text-sm">
+								{resumoAula.desconhecidos} bloco(s) com tipo desconhecido serão ignorados.
+							</div>
+						{/if}
+						{#if resumoAula.pendencias.length > 0}
+							<div class="alert alert-warning py-2 text-sm">
+								<ul class="list-disc ml-4 space-y-1">
+									{#each resumoAula.pendencias as pendencia, i (i)}
+										<li>Bloco {pendencia.indice} ({pendencia.rotulo}): {pendencia.motivo}</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+					{/if}
+				</div>
+			</details>
+		{/if}
 	</form>
 
 	{#if rodape}

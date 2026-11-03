@@ -41,6 +41,20 @@ export type ImportacaoQuizEnvelope = { conteudo: 'quiz'; quiz: ImportacaoQuiz };
 export type Importacao = ImportacaoApostila | ImportacaoSolto | ImportacaoQuizEnvelope;
 export type ResultadoImportacao = { dados: Importacao } | { erro: string };
 
+// Envelope de UMA aula: usado pelo editor da aula (importar substitui o
+// conteúdo da aula aberta), não pela página /importar — `interpretarImportacao`
+// segue sem aceitar "aula", porque lá não existe aula para receber o conteúdo.
+export type ImportacaoAulaEnvelope = { conteudo: 'aula' } & ImportacaoAula;
+export type ResultadoImportacaoAula = { dados: ImportacaoAulaEnvelope } | { erro: string };
+
+export type ResumoImportacaoAula = {
+	titulo: string;
+	descricao: string;
+	blocos: number;
+	desconhecidos: number;
+	pendencias: Pendencia[];
+};
+
 export type ResumoImportacao = {
 	tipo: Importacao['conteudo'];
 	rotuloTipo: string;
@@ -214,6 +228,56 @@ export function interpretarImportacao(texto: string): ResultadoImportacao {
 	return { dados: resultado.ok };
 }
 
+export function interpretarImportacaoAula(texto: string): ResultadoImportacaoAula {
+	if (new TextEncoder().encode(texto).byteLength > LIMITES_IMPORTACAO.maxJsonBytes) {
+		return { erro: `O JSON é grande demais (máx. ${LIMITES_IMPORTACAO.maxJsonBytes / 1024} KB).` };
+	}
+
+	let bruto: unknown;
+	try {
+		bruto = JSON.parse(texto);
+	} catch {
+		return { erro: 'O texto colado não é um JSON válido.' };
+	}
+
+	const objeto = objetoDe(bruto);
+	if (!objeto) {
+		return { erro: 'O JSON precisa ser um objeto com o campo "conteudo": "aula".' };
+	}
+	const conteudo = objeto.conteudo;
+	if (typeof conteudo !== 'string' || conteudo.trim().toLowerCase() !== 'aula') {
+		return { erro: 'O campo "conteudo" precisa ser "aula".' };
+	}
+
+	const aula = aulaDe(objeto, 'Aula');
+	if ('erro' in aula) return { erro: aula.erro };
+	return { dados: { conteudo: 'aula', ...aula.ok } };
+}
+
+// Blocos fora da whitelist de tipos e pendências de conteúdo vazio/sem alvo:
+// mesma contagem para a prévia da página /importar e do editor de aula.
+function contagemBlocos(blocosInformacao: ImportacaoBloco[]): {
+	desconhecidos: number;
+	pendencias: Pendencia[];
+} {
+	const desconhecidos = blocosInformacao.filter((bloco) => {
+		const objeto = objetoDe(bloco);
+		return (
+			!objeto || typeof objeto.tipo !== 'string' || !TIPOS_BLOCO_ACEITOS.has(objeto.tipo)
+		);
+	}).length;
+	return { desconhecidos, pendencias: pendenciasDeImportacao(blocosInformacao) };
+}
+
+export function resumoImportacaoAula(dados: ImportacaoAulaEnvelope): ResumoImportacaoAula {
+	return {
+		titulo: dados.titulo,
+		descricao: dados.descricao,
+		blocos: dados.blocos.length,
+		...contagemBlocos(dados.blocos)
+	};
+}
+
 const TIPOS_BLOCO_ACEITOS = new Set<string>(TIPOS_BLOCO.map((tipo) => tipo.id));
 
 // Resumo da prévia: o que a IA mandou (tipo, títulos, contagens) e os blocos
@@ -247,15 +311,8 @@ export function resumoImportacao(dados: Importacao): ResumoImportacao {
 				]
 			: dados.blocos;
 
-	const desconhecidos = blocosInformacao.filter((bloco) => {
-		const objeto = objetoDe(bloco);
-		return (
-			!objeto || typeof objeto.tipo !== 'string' || !TIPOS_BLOCO_ACEITOS.has(objeto.tipo)
-		);
-	}).length;
-
 	const pergunta = { rotuloTipo: ROTULO_TIPO_IMPORTACAO[dados.conteudo], titulo: dados.titulo, descricao: dados.descricao };
-	const pendencias = pendenciasDeImportacao(blocosInformacao);
+	const { desconhecidos, pendencias } = contagemBlocos(blocosInformacao);
 
 	if (dados.conteudo === 'apostila') {
 		const totalAulas = dados.aulas.length + dados.secoes.reduce((soma, secao) => soma + secao.aulas.length, 0);
