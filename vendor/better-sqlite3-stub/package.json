@@ -1,6 +1,9 @@
 {
-	"name": "better-sqlite3",
+	"name": "@ahmartecnologias/better-sqlite3-stub",
 	"version": "7.99.0",
-	"private": true,
-	"main": "index.js"
+	"description": "Stub de nome para o import estático do driver drizzle-orm/better-sqlite3. O client real é o node:sqlite embutido do Node; este pacote nunca é instanciado.",
+	"main": "index.js",
+	"publishConfig": {
+		"access": "public"
+	}
 }

@@ -24,9 +24,10 @@ import type { Database } from 'better-sqlite3';
 // drizzle aceitar; o app inteiro continua 100% síncrono, sem mudar query.
 //
 // O `import Client from 'better-sqlite3'` que o driver faz no topo é satisfeito
-// por um STUB em `vendor/better-sqlite3-stub` (dependência `file:` no
-// package.json): o driver só instancia `new Client(...)` quando o `drizzle(...)`
-// é chamado SEM uma instância, e o app sempre passa.
+// por um STUB publicado no registry (`@ahmartecnologias/better-sqlite3-stub`,
+// instalado como `better-sqlite3` por alias no package.json; fonte em
+// `vendor/better-sqlite3-stub`): o driver só instancia `new Client(...)` quando
+// o `drizzle(...)` é chamado SEM uma instância, e o app sempre passa.
 
 interface TransacaoBetterSqlite {
 	deferred: (arg: unknown) => unknown;
