@@ -4,7 +4,9 @@ import {
 	EXEMPLO_APOSTILA,
 	EXEMPLOS_IMPORTACAO,
 	interpretarImportacao,
-	resumoImportacao
+	interpretarImportacaoAula,
+	resumoImportacao,
+	resumoImportacaoAula
 } from './importar';
 
 function apostilaJson(parcial: Record<string, unknown> = {}): string {
@@ -184,5 +186,65 @@ describe('resumoImportacao', () => {
 			JSON.stringify({ conteudo: 'quiz', titulo: 'Q', perguntas: [] })
 		);
 		expect(resultado).toMatchObject({ erro: /pergunta/ });
+	});
+});
+describe('interpretarImportacaoAula', () => {
+	it('aceita o envelope de aula com título, descrição e blocos', () => {
+		const resultado = interpretarImportacaoAula(
+			JSON.stringify({
+				conteudo: 'aula',
+				titulo: 'Função afim',
+				descricao: 'Revisão',
+				blocos: [{ tipo: 'titulo', texto: 'Definição', nivel: 2 }]
+			})
+		);
+		expect(resultado).toMatchObject({
+			dados: { conteudo: 'aula', titulo: 'Função afim', descricao: 'Revisão' }
+		});
+		if ('dados' in resultado) {
+			expect(resultado.dados.blocos).toEqual([{ tipo: 'titulo', texto: 'Definição', nivel: 2 }]);
+		}
+	});
+
+	it('rejeita texto que não é JSON e envelope sem "conteudo": "aula"', () => {
+		expect(interpretarImportacaoAula('não é json')).toMatchObject({
+			erro: /não é um JSON válido/
+		});
+		expect(interpretarImportacaoAula('{"titulo":"x"}')).toMatchObject({ erro: /conteudo/ });
+		expect(
+			interpretarImportacaoAula(
+				JSON.stringify({ conteudo: 'apostila', titulo: 'x', aulas: [] })
+			)
+		).toMatchObject({ erro: /conteudo/ });
+	});
+
+	it('exige título e bloco objeto, como o parser de apostila', () => {
+		expect(interpretarImportacaoAula(JSON.stringify({ conteudo: 'aula' }))).toMatchObject({
+			erro: /"titulo"/
+		});
+		expect(
+			interpretarImportacaoAula(JSON.stringify({ conteudo: 'aula', titulo: 'x', blocos: ['ops'] }))
+		).toMatchObject({ erro: /bloco 1/ });
+	});
+
+	it('o parser da página /importar continua sem aceitar "aula"', () => {
+		expect(
+			interpretarImportacao(JSON.stringify({ conteudo: 'aula', titulo: 'x', blocos: [] }))
+		).toMatchObject({ erro: /conteudo/ });
+	});
+
+	it('resume título, blocos, desconhecidos e pendências', () => {
+		const resultado = interpretarImportacaoAula(
+			JSON.stringify({
+				conteudo: 'aula',
+				titulo: 'Aula',
+				blocos: [{ tipo: 'texto', conteudo: '   ' }, { tipo: 'video', url: 'x' }]
+			})
+		);
+		if ('erro' in resultado) throw new Error('esperava dados');
+		const resumo = resumoImportacaoAula(resultado.dados);
+		expect(resumo).toMatchObject({ titulo: 'Aula', blocos: 2, desconhecidos: 1 });
+		expect(resumo.pendencias).toHaveLength(1);
+		expect(resumo.pendencias[0].motivo).toMatch(/texto vazio/);
 	});
 });

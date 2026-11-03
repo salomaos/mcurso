@@ -162,3 +162,100 @@ test('abre o exemplo de cada tipo no popup, copia e coloca no editor', async ({ 
 		await expect(preview.locator('.alert')).toHaveCount(0);
 	}
 });
+// --- Importação/exportação de UMA aula (textarea no editor da aula) ----------
+
+async function abrirEditorAula(page: Page, titulo: string) {
+	await expect(tituloApostila(page)).toBeVisible();
+	const card = page.locator(CARTOES_AULAS).filter({ has: page.getByText(titulo, { exact: true }) });
+	await card.getByRole('link', { name: 'Abrir' }).click();
+	await expect(page).toHaveURL(/\/aulas\/\d+$/);
+	await page.getByRole('link', { name: 'Editar' }).click();
+	await expect(page).toHaveURL(/\/aulas\/\d+\/editar$/);
+}
+
+const JSON_AULA_REPOSTA = JSON.stringify({
+	conteudo: 'aula',
+	titulo: 'Aula reposta E2E',
+	descricao: 'Substituída via JSON',
+	blocos: [
+		{ tipo: 'titulo', texto: 'Novo começo', nivel: 1 },
+		{ tipo: 'texto', conteudo: 'Conteúdo importado no editor da aula.' },
+		{ tipo: 'link', rotulo: 'Ver área', tipoLink: 'aula', alvoTitulo: 'Área do triângulo' }
+	]
+});
+
+test('exporta a aula no editor, importa com confirmação e sobrescreve o conteúdo', async ({
+	page
+}) => {
+	await entrar(page);
+	await importarExemplo(page);
+	await abrirEditorAula(page, 'Função afim');
+
+	// A seção de JSON fica no <details> do fim do editor.
+	await page.getByText('Importar / exportar por JSON').click();
+	const textarea = page.getByLabel('JSON da aula');
+
+	// Exportar joga a aula atual (mesmo formato do /importar) no textarea.
+	await page.getByRole('button', { name: 'Exportar aula atual' }).click();
+	await expect(textarea).toHaveValue(/"conteudo": "aula"/);
+	await expect(textarea).toHaveValue(/"titulo": "Função afim"/);
+	await expect(textarea).toHaveValue(/"tipo": "exercicio"/);
+
+	// Colar outro JSON atualiza a prévia e o botão de importar fica pronto.
+	await textarea.fill(JSON_AULA_REPOSTA);
+	await expect(page.getByText('3 bloco(s) — "Aula reposta E2E"')).toBeVisible();
+
+	// Importar pede confirmação e substitui o conteúdo do editor.
+	page.once('dialog', (dialogo) => {
+		expect(dialogo.message()).toContain('substitui o título, a descrição e todos os blocos');
+		void dialogo.accept();
+	});
+	await page.getByRole('button', { name: 'Importar e substituir' }).click();
+	await expect(page.getByText('Aula substituída no editor. Clique em "Salvar aula" para gravar.')).toBeVisible();
+
+	// Salvar grava de verdade: a leitura pública mostra o conteúdo novo e o
+	// link interno (alvoTitulo) resolve para a rota da outra aula da apostila.
+	await page.getByRole('button', { name: 'Salvar aula' }).click();
+	await expect(page).toHaveURL(/\/aulas\/\d+$/);
+	await expect(page.getByRole('heading', { level: 1, name: 'Aula reposta E2E' })).toBeVisible();
+	await expect(page.getByText('Conteúdo importado no editor da aula.')).toBeVisible();
+	const href = await page.getByRole('link', { name: 'Ver área' }).getAttribute('href');
+	expect(href).toMatch(/^\/apostilas\/\d+\/aulas\/\d+$/);
+});
+
+test('cancelar a confirmação mantém o conteúdo da aula', async ({ page }) => {
+	await entrar(page);
+	await importarExemplo(page);
+	await abrirEditorAula(page, 'Gráfico da função afim');
+
+	await page.getByText('Importar / exportar por JSON').click();
+	await page.getByLabel('JSON da aula').fill(JSON_AULA_REPOSTA);
+
+	page.once('dialog', (dialogo) => void dialogo.dismiss());
+	await page.getByRole('button', { name: 'Importar e substituir' }).click();
+
+	// Sem o alerta de sucesso e o título/canvas originais intactos.
+	await expect(page.getByText('Aula substituída no editor')).toHaveCount(0);
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Gráfico da função afim');
+	await expect(page.getByText('Novo começo')).toHaveCount(0);
+});
+
+test('link interno que não resolve bloqueia a importação da aula', async ({ page }) => {
+	await entrar(page);
+	await importarExemplo(page);
+	await abrirEditorAula(page, 'Função afim');
+
+	await page.getByText('Importar / exportar por JSON').click();
+	await page
+		.getByLabel('JSON da aula')
+		.fill(
+			JSON.stringify({
+				conteudo: 'aula',
+				titulo: 'Não vai',
+				blocos: [{ tipo: 'link', rotulo: 'Quebrado', tipoLink: 'aula', alvoTitulo: 'Nunca existiu' }]
+			})
+		);
+
+	await expect(page.getByText(/Não achei a aula "Nunca existiu"/)).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Importar e substituir' })).toBeDisabled();
+});
