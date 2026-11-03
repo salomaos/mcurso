@@ -37,7 +37,7 @@
 	"dependencies": {
 		"@ahmartecnologias/ahmardesign": "^1.2.1",
 		"better-auth": "^1.7.7",
-		"better-sqlite3": "file:vendor/better-sqlite3-stub",
+		"better-sqlite3": "npm:@ahmartecnologias/better-sqlite3-stub@7.99.0",
 		"dotenv": "^18.0.5",
 		"drizzle-orm": "^0.45.3",
 		"highlight.js": "^11.12.0",
