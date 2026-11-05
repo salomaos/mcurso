@@ -31,8 +31,17 @@ if (!building && !guarda.__mcursoObservabilidade) {
 		process.exit(1);
 	});
 
+	// Ao registrar um handler, o Node **deixa de encerrar o processo** no sinal
+	// (o encerramento padrão é cancelado) — logar sem sair deixaria o processo
+	// órfão a cada deploy/restart da hospedagem, acumulando instâncias até
+	// estourar o limite da conta. Foi o que o painel mostrou na prática: SIGTERM
+	// recebido, "encerrando" no log e o processo seguindo de pé por quase uma
+	// hora. Por isso o exit explícito.
 	for (const sinal of ['SIGTERM', 'SIGINT'] as const) {
-		process.on(sinal, () => log.info(`sinal ${sinal} recebido — encerrando`));
+		process.on(sinal, () => {
+			log.info(`sinal ${sinal} recebido — encerrando`);
+			process.exit(0);
+		});
 	}
 
 	// `unref()` para o timer não segurar o processo aberto (nem atrapalhar o
