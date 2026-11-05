@@ -6,6 +6,7 @@ import { drizzle as drizzleMysql } from 'drizzle-orm/mysql2';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { dev, building } from '$app/environment';
 import mysql from 'mysql2/promise';
+import { log } from '$lib/server/log';
 import { conferirUploads, formatarMb, LIMITE_UPLOAD_BYTES } from '$lib/server/uploads';
 import * as authSchemaSqlite from './auth-schema';
 import * as authSchemaMysql from './auth-schema.mysql';
@@ -61,7 +62,13 @@ async function abrirSqlite(): Promise<Banco> {
 	// shim de `transaction`; tipado como better-sqlite3 para o driver do drizzle
 	// aceitar. Ver `node-sqlite.ts` para o porquê — deploy sem nativo.
 	const sqlite = abrirBanco(dbPath);
-	const db = drizzleSqlite(sqlite, { schema: { ...authSchemaSqlite, ...schemaSqlite } });
+	// SQL só aparece com LOG_NIVEL=debug: abaixo desse nível o `log.debug` nem
+	// monta a linha, então o custo por consulta é zero. Serve para investigar
+	// "qual query o app está fazendo" no deploy sem ligar nada em produção.
+	const db = drizzleSqlite(sqlite, {
+		schema: { ...authSchemaSqlite, ...schemaSqlite },
+		logger: { logQuery: (sql, params) => log.debug('sql:', sql, params.length > 0 ? { params } : '') }
+	});
 
 	// Roda antes de qualquer consulta (este módulo é importado pelo `auth`, que o
 	// `hooks.server.ts` carrega no boot): o deploy não precisa de passo extra de migrate.
@@ -107,7 +114,9 @@ async function abrirMysql(): Promise<Banco> {
 	const db = drizzleMysql(cliente, {
 		// `mode: 'default'` é o MySQL/MariaDB comum (sem o proxy do PlanetScale).
 		mode: 'default',
-		schema: { ...authSchemaMysql, ...schemaMysql }
+		schema: { ...authSchemaMysql, ...schemaMysql },
+		// Mesmo logger do SQLite: SQL só no nível debug.
+		logger: { logQuery: (sql, params) => log.debug('sql:', sql, params.length > 0 ? { params } : '') }
 	});
 	const { pasta, aplicadas } = await aplicarMigrations(db, 'mysql');
 	const tabelas = await contarTabelas(db, 'mysql');

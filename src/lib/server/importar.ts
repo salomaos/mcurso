@@ -19,6 +19,7 @@ import {
 	type Blocos
 } from '$lib/blocks';
 import { blocosParaExportar, type TitulosPorTipo } from '$lib/exportar-blocos';
+import { log } from '$lib/server/log';
 import type {
 	ImportacaoApostila,
 	ImportacaoAula,
@@ -341,6 +342,9 @@ export async function importarApostila(dados: ImportacaoApostila): Promise<{ id:
 		throw erro;
 	}
 
+	// 500 devolvido como `Falha` (sem exceção): diferente dos erros da transação,
+	// este não passa pelo `handleError` — sem este log ficaria invisível.
+	if (!criada) log.error('importar: a transação da apostila concluiu sem criar o id');
 	return criada ?? { erro: 'A apostila não pôde ser criada.', status: 500 };
 }
 
