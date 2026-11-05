@@ -64,19 +64,26 @@ const SALAS = (armazem.__mcursoQuizSalas ??= new Map<string, Sala>());
 // Sem O/0/I/1: o código é lido em voz alta e digitado no celular.
 const ALFABETO_CODIGO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-// Salas sem movimento por 6h são descartadas na criação da próxima, para a
-// memória não crescer para sempre num servidor que fica de pé por dias.
+// Salas em andamento sem movimento por 6h são descartadas (na criação da
+// próxima e a cada batida do heartbeat), para a memória não crescer para
+// sempre num servidor que fica de pé por dias. Finalizada ("fim"), a sala só
+// existia para mostrar o ranking — quem estava na tela já viu: 30 min e some.
 const VALIDADE_SALA_MS = 6 * 60 * 60 * 1000;
+const VALIDADE_FIM_MS = 30 * 60 * 1000;
 
 // Uma linha por sala ativa a cada minuto — ver comentário de topo. `unref()`
-// para o timer não segurar o processo aberto.
+// para o timer não segurar o processo aberto. Sala finalizada ("fim") não loga:
+// o ranking já foi visto por quem estava na tela; a expiração curta cuida dela,
+// então o heartbeat não precisa ficar batendo (e poluindo o log) por horas.
 const HEARTBEAT_SALA_MS = 60 * 1000;
 const guardaHeartbeat = globalThis as unknown as { __mcursoQuizHeartbeat?: boolean };
 if (!guardaHeartbeat.__mcursoQuizHeartbeat) {
 	guardaHeartbeat.__mcursoQuizHeartbeat = true;
 	const timer = setInterval(() => {
 		const agora = Date.now();
+		limparAntigas(agora);
 		for (const sala of SALAS.values()) {
+			if (sala.status === 'fim') continue;
 			log.info(
 				`quiz: heartbeat sala ${sala.codigo} — ${sala.status}, ` +
 					`${sala.jogadores.size} jogador(es), ${sala.respostas.size} resposta(s), ` +
@@ -97,12 +104,13 @@ function gerarCodigo(): string {
 function limparAntigas(agora: number) {
 	let removidas = 0;
 	for (const [codigo, sala] of SALAS) {
-		if (agora - sala.atualizadaEm > VALIDADE_SALA_MS) {
+		const validade = sala.status === 'fim' ? VALIDADE_FIM_MS : VALIDADE_SALA_MS;
+		if (agora - sala.atualizadaEm > validade) {
 			SALAS.delete(codigo);
 			removidas += 1;
 		}
 	}
-	if (removidas > 0) log.info(`quiz: ${removidas} sala(s) expirada(s) removida(s) (6h sem movimento)`);
+	if (removidas > 0) log.info(`quiz: ${removidas} sala(s) expirada(s) removida(s)`);
 }
 
 export function normalizarCodigo(valor: string): string {

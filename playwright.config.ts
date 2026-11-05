@@ -35,6 +35,9 @@ export default defineConfig({
 		// não existir (e o reset é justamente quem o cria).
 		command: `node scripts/e2e-reset.mjs && npm run build && node build`,
 		url: baseURL,
+		// O command inclui o build inteiro, não só o `node build`: 60s (padrão)
+		// estoura quando a máquina está ocupada (ex.: `npm run dev` aberto junto).
+		timeout: 180_000,
 		reuseExistingServer: !process.env.CI,
 		stdout: 'pipe',
 		env: {
