@@ -635,7 +635,7 @@
 			</BarraAcoes>
 		{/if}
 
-		<div class="overflow-x-auto">
+		<div class="tabela-bloco overflow-x-auto">
 			<table class="table table-bordered table-sm">
 				{#if tabela.linhasCabecalho > 0}
 					<thead>
