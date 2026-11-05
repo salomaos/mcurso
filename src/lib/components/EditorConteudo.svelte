@@ -7,7 +7,7 @@
 	import Pagina from './ui/Pagina.svelte';
 	import { blocosPendentes } from '$lib/blocos-pendentes';
 	import { enviando } from '$lib/enviando';
-	import { interpretarImportacaoAula, resumoImportacaoAula } from '$lib/importar';
+	import { EXEMPLO_AULA, interpretarImportacaoAula, resumoImportacaoAula } from '$lib/importar';
 	import { exportarAulaLocal, resolverLinksAula } from '$lib/importar-aula';
 	import type { Snippet } from 'svelte';
 	import type { Blocos, SecaoUi } from '$lib/blocks';
@@ -147,6 +147,46 @@
 		descricao = dadosAula.descricao;
 		blocos = resolucaoAula.blocos;
 		aulaImportada = true;
+	}
+
+	// Popup do exemplo completo, no mesmo padrão do /importar: copiar para a IA
+	// ou "Usar no editor" para jogar o JSON no textarea (a importação em si é o
+	// "Importar e substituir" de cima, com confirmação).
+	let exemploAberto = $state(false);
+	let copiado = $state(false);
+
+	function abrirExemplo() {
+		copiado = false;
+		exemploAberto = true;
+	}
+
+	function fecharExemplo() {
+		exemploAberto = false;
+		copiado = false;
+	}
+
+	function usarExemplo() {
+		jsonAula = EXEMPLO_AULA;
+		aulaImportada = false;
+		fecharExemplo();
+	}
+
+	async function copiarExemplo() {
+		try {
+			await navigator.clipboard.writeText(EXEMPLO_AULA);
+		} catch {
+			// Fallback para contexto sem Clipboard API (ou permissão negada).
+			const area = document.createElement('textarea');
+			area.value = EXEMPLO_AULA;
+			area.style.position = 'fixed';
+			area.style.opacity = '0';
+			document.body.appendChild(area);
+			area.select();
+			document.execCommand('copy');
+			area.remove();
+		}
+		copiado = true;
+		setTimeout(() => (copiado = false), 1500);
 	}
 </script>
 
@@ -348,6 +388,9 @@
 					</Campo>
 
 					<div class="flex flex-wrap items-center gap-2">
+						<button class="btn btn-outline btn-sm" type="button" onclick={abrirExemplo}>
+							Exemplo completo
+						</button>
 						<button class="btn btn-outline btn-sm" type="button" onclick={exportarAulaAtual}>
 							Exportar aula atual
 						</button>
@@ -398,3 +441,41 @@
 		{@render rodape()}
 	{/if}
 </Pagina>
+
+{#if exemploAberto}
+	<div
+		class="modal modal-open overflow-y-auto items-start"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Exemplo de aula"
+		tabindex="-1"
+		onclick={(event) => {
+			if (event.target === event.currentTarget) fecharExemplo();
+		}}
+		onkeydown={(event) => {
+			if (event.key === 'Escape') fecharExemplo();
+		}}
+	>
+		<div class="modal-box max-w-3xl max-h-screen flex flex-col">
+			<header class="flex flex-wrap items-center gap-2">
+				<span class="badge badge-primary">Aula</span>
+				<h2 class="font-bold text-lg break-words">Exemplo de aula</h2>
+			</header>
+			<p class="text-sm opacity-80">
+				Aula completa com os 12 tipos de bloco (título, texto, código, diagrama, imagem, link, tabela,
+				fórmula, exercício, dissertativa, simulação e HTML). Copie para o prompt da IA ou use direto
+				no editor.
+			</p>
+			<pre
+				class="font-mono text-xs flex-1 min-h-0 overflow-auto rounded-box bg-base-200 p-3 my-3 border"
+			>{EXEMPLO_AULA}</pre>
+			<div class="modal-action flex-wrap">
+				<button class="btn btn-ghost" type="button" onclick={fecharExemplo}>Fechar</button>
+				<button class="btn btn-outline" type="button" onclick={copiarExemplo}>
+					{copiado ? 'Copiado!' : 'Copiar'}
+				</button>
+				<button class="btn btn-primary" type="button" onclick={usarExemplo}>Usar no editor</button>
+			</div>
+		</div>
+	</div>
+{/if}
