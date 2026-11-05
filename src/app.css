@@ -165,6 +165,19 @@
 	padding-bottom: 0.25rem;
 }
 
+/* Fecho de baixo das tabelas. Com `border-collapse: collapse` o Chrome colapsa
+   a borda inferior da última linha com a borda (ausente) do `table` e a
+   descarta — a tabela ficava aberta embaixo. A borda vai no wrapper (bloco e
+   markdown `display: block`, onde o próprio `<table>` é o box de rolagem), na
+   mesma cor e largura das células de cada contexto. */
+.tabela-bloco {
+	border-bottom: 1px solid hsla(var(--bc) / 0.15);
+}
+
+.markdown table {
+	border-bottom: 1px solid hsl(var(--bc) / 0.2);
+}
+
 @media print {
 	.no-print {
 		display: none !important;
