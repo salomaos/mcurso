@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/auth-schema';
 import { auth, MASTER_EMAIL, MASTER_PASSWORD } from '$lib/server/auth';
+import { log } from '$lib/server/log';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -16,6 +17,10 @@ export const actions: Actions = {
 		const senha = String(dados.get('senha') ?? '');
 
 		if (!MASTER_PASSWORD || senha !== MASTER_PASSWORD) {
+			// Auditoria de acesso: a tentativa falha só aparecia na tela de quem
+			// tentou — no log dá para ver padrão de força bruta no painel da
+			// hospedagem. A senha digitada nunca vai para o log.
+			log.warn(`login: tentativa com senha incorreta (${event.getClientAddress()})`);
 			return fail(400, { erro: 'Senha incorreta.' });
 		}
 

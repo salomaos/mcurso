@@ -4,10 +4,16 @@
 // preguiçosa: não existe timer de fundo.
 //
 // Processo único (adapter-node). Se o servidor reiniciar, as salas somem — o que
-// é aceitável: nada de partida é persistido de propósito.
+// é aceitável: nada de partida é persistido de propósito. Por isso cada evento de
+// sala (criar, entrar, trocar de fase, encerrar, remover, expirar) gera um log e
+// um heartbeat por minuto lista as salas ativas: é o que permite distinguir, no
+// painel da hospedagem, "o processo reiniciou" (as linhas param e o log de boot
+// volta) de "o bloqueio veio do servidor web" (as linhas param sem boot e sem
+// erro nenhum — a request não chegou no app).
 //
 // O armazenamento fica pendurado em `globalThis` para sobreviver ao hot reload do
-// Vite em dev (o módulo é reavaliado, mas as salas abertas continuam).
+// Vite em dev (o módulo é reavaliado, mas as salas abertas continuam). O timer do
+// heartbeat leva a mesma guarda, senão cada recarga em dev empilharia intervalo.
 
 import {
 	calcularRanking,
@@ -24,6 +30,7 @@ import {
 	type Quiz,
 	type StatusSala
 } from '$lib/quiz';
+import { log } from '$lib/server/log';
 
 export const NOME_MAX = 40;
 
@@ -61,6 +68,25 @@ const ALFABETO_CODIGO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 // memória não crescer para sempre num servidor que fica de pé por dias.
 const VALIDADE_SALA_MS = 6 * 60 * 60 * 1000;
 
+// Uma linha por sala ativa a cada minuto — ver comentário de topo. `unref()`
+// para o timer não segurar o processo aberto.
+const HEARTBEAT_SALA_MS = 60 * 1000;
+const guardaHeartbeat = globalThis as unknown as { __mcursoQuizHeartbeat?: boolean };
+if (!guardaHeartbeat.__mcursoQuizHeartbeat) {
+	guardaHeartbeat.__mcursoQuizHeartbeat = true;
+	const timer = setInterval(() => {
+		const agora = Date.now();
+		for (const sala of SALAS.values()) {
+			log.info(
+				`quiz: heartbeat sala ${sala.codigo} — ${sala.status}, ` +
+					`${sala.jogadores.size} jogador(es), ${sala.respostas.size} resposta(s), ` +
+					`${Math.round((agora - sala.criadaEm) / 60000)}min de sala`
+			);
+		}
+	}, HEARTBEAT_SALA_MS);
+	timer.unref();
+}
+
 function gerarCodigo(): string {
 	const bytes = crypto.getRandomValues(new Uint8Array(TAMANHO_CODIGO));
 	let codigo = '';
@@ -69,9 +95,14 @@ function gerarCodigo(): string {
 }
 
 function limparAntigas(agora: number) {
+	let removidas = 0;
 	for (const [codigo, sala] of SALAS) {
-		if (agora - sala.atualizadaEm > VALIDADE_SALA_MS) SALAS.delete(codigo);
+		if (agora - sala.atualizadaEm > VALIDADE_SALA_MS) {
+			SALAS.delete(codigo);
+			removidas += 1;
+		}
 	}
+	if (removidas > 0) log.info(`quiz: ${removidas} sala(s) expirada(s) removida(s) (6h sem movimento)`);
 }
 
 export function normalizarCodigo(valor: string): string {
@@ -101,6 +132,9 @@ export function criarSala(quiz: Quiz): Sala {
 		atualizadaEm: agora
 	};
 	SALAS.set(codigo, sala);
+	log.info(
+		`quiz: sala ${codigo} criada — "${quiz.titulo}" (${quiz.perguntas.length} pergunta(s), ${SALAS.size} sala(s) ativa(s))`
+	);
 	return sala;
 }
 
@@ -132,6 +166,7 @@ export function entrarSala(codigoBruto: string, nomeBruto: string): ResultadoJog
 	};
 	sala.jogadores.set(jogador.id, jogador);
 	sala.atualizadaEm = Date.now();
+	log.info(`quiz: ${jogador.nome} entrou na sala ${sala.codigo} (${sala.jogadores.size} jogador(es))`);
 	return { id: jogador.id, nome: jogador.nome };
 }
 
@@ -143,6 +178,7 @@ export function iniciarSala(sala: Sala): { erro?: string } {
 	sala.faseInicio = Date.now();
 	sala.respostas.clear();
 	sala.atualizadaEm = Date.now();
+	log.info(`quiz: sala ${sala.codigo} iniciada — ${sala.jogadores.size} jogador(es), ${sala.perguntas.length} pergunta(s)`);
 	return {};
 }
 
@@ -161,11 +197,15 @@ export function avancarSala(sala: Sala, agora = Date.now()): boolean {
 			sala.status = 'revelacao';
 			sala.faseInicio = agora;
 			mudou = true;
+			log.info(
+				`quiz: sala ${sala.codigo} pergunta ${sala.indice + 1}/${sala.perguntas.length} → revelação (${todos ? 'todos responderam' : 'tempo esgotado'})`
+			);
 		}
 	} else if (sala.status === 'revelacao') {
 		if (agora - sala.faseInicio >= ESPERA_REVELACAO_MS) {
 			proximaPergunta(sala, agora);
 			mudou = true;
+			log.info(`quiz: sala ${sala.codigo} ${rotuloRevelacaoPara(sala)} (tempo de espera)`);
 		}
 	}
 
@@ -180,14 +220,24 @@ function proximaPergunta(sala: Sala, agora: number) {
 	sala.status = sala.indice >= sala.perguntas.length ? 'fim' : 'pergunta';
 }
 
+// "revelação → X" com X = "fim" ou a próxima pergunta (1-based, já com o índice
+// atualizado por `proximaPergunta`).
+function rotuloRevelacaoPara(sala: Sala): string {
+	return sala.status === 'fim'
+		? 'revelação → fim'
+		: `revelação → pergunta ${sala.indice + 1}/${sala.perguntas.length}`;
+}
+
 // Controle manual do professor: adianta a fase (encerra a pergunta ou pula a
 // revelação). No lobby não faz nada: quem começa é o `iniciarSala`.
 export function proximaEtapa(sala: Sala): { erro?: string } {
 	if (sala.status === 'pergunta') {
 		sala.status = 'revelacao';
 		sala.faseInicio = Date.now();
+		log.info(`quiz: sala ${sala.codigo} pergunta ${sala.indice + 1}/${sala.perguntas.length} → revelação (professor)`);
 	} else if (sala.status === 'revelacao') {
 		proximaPergunta(sala, Date.now());
+		log.info(`quiz: sala ${sala.codigo} ${rotuloRevelacaoPara(sala)} (professor)`);
 	} else {
 		return { erro: 'Nada para avançar agora.' };
 	}
@@ -202,13 +252,16 @@ export function encerrarSala(sala: Sala): { erro?: string } {
 	if (sala.encerrada || sala.status === 'fim') return { erro: 'A sala já está encerrada.' };
 	sala.encerrada = true;
 	sala.atualizadaEm = Date.now();
+	log.info(`quiz: sala ${sala.codigo} encerrada — entradas fechadas, a partida segue para quem está`);
 	return {};
 }
 
 // "Sair e remover todos": apaga a sala da memória na hora. O código deixa de
 // existir e o próximo polling de qualquer aluno recebe 404.
 export function removerSala(codigoBruto: string) {
-	SALAS.delete(normalizarCodigo(codigoBruto));
+	const codigo = normalizarCodigo(codigoBruto);
+	SALAS.delete(codigo);
+	log.info(`quiz: sala ${codigo} removida pelo professor`);
 }
 
 export type ResultadoResposta = { ok: true; correta: boolean; pontos: number } | { erro: string };
@@ -236,10 +289,14 @@ export function responder(sala: Sala, jogadorId: string, indice: number): Result
 	sala.respostas.set(jogadorId, { indice, tempoMs, pontos, correta });
 	sala.atualizadaEm = agora;
 
-	// Todos responderam: não espera o relógio acabar.
+	// Todos responderam: não espera o relógio acabar. A transição é feita aqui
+	// (não passa pelo `avancarSala`), então o log repete o mesmo rótulo de lá.
 	if (sala.jogadores.size > 0 && sala.respostas.size >= sala.jogadores.size) {
 		sala.status = 'revelacao';
 		sala.faseInicio = agora;
+		log.info(
+			`quiz: sala ${sala.codigo} pergunta ${sala.indice + 1}/${sala.perguntas.length} → revelação (todos responderam)`
+		);
 	}
 
 	return { ok: true, correta, pontos };

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TIPOS_BLOCO } from './blocks';
 import {
 	EXEMPLO_APOSTILA,
+	EXEMPLO_AULA,
 	EXEMPLOS_IMPORTACAO,
 	interpretarImportacao,
 	interpretarImportacaoAula,
@@ -128,6 +129,16 @@ describe('resumoImportacao', () => {
 			...resultado.dados.secoes.flatMap((secao) => secao.aulas.flatMap((aula) => aula.blocos))
 		].map((bloco) => bloco.tipo);
 		expect(new Set(blocos)).toEqual(new Set(TIPOS_BLOCO.map((tipo) => tipo.id)));
+	});
+
+	it('o exemplo de aula cobre todos os tipos de bloco e importa sem pendencias', () => {
+		const resultado = interpretarImportacaoAula(EXEMPLO_AULA);
+		if ('erro' in resultado) throw new Error(resultado.erro);
+		const blocos = resultado.dados.blocos.map((bloco) => bloco.tipo);
+		expect(new Set(blocos)).toEqual(new Set(TIPOS_BLOCO.map((tipo) => tipo.id)));
+		const resumo = resumoImportacaoAula(resultado.dados);
+		expect(resumo.desconhecidos).toBe(0);
+		expect(resumo.pendencias).toEqual([]);
 	});
 
 	it('todos os exemplos de conteúdo abrem sem erro e sem pendencias', () => {

@@ -431,6 +431,52 @@ export const EXEMPLO_APOSTILA = `{
   ]
 }`;
 
+// Envelope de UMA aula, para a seção "Importar / exportar por JSON" do editor:
+// um JSON pronto cobrindo os 12 tipos de bloco, para copiar para a IA ou usar
+// direto no editor. Igual ao exemplo da apostila, mas sem seções — o conteúdo
+// substitui a aula aberta.
+export const EXEMPLO_AULA = `{
+  "conteudo": "aula",
+  "titulo": "Função afim",
+  "descricao": "Aula de exemplo com os 12 tipos de bloco, do título ao bloco HTML.",
+  "blocos": [
+    { "tipo": "titulo", "texto": "Definição", "nivel": 1 },
+    { "tipo": "texto", "conteudo": "Função do tipo **f(x) = ax + b**, com *a ≠ 0*. Fórmula inline: $f(x) = ax + b$." },
+    { "tipo": "formula", "latex": "f(x) = ax + b", "destaque": true },
+    { "tipo": "codigo", "linguagem": "python", "codigo": "def f(x):\\n    return 2 * x + 1" },
+    { "tipo": "mermaid", "diagrama": "graph LR\\n  A[Coeficiente angular] --> B[Inclinação]\\n  A --> C[Crescimento]", "tema": "neutral" },
+    { "tipo": "imagem", "src": "https://picsum.photos/seed/mcurso-aula/800/400", "legenda": "Gráfico típico de uma função afim." },
+    { "tipo": "link", "rotulo": "Explorar no GeoGebra", "tipoLink": "externo", "url": "https://www.geogebra.org/", "tamanho": "grande", "largura": "full", "posicao": "centro" },
+    { "tipo": "tabela", "cabecalho": ["x", "f(x)"], "linhas": [["1", "3"], ["2", "5"], ["3", "7"]] },
+    {
+      "tipo": "exercicio",
+      "pergunta": "Qual é o coeficiente angular de f(x) = 2x + 1?",
+      "alternativas": ["1", "2", "3", "4"],
+      "selecao": "radio",
+      "correta": 1,
+      "explicacao": "O coeficiente angular é o a, que vale 2."
+    },
+    {
+      "tipo": "dissertativa",
+      "pergunta": "Explique por que o gráfico de uma função afim é uma reta.",
+      "orientacao": "Máximo de 5 linhas."
+    },
+    {
+      "tipo": "simulacao",
+      "biblioteca": "p5",
+      "altura": 300,
+      "codigo": "function setup() {\\n  createCanvas(window.innerWidth, window.innerHeight);\\n}\\n\\nfunction draw() {\\n  background(20, 24, 33);\\n  fill(120, 200, 255);\\n  noStroke();\\n  circle(width / 2, height / 2, 40);\\n}"
+    },
+    {
+      "tipo": "html",
+      "altura": 280,
+      "html": "<div class='cartao'>\\n  <h2>Função afim interativa</h2>\\n  <input id='x' type='range' min='-5' max='5' value='1'>\\n  <p id='saida'>f(1) = 3</p>\\n</div>",
+      "css": ".cartao { text-align: center; padding: 1rem; border: 1px solid #ddd; border-radius: 12px; } input { width: 80%; }",
+      "js": "const campo = document.getElementById('x');\\nconst saida = document.getElementById('saida');\\nfunction atualizar() {\\n  const x = Number(campo.value);\\n  saida.textContent = 'f(' + x + ') = ' + (2 * x + 1);\\n}\\ncampo.addEventListener('input', atualizar);"
+    }
+  ]
+}`;
+
 // Material solto: o aluno abre por link dentro de uma aula (não aparece na
 // listagem). Usa metade dos tipos de bloco fora do universo de prova/markdown.
 export const EXEMPLO_ANEXO = `{
